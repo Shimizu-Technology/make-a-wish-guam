@@ -22,11 +22,9 @@ interface FormData {
   player1Name: string;
   player1Email: string;
   player1Phone: string;
-  player1TshirtSize: string;
   player2Name: string;
   player2Email: string;
   player2Phone: string;
-  player2TshirtSize: string;
   teamName: string;
   player1WaiverAccepted: boolean;
   player2WaiverAccepted: boolean;
@@ -72,20 +70,19 @@ export const OrgRegistrationPage: React.FC = () => {
   const orgSlug = organization?.slug || 'make-a-wish-guam';
 
   const [currentStep, setCurrentStep] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'redirecting'>('idle');
+
   const [formData, setFormData] = useState<FormData>({
     player1Name: '',
     player1Email: '',
-    player1Phone: '',
-    player1TshirtSize: '',
+    player1Phone: '+1671',
     player2Name: '',
     player2Email: '',
-    player2Phone: '',
-    player2TshirtSize: '',
+    player2Phone: '+1671',
     teamName: '',
     player1WaiverAccepted: false,
     player2WaiverAccepted: false,
@@ -134,17 +131,16 @@ export const OrgRegistrationPage: React.FC = () => {
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.player1Email)) {
         newErrors.player1Email = 'Please enter a valid email address';
       }
-      if (!formData.player1Phone.trim()) newErrors.player1Phone = 'Phone number is required';
+      if (!formData.player1Phone.trim() || !formData.player1Phone.startsWith('+') || formData.player1Phone.replace(/\D/g, '').length < 10) {
+        newErrors.player1Phone = 'Phone number must start with + and have at least 10 digits';
+      }
     }
 
     if (step === 2) {
       if (!formData.player2Name.trim()) newErrors.player2Name = 'Full name is required';
-      if (!formData.player2Email.trim()) {
-        newErrors.player2Email = 'Email is required';
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.player2Email)) {
+      if (formData.player2Email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.player2Email)) {
         newErrors.player2Email = 'Please enter a valid email address';
       }
-      if (!formData.player2Phone.trim()) newErrors.player2Phone = 'Phone number is required';
     }
 
     if (step === 3) {
@@ -171,7 +167,7 @@ export const OrgRegistrationPage: React.FC = () => {
   const handleSubmit = async () => {
     if (!tournament) return;
 
-    setIsSubmitting(true);
+    setSubmitState('submitting');
     setSubmitError(null);
 
     try {
@@ -182,12 +178,10 @@ export const OrgRegistrationPage: React.FC = () => {
           phone: formData.player1Phone,
           payment_type: 'swipe_simple' as any,
           partner_name: formData.player2Name,
-          partner_email: formData.player2Email,
-          partner_phone: formData.player2Phone,
+          partner_email: formData.player2Email || undefined,
+          partner_phone: formData.player2Phone && formData.player2Phone !== '+1671' ? formData.player2Phone : undefined,
           partner_waiver_accepted_at: new Date().toISOString(),
           team_name: formData.teamName || undefined,
-          tshirt_size: formData.player1TshirtSize || undefined,
-          partner_tshirt_size: formData.player2TshirtSize || undefined,
         } as any,
         waiver_accepted: true,
         tournament_id: tournament.id,
@@ -196,7 +190,10 @@ export const OrgRegistrationPage: React.FC = () => {
       const checkoutResponse = await api.createSwipeSimpleCheckout(result.golfer.id);
 
       if (checkoutResponse.redirect_url) {
-        window.location.href = checkoutResponse.redirect_url;
+        setSubmitState('redirecting');
+        setTimeout(() => {
+          window.location.href = checkoutResponse.redirect_url;
+        }, 500);
       } else {
         navigate(`/${tournamentSlug}/success`, {
           state: {
@@ -208,14 +205,11 @@ export const OrgRegistrationPage: React.FC = () => {
       }
     } catch (error: any) {
       setSubmitError(error.message || 'Registration failed. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      setSubmitState('idle');
     }
   };
 
-  const tshirtSizes = ['S', 'M', 'L', 'XL', 'XXL'];
   const inputClass = "w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors min-h-[44px]";
-  const selectClass = inputClass;
 
   if (isLoading) {
     return (
@@ -382,30 +376,16 @@ export const OrgRegistrationPage: React.FC = () => {
                         {errors.player1Email && <p className="text-red-500 text-xs mt-1">{errors.player1Email}</p>}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Phone Number *</label>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Phone Number * (Guam: +1671, CNMI: +1670)</label>
                         <input
                           name="player1Phone"
                           type="tel"
                           value={formData.player1Phone}
                           onChange={handleInputChange}
-                          placeholder="671-123-4567"
+                          placeholder="+1671 xxx-xxxx"
                           className={inputClass}
                         />
                         {errors.player1Phone && <p className="text-red-500 text-xs mt-1">{errors.player1Phone}</p>}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">T-Shirt Size</label>
-                        <select
-                          name="player1TshirtSize"
-                          value={formData.player1TshirtSize}
-                          onChange={handleInputChange}
-                          className={selectClass}
-                        >
-                          <option value="">Select size (optional)</option>
-                          {tshirtSizes.map(size => (
-                            <option key={size} value={size}>{size}</option>
-                          ))}
-                        </select>
                       </div>
                     </div>
                   </div>
@@ -439,7 +419,7 @@ export const OrgRegistrationPage: React.FC = () => {
                         {errors.player2Name && <p className="text-red-500 text-xs mt-1">{errors.player2Name}</p>}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email Address *</label>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email Address (optional)</label>
                         <input
                           name="player2Email"
                           type="email"
@@ -451,31 +431,17 @@ export const OrgRegistrationPage: React.FC = () => {
                         {errors.player2Email && <p className="text-red-500 text-xs mt-1">{errors.player2Email}</p>}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Phone Number *</label>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Phone Number (optional) (Guam: +1671, CNMI: +1670)</label>
                         <input
                           name="player2Phone"
                           type="tel"
                           value={formData.player2Phone}
                           onChange={handleInputChange}
-                          placeholder="671-234-5678"
+                          placeholder="+1671 xxx-xxxx"
                           className={inputClass}
                         />
-                        {errors.player2Phone && <p className="text-red-500 text-xs mt-1">{errors.player2Phone}</p>}
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">T-Shirt Size</label>
-                        <select
-                          name="player2TshirtSize"
-                          value={formData.player2TshirtSize}
-                          onChange={handleInputChange}
-                          className={selectClass}
-                        >
-                          <option value="">Select size (optional)</option>
-                          {tshirtSizes.map(size => (
-                            <option key={size} value={size}>{size}</option>
-                          ))}
-                        </select>
-                      </div>
+                      <p className="text-xs text-neutral-500 -mt-2">If left blank, all team communications will go to the Team Captain.</p>
                       <div className="pt-2">
                         <label className="block text-sm font-medium text-neutral-700 mb-1.5">Team Name</label>
                         <input
@@ -575,16 +541,14 @@ export const OrgRegistrationPage: React.FC = () => {
                         <p className="font-medium text-neutral-900">{formData.player1Name}</p>
                         <p className="text-sm text-neutral-600">{formData.player1Email}</p>
                         <p className="text-sm text-neutral-600">{formData.player1Phone}</p>
-                        {formData.player1TshirtSize && <p className="text-sm text-neutral-500">Shirt: {formData.player1TshirtSize}</p>}
                       </div>
 
                       {/* Player 2 summary */}
                       <div className="p-4 bg-[#F5F5F5] rounded-2xl">
                         <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-2">Playing Partner (Player 2)</p>
                         <p className="font-medium text-neutral-900">{formData.player2Name}</p>
-                        <p className="text-sm text-neutral-600">{formData.player2Email}</p>
-                        <p className="text-sm text-neutral-600">{formData.player2Phone}</p>
-                        {formData.player2TshirtSize && <p className="text-sm text-neutral-500">Shirt: {formData.player2TshirtSize}</p>}
+                        {formData.player2Email && <p className="text-sm text-neutral-600">{formData.player2Email}</p>}
+                        {formData.player2Phone && formData.player2Phone !== '+1671' && <p className="text-sm text-neutral-600">{formData.player2Phone}</p>}
                       </div>
 
                       {/* Team & fee */}
@@ -636,21 +600,34 @@ export const OrgRegistrationPage: React.FC = () => {
               ) : (
                 <motion.button
                   onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="inline-flex items-center gap-2 bg-[#E31837] hover:bg-[#c41230] disabled:bg-neutral-300 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-full px-8 py-3 transition-colors min-h-[44px] w-full sm:w-auto justify-center"
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
+                  disabled={submitState !== 'idle'}
+                  className={`inline-flex items-center gap-2 bg-[#E31837] hover:bg-[#c41230] text-white font-semibold text-sm rounded-full px-8 py-3 transition-colors min-h-[44px] w-full sm:w-auto justify-center ${submitState !== 'idle' ? 'opacity-75 cursor-not-allowed' : ''}`}
+                  whileHover={submitState === 'idle' ? { scale: 1.01 } : {}}
+                  whileTap={submitState === 'idle' ? { scale: 0.98 } : {}}
                 >
-                  {isSubmitting ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 className="animate-spin w-5 h-5" />
-                      Processing...
-                    </span>
-                  ) : (
+                  {submitState === 'idle' && (
                     <>
                       Register & Pay
                       <ChevronRight className="w-4 h-4" />
                     </>
+                  )}
+                  {submitState === 'submitting' && (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Submitting...
+                    </span>
+                  )}
+                  {submitState === 'redirecting' && (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Redirecting to payment...
+                    </span>
                   )}
                 </motion.button>
               )}

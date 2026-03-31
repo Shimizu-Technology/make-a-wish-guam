@@ -33,6 +33,7 @@ interface Sponsor {
   active: boolean;
   major: boolean;
   display_label: string;
+  slot_count: number;
 }
 
 interface Tournament {
@@ -238,6 +239,9 @@ export const SponsorManagementPage: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900 truncate">{sponsor.name}</h3>
                       <p className="text-sm text-gray-500">{sponsor.display_label}</p>
+                      {sponsor.slot_count > 0 && (
+                        <span className="text-xs text-neutral-500">{sponsor.slot_count} player slots</span>
+                      )}
                       {sponsor.website_url && (
                         <a
                           href={sponsor.website_url}
@@ -402,14 +406,25 @@ const SponsorModal: React.FC<{
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-1">Logo URL</label>
-            <input
-              type="url"
-              value={form.logo_url}
-              onChange={e => setForm({ ...form, logo_url: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2"
-              placeholder="https://..."
-            />
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Sponsor Logo</label>
+            <div className="space-y-2">
+              <input
+                type="url"
+                placeholder="https://example.com/logo.png"
+                value={form.logo_url}
+                onChange={e => setForm({ ...form, logo_url: e.target.value })}
+                className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:border-[#004B8D] focus:outline-none focus:ring-2 focus:ring-[#004B8D]/20"
+              />
+              <p className="text-xs text-neutral-500">
+                Paste a direct image URL (PNG, JPG, SVG). For best results, use a transparent PNG.
+              </p>
+              {form.logo_url && (
+                <div className="mt-2 p-3 bg-neutral-50 rounded-lg border border-neutral-200 flex items-center gap-3">
+                  <img src={form.logo_url} alt="Preview" className="max-h-10 max-w-24 object-contain" />
+                  <span className="text-xs text-neutral-500">Logo preview</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>

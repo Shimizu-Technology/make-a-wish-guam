@@ -129,7 +129,8 @@ module Api
           position: sponsor.position,
           active: sponsor.active,
           major: sponsor.major?,
-          display_label: sponsor.display_label
+          display_label: sponsor.display_label,
+          slot_count: sponsor.slot_count
         }
       end
     end
