@@ -174,7 +174,8 @@ module Api
           :format_name, :fee_includes, :checks_payable_to,
           :contact_name, :contact_phone,
           :registration_open,
-          :raffle_enabled, :raffle_ticket_price_cents, :raffle_draw_time
+          :raffle_enabled, :raffle_ticket_price_cents, :raffle_draw_time,
+          :walkin_fee, :walkin_registration_open
         )
       end
     end

@@ -189,7 +189,7 @@ export function OrganizationLandingPage() {
         )}
 
         <div className="relative z-10 max-w-5xl mx-auto px-6 lg:px-8 py-16 sm:py-24 text-center">
-          {organization.logo_url && (
+          {organization.logo_url ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.92 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -204,6 +204,15 @@ export function OrganizationLandingPage() {
                 />
               </div>
             </motion.div>
+          ) : (
+            <motion.p
+              className="text-lg sm:text-xl font-medium text-white/70 tracking-wide uppercase mb-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease }}
+            >
+              Make-A-Wish® Guam &amp; CNMI
+            </motion.p>
           )}
 
           <motion.h1
@@ -358,9 +367,9 @@ export function OrganizationLandingPage() {
         <div className="max-w-5xl mx-auto px-6 lg:px-8 py-8 flex items-center justify-between text-sm text-stone-400">
           <p>
             Powered by{' '}
-            <span className="font-medium text-stone-600">Pacific Golf</span>
+            <span className="font-medium text-stone-600">Shimizu Technology</span>
           </p>
-          <p className="hidden sm:block">Tournament management made simple</p>
+          <p className="hidden sm:block">Supporting children with critical illnesses</p>
         </div>
       </footer>
     </div>

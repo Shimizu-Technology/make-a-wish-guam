@@ -26,8 +26,9 @@ import {
 import { OrgAdminDashboard } from './pages/OrgAdminDashboard';
 import { OrgTournamentAdmin } from './pages/OrgTournamentAdmin';
 import { OrgCheckInPage } from './pages/OrgCheckInPage';
+import { PaymentReconciliationPage } from './pages/PaymentReconciliationPage';
 import { CreateTournamentPage } from './pages/CreateTournamentPage';
-import { LeaderboardPage, ScorecardPage, RaffleBoardPage, RaffleManagementPage, SponsorManagementPage, GolferLoginPage, GolferVerifyPage, GolferDashboardPage } from './pages';
+import { LeaderboardPage, ScorecardPage, RaffleBoardPage, RaffleManagementPage, SponsorManagementPage, SponsorPortalPage, GolferLoginPage, GolferVerifyPage, GolferDashboardPage } from './pages';
 // Super admin pages removed (single-org app)
 import { OrgSettingsPage } from './pages/OrgSettingsPage';
 import { GolferAuthProvider } from './contexts';
@@ -64,6 +65,16 @@ function App() {
             NOTE: /:orgSlug is a catch-all - keep it AFTER specific routes!
             =========================================== */}
         
+        {/* Sponsor Portal (Public) */}
+        <Route
+          path="/:orgSlug/sponsor-portal"
+          element={
+            <OrgRouteWrapper>
+              <SponsorPortalPage />
+            </OrgRouteWrapper>
+          }
+        />
+
         {/* Organization landing page - shows all tournaments */}
         <Route
           path="/:orgSlug"
@@ -179,6 +190,18 @@ function App() {
             <ProtectedRoute>
               <OrganizationProvider>
                 <OrgCheckInPage />
+              </OrganizationProvider>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Payment Reconciliation */}
+        <Route
+          path="/:orgSlug/admin/tournaments/:tournamentSlug/payments"
+          element={
+            <ProtectedRoute>
+              <OrganizationProvider>
+                <PaymentReconciliationPage />
               </OrganizationProvider>
             </ProtectedRoute>
           }

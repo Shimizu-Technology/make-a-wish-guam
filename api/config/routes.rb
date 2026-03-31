@@ -47,6 +47,11 @@ Rails.application.routes.draw do
       get 'golfer_auth/me' => 'golfer_auth#me'
       post 'golfer_auth/refresh' => 'golfer_auth#refresh'
 
+      # Sponsor Portal (public, token-authenticated)
+      post 'sponsor_access/request_link' => 'sponsor_access#request_link'
+      get 'sponsor_access/verify' => 'sponsor_access#verify'
+      resources :sponsor_slots, only: [:index, :update]
+
       # ===========================================
       # DEV-ONLY ENDPOINTS (development mode only)
       # ===========================================
@@ -98,6 +103,7 @@ Rails.application.routes.draw do
           post :cancel
           post :refund
           post :mark_refunded
+          patch :mark_paid
           post :send_payment_link
         end
         collection do

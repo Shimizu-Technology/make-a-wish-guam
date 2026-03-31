@@ -239,6 +239,17 @@ export function OrgTournamentPage() {
                   {formatEventDate(tournament.event_date)}
                 </motion.p>
               )}
+
+              {organization?.name && (organization.name.includes('Make-A-Wish') || organization.name.includes('MAW')) && (
+                <motion.p
+                  className="text-base text-white/60 mt-2 max-w-xl"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.35, ease }}
+                >
+                  A fundraising golf tournament benefiting children with critical illnesses in Guam &amp; CNMI
+                </motion.p>
+              )}
             </div>
 
             <motion.span
@@ -321,6 +332,23 @@ export function OrgTournamentPage() {
                     {tournament.contact_phone && (
                       <p className="text-stone-500 text-sm">{tournament.contact_phone}</p>
                     )}
+                  </div>
+                )}
+
+                {(tournament.check_in_time || tournament.start_time) && (
+                  <div
+                    className="mt-6 p-4 rounded-xl"
+                    style={{ backgroundColor: hexToRgba(primaryColor, 0.05) }}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="w-5 h-5" style={{ color: primaryColor }} strokeWidth={1.5} />
+                      <p className="font-medium text-stone-900">Event Schedule</p>
+                    </div>
+                    <ul className="space-y-1.5 text-sm text-stone-600">
+                      <li>7:00 AM &mdash; Check-in</li>
+                      <li>8:00 AM &mdash; Shotgun Start</li>
+                      <li>1:30 PM &mdash; Banquet &amp; Awards</li>
+                    </ul>
                   </div>
                 )}
               </div>
@@ -521,9 +549,9 @@ export function OrgTournamentPage() {
         <div className="max-w-5xl mx-auto px-6 lg:px-8 py-8 flex items-center justify-between text-sm text-stone-400">
           <p>
             Powered by{' '}
-            <span className="font-medium text-stone-600">Pacific Golf</span>
+            <span className="font-medium text-stone-600">Shimizu Technology</span>
           </p>
-          <p className="hidden sm:block">Tournament management made simple</p>
+          <p className="hidden sm:block">Supporting children with critical illnesses</p>
         </div>
       </footer>
     </div>

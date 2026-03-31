@@ -1,0 +1,13 @@
+<h2>Sponsor Portal Access</h2>
+
+<p>Hello <%= @sponsor.name %>,</p>
+
+<p>You've requested access to your sponsor portal for <strong><%= @tournament&.name || 'Golf for Wishes 2026' %></strong>.</p>
+
+<p>Click the link below to manage your player slots:</p>
+
+<p><a href="<%= @access_url %>" style="display: inline-block; padding: 12px 24px; background-color: <%= @primary_color %>; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">Access Sponsor Portal</a></p>
+
+<p>This link will expire in 7 days. If you need a new link, visit the sponsor portal page and request a new one.</p>
+
+<p>Thank you for sponsoring <%= @org_name %>!</p>

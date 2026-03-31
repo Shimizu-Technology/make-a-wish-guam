@@ -12,7 +12,9 @@ export function OrgRegistrationSuccessPage() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  const { golfer, tournament, paymentPending, paymentComplete } = location.state || {};
+  const { golfer, tournament, paymentPending, paymentComplete, swipeSimpleRedirect } = location.state || {};
+
+  const SWIPE_SIMPLE_URL = 'https://swipesimple.com/links/lnk_e1c8f45f9c401c93552781ef3d52fdfc';
   
   const primaryColor = organization?.primary_color || '#1e40af';
 
@@ -124,7 +126,14 @@ export function OrgRegistrationSuccessPage() {
             <div className="flex-1">
               <h3 className="font-bold mb-2">Payment Status</h3>
               
-              {paymentComplete ? (
+              {swipeSimpleRedirect ? (
+                <div className="bg-blue-50 text-blue-800 p-3 rounded-lg">
+                  <p className="font-medium">Registration submitted! You were redirected to Bank of Guam SwipeSimple to complete payment.</p>
+                  <p className="text-sm mt-2">
+                    If the payment window did not open, <a href={SWIPE_SIMPLE_URL} target="_blank" rel="noopener noreferrer" className="underline font-medium">click here to pay</a>.
+                  </p>
+                </div>
+              ) : paymentComplete ? (
                 <div className="bg-green-50 text-green-800 p-3 rounded-lg">
                   <p className="font-medium flex items-center gap-1"><Check className="w-4 h-4" /> Payment Complete</p>
                   <p className="text-sm">Thank you! Your payment has been processed.</p>
@@ -212,7 +221,7 @@ export function OrgRegistrationSuccessPage() {
       <footer className="bg-gray-800 text-white py-6 px-4 mt-12">
         <div className="max-w-2xl mx-auto text-center">
           <p className="text-gray-400">
-            Powered by <span className="text-white font-semibold">Pacific Golf</span>
+            Powered by <span className="text-white font-semibold">Shimizu Technology</span>
           </p>
         </div>
       </footer>

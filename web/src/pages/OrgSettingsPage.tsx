@@ -19,6 +19,7 @@ import {
   Shield,
   Trash2,
   Crown,
+  DollarSign,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -41,6 +42,8 @@ interface FormData {
   website_url: string;
   logo_url: string;
   banner_url: string;
+  walkin_fee: string;
+  walkin_registration_open: boolean;
 }
 
 const colorPresets = [
@@ -77,6 +80,8 @@ export const OrgSettingsPage: React.FC = () => {
         website_url: organization.website_url || '',
         logo_url: organization.logo_url || '',
         banner_url: organization.banner_url || '',
+        walkin_fee: (organization as any).walkin_fee?.toString() || '',
+        walkin_registration_open: (organization as any).walkin_registration_open || false,
       });
     }
   }, [organization]);
@@ -434,6 +439,49 @@ export const OrgSettingsPage: React.FC = () => {
                   }`}
                 />
                 {errors.website_url && <p className="mt-1 text-sm text-red-600">{errors.website_url}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Walk-in Pricing */}
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">
+              <DollarSign className="w-5 h-5 inline mr-2" />
+              Walk-in Pricing
+            </h2>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Walk-in Fee (cents)
+                </label>
+                <input
+                  type="number"
+                  name="walkin_fee"
+                  value={formData.walkin_fee}
+                  onChange={handleChange}
+                  placeholder="e.g. 35000 = $350"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <p className="mt-1 text-sm text-gray-500">
+                  Enter the amount in cents (e.g. 35000 = $350.00)
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="walkin_registration_open"
+                  checked={formData.walkin_registration_open}
+                  onChange={(e) =>
+                    setFormData(prev =>
+                      prev ? { ...prev, walkin_registration_open: e.target.checked } : null
+                    )
+                  }
+                  className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <label htmlFor="walkin_registration_open" className="text-sm font-medium text-gray-700">
+                  Walk-in Registration Open
+                </label>
               </div>
             </div>
           </div>

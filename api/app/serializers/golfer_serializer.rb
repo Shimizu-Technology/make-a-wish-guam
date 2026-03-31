@@ -12,7 +12,10 @@ class GolferSerializer < ActiveModel::Serializer
              :refunded_by_name, :can_refund, :can_cancel, :cancelled, :refunded,
              :formatted_payment_timestamp,
              # Payment timing fields
-             :paid_at, :payment_timing, :payment_channel
+             :paid_at, :payment_timing, :payment_channel,
+             # Team fields
+             :partner_name, :partner_email, :partner_phone, :partner_waiver_accepted_at,
+             :team_name, :tshirt_size, :partner_tshirt_size, :is_team_captain
 
   belongs_to :group, optional: true
 

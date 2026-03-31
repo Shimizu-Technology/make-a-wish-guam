@@ -6,7 +6,7 @@ module Api
       before_action :authorize_golfer_access!, only: [
         :show, :update, :destroy, :cancel, :refund, :mark_refunded,
         :check_in, :undo_check_in, :payment_details, :promote, :demote,
-        :send_payment_link, :update_payment_status
+        :send_payment_link, :update_payment_status, :mark_paid
       ]
 
       # GET /api/v1/golfers
@@ -573,6 +573,34 @@ module Api
         }
       end
 
+      # PATCH /api/v1/golfers/:id/mark_paid
+      def mark_paid
+        golfer = Golfer.find(params[:id])
+
+        golfer.update!(
+          payment_status: "paid",
+          paid_at: Time.current,
+          payment_method: params[:payment_method],
+          payment_notes: params[:payment_notes],
+          receipt_number: params[:receipt_number],
+          payment_amount_cents: params[:payment_amount_cents] || golfer.tournament&.entry_fee || 30000
+        )
+
+        ActivityLog.log(
+          admin: current_admin,
+          action: 'payment_marked',
+          target: golfer,
+          details: "Marked #{golfer.name} as paid (#{params[:payment_method]})",
+          metadata: {
+            payment_method: params[:payment_method],
+            receipt_number: params[:receipt_number]
+          }
+        )
+
+        broadcast_golfer_update(golfer)
+        render json: golfer
+      end
+
       # POST /api/v1/golfers/:id/update_payment_status
       # Change payment status (paid/unpaid)
       def update_payment_status
@@ -813,7 +841,9 @@ module Api
       def golfer_params
         params.require(:golfer).permit(
           :name, :company, :address, :phone, :mobile, :email,
-          :payment_type, :payment_status, :notes
+          :payment_type, :payment_status, :notes,
+          :partner_name, :partner_email, :partner_phone, :partner_waiver_accepted_at,
+          :team_name, :tshirt_size, :partner_tshirt_size
         )
       end
 

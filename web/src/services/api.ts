@@ -130,7 +130,7 @@ export interface Golfer {
   phone: string;
   mobile: string | null;
   email: string;
-  payment_type: 'stripe' | 'pay_on_day';
+  payment_type: 'stripe' | 'pay_on_day' | 'swipe_simple';
   payment_status: 'paid' | 'unpaid' | 'refunded';
   waiver_accepted_at: string | null;
   waiver_signed: boolean;
@@ -560,9 +560,16 @@ export class ApiClient {
       phone: string;
       mobile?: string;
       email: string;
-      payment_type: 'stripe' | 'pay_on_day';
+      payment_type: 'stripe' | 'pay_on_day' | 'swipe_simple';
       payment_status?: 'paid' | 'unpaid';
       notes?: string;
+      partner_name?: string;
+      partner_email?: string;
+      partner_phone?: string;
+      partner_waiver_accepted_at?: string;
+      team_name?: string;
+      tshirt_size?: string;
+      partner_tshirt_size?: string;
     };
     waiver_accepted: boolean;
     tournament_id?: string | number;
@@ -896,6 +903,13 @@ export class ApiClient {
         employee_number: employeeNumber,
         tournament_id: tournamentId,
       }),
+    }, false);
+  }
+
+  async createSwipeSimpleCheckout(golferId: number): Promise<{ redirect_url: string }> {
+    return this.request('/api/v1/checkout/swipe_simple', {
+      method: 'POST',
+      body: JSON.stringify({ golfer_id: golferId }),
     }, false);
   }
 

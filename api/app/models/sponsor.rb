@@ -3,6 +3,7 @@
 class Sponsor < ApplicationRecord
   # Associations
   belongs_to :tournament
+  has_many :sponsor_slots, dependent: :destroy
 
   # Tiers (ordered by importance)
   TIERS = %w[title platinum gold silver bronze hole].freeze
@@ -55,5 +56,30 @@ class Sponsor < ApplicationRecord
   # Display label
   def display_label
     hole_sponsor? ? "Hole #{hole_number}" : tier_display
+  end
+
+  # Magic link authentication
+  ACCESS_TOKEN_EXPIRY = 7.days
+
+  def generate_access_token!
+    token = SecureRandom.urlsafe_base64(32)
+    update!(
+      access_token: token,
+      access_token_expires_at: Time.current + ACCESS_TOKEN_EXPIRY
+    )
+    token
+  end
+
+  def access_token_valid?
+    access_token.present? &&
+      access_token_expires_at.present? &&
+      access_token_expires_at > Time.current
+  end
+
+  def self.find_by_access_token(token)
+    return nil if token.blank?
+    sponsor = find_by(access_token: token)
+    return nil unless sponsor&.access_token_valid?
+    sponsor
   end
 end

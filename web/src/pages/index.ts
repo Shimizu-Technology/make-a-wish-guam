@@ -20,6 +20,7 @@ export { ScorecardPage } from './ScorecardPage';
 export { RaffleBoardPage } from './RaffleBoardPage';
 export { RaffleManagementPage } from './RaffleManagementPage';
 export { SponsorManagementPage } from './SponsorManagementPage';
+export { SponsorPortalPage } from './SponsorPortalPage';
 
 // Golfer Scoring Access Pages
 export { GolferLoginPage } from './GolferLoginPage';
