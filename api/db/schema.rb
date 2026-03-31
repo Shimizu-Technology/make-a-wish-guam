@@ -10,27 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_31_223029) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
-
-  create_table "access_requests", force: :cascade do |t|
-    t.string "contact_name", null: false
-    t.datetime "created_at", null: false
-    t.string "email", null: false
-    t.text "notes"
-    t.string "organization_name", null: false
-    t.string "phone"
-    t.datetime "reviewed_at"
-    t.bigint "reviewed_by_id"
-    t.string "source", default: "homepage", null: false
-    t.string "status", default: "new", null: false
-    t.datetime "updated_at", null: false
-    t.index ["created_at"], name: "index_access_requests_on_created_at"
-    t.index ["email"], name: "index_access_requests_on_email"
-    t.index ["reviewed_by_id"], name: "index_access_requests_on_reviewed_by_id"
-    t.index ["status"], name: "index_access_requests_on_status"
-  end
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
@@ -78,27 +60,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.index ["tournament_id"], name: "index_activity_logs_on_tournament_id"
   end
 
-  create_table "employee_numbers", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "employee_name"
-    t.string "employee_number", null: false
-    t.bigint "tournament_id", null: false
-    t.datetime "updated_at", null: false
-    t.boolean "used", default: false, null: false
-    t.bigint "used_by_golfer_id"
-    t.index ["tournament_id", "employee_number"], name: "index_employee_numbers_on_tournament_id_and_employee_number", unique: true
-    t.index ["tournament_id"], name: "index_employee_numbers_on_tournament_id"
-    t.index ["used_by_golfer_id"], name: "index_employee_numbers_on_used_by_golfer_id"
-  end
-
   create_table "golfers", force: :cascade do |t|
     t.string "address"
     t.datetime "checked_in_at"
     t.string "company"
     t.datetime "created_at", null: false
     t.string "email"
-    t.string "employee_number"
-    t.bigint "employee_number_record_id"
     t.bigint "group_id"
     t.integer "hole_number"
     t.boolean "is_employee", default: false, null: false
@@ -138,7 +105,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.string "tshirt_size"
     t.datetime "updated_at", null: false
     t.datetime "waiver_accepted_at"
-    t.index ["employee_number_record_id"], name: "index_golfers_on_employee_number_record_id"
     t.index ["group_id"], name: "index_golfers_on_group_id"
     t.index ["magic_link_token"], name: "index_golfers_on_magic_link_token", unique: true, where: "(magic_link_token IS NOT NULL)"
     t.index ["paid_at"], name: "index_golfers_on_paid_at"
@@ -429,14 +395,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.datetime "updated_at", null: false
   end
 
-  add_foreign_key "access_requests", "users", column: "reviewed_by_id", on_delete: :nullify
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "activity_logs", "tournaments"
   add_foreign_key "activity_logs", "users", column: "admin_id"
-  add_foreign_key "employee_numbers", "golfers", column: "used_by_golfer_id"
-  add_foreign_key "employee_numbers", "tournaments"
-  add_foreign_key "golfers", "employee_numbers", column: "employee_number_record_id"
   add_foreign_key "golfers", "groups"
   add_foreign_key "golfers", "tournaments"
   add_foreign_key "golfers", "users", column: "refunded_by_id", on_delete: :nullify
