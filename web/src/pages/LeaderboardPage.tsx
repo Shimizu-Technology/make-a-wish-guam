@@ -224,7 +224,8 @@ function EmptyState() {
 // ---------------------------------------------------------------------------
 
 export const LeaderboardPage: React.FC = () => {
-  const { orgSlug, tournamentSlug } = useParams<{ orgSlug: string; tournamentSlug: string }>();
+  const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
+  const orgSlug = 'make-a-wish-guam';
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -331,7 +332,7 @@ export const LeaderboardPage: React.FC = () => {
             {error || "The leaderboard is currently unavailable. This could be because the tournament hasn't started yet or scores haven't been entered."}
           </p>
           <Link
-            to={`/${orgSlug}/tournaments/${tournamentSlug}`}
+            to={`/${tournamentSlug}`}
             className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all shadow-lg shadow-green-600/25"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -361,7 +362,7 @@ export const LeaderboardPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <Link
-                to={`/${orgSlug}/tournaments/${tournamentSlug}`}
+                to={`/${tournamentSlug}`}
                 className="inline-flex items-center gap-1 text-gray-400 hover:text-white text-sm mb-1 transition-colors duration-200"
               >
                 <ArrowLeft className="w-4 h-4" />

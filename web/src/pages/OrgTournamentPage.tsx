@@ -75,8 +75,9 @@ function ScrollReveal({
 // ---------------------------------------------------------------------------
 
 export function OrgTournamentPage() {
-  const { orgSlug, tournamentSlug } = useParams<{ orgSlug: string; tournamentSlug: string }>();
+  const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
   const { organization, isLoading: orgLoading } = useOrganization();
+  const orgSlug = organization?.slug || 'make-a-wish-guam';
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +120,7 @@ export function OrgTournamentPage() {
           <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Tournament Not Found</h1>
           <p className="mt-3 text-neutral-500 leading-relaxed">{error || 'The tournament does not exist.'}</p>
           <Link
-            to={`/${orgSlug}`}
+            to="/"
             className="inline-flex items-center gap-2 mt-6 px-6 py-2.5 text-sm font-semibold text-white bg-[#004B8D] rounded-full transition-colors hover:bg-[#003a6e]"
           >
             Back to Tournaments
@@ -162,7 +163,7 @@ export function OrgTournamentPage() {
             transition={{ duration: 0.4, ease }}
           >
             <Link
-              to={`/${orgSlug}`}
+              to="/"
               className="inline-flex items-center gap-1 text-sm text-white/70 hover:text-white transition-colors duration-200 mb-6"
             >
               <ChevronLeft className="w-4 h-4" strokeWidth={2} />
@@ -381,7 +382,7 @@ export function OrgTournamentPage() {
 
                 {tournament.can_register ? (
                   <Link
-                    to={`/${orgSlug}/tournaments/${tournamentSlug}/register`}
+                    to={`/${tournamentSlug}/register`}
                     className="flex items-center justify-center gap-2 w-full text-center px-5 py-3 text-sm font-semibold text-white bg-[#E31837] hover:bg-[#c41230] rounded-full transition-colors duration-200"
                   >
                     Register Now

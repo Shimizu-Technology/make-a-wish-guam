@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useOrganization } from '../components/OrganizationProvider';
 import { SignedInAdminBar } from '../components/SignedInAdminBar';
 import { api, Tournament } from '../services/api';
@@ -85,11 +85,15 @@ function ScrollReveal({
 // ---------------------------------------------------------------------------
 
 export function OrganizationLandingPage() {
-  const { orgSlug } = useParams<{ orgSlug: string }>();
   const { organization, isLoading: orgLoading } = useOrganization();
+  const orgSlug = organization?.slug || 'make-a-wish-guam';
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    document.title = 'Make-A-Wish Guam & CNMI — Events';
+  }, []);
 
   useEffect(() => {
     async function fetchTournaments() {
@@ -141,7 +145,7 @@ export function OrganizationLandingPage() {
   return (
     <MotionConfig reducedMotion="user">
     <div className="min-h-screen bg-white text-neutral-900">
-      <SignedInAdminBar dashboardPath={`/${orgSlug}/admin`} />
+      <SignedInAdminBar dashboardPath="/admin" />
 
       {/* ================================================================= */}
       {/* HERO — MAW Blue header                                            */}
@@ -225,7 +229,6 @@ export function OrganizationLandingPage() {
         ) : (
           <TournamentList
             tournaments={tournaments}
-            orgSlug={orgSlug!}
           />
         )}
       </main>
@@ -331,10 +334,8 @@ export function OrganizationLandingPage() {
 
 function TournamentList({
   tournaments,
-  orgSlug,
 }: {
   tournaments: Tournament[];
-  orgSlug: string;
 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '0px' });
@@ -351,7 +352,6 @@ function TournamentList({
         <motion.div key={tournament.id} variants={staggerItem}>
           <TournamentCard
             tournament={tournament}
-            orgSlug={orgSlug}
           />
         </motion.div>
       ))}
@@ -365,7 +365,6 @@ function TournamentList({
 
 interface TournamentCardProps {
   tournament: Tournament;
-  orgSlug: string;
 }
 
 const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
@@ -376,7 +375,7 @@ const statusConfig: Record<string, { label: string; bg: string; text: string }> 
   draft: { label: 'Coming Soon', bg: 'bg-[#004B8D]', text: 'text-white' },
 };
 
-function TournamentCard({ tournament, orgSlug }: TournamentCardProps) {
+function TournamentCard({ tournament }: TournamentCardProps) {
   const status = statusConfig[tournament.status] || {
     label: tournament.status,
     bg: 'bg-neutral-200',
@@ -445,14 +444,14 @@ function TournamentCard({ tournament, orgSlug }: TournamentCardProps) {
           {tournament.can_register ? (
             <>
               <Link
-                to={`/${orgSlug}/tournaments/${tournament.slug}/register`}
+                to={`/${tournament.slug}/register`}
                 className="inline-flex items-center gap-2 bg-[#E31837] hover:bg-[#c41230] text-white font-semibold text-sm rounded-full px-6 py-2.5 transition-colors duration-200"
               >
                 Register Now
                 <ChevronRight className="w-4 h-4" strokeWidth={2} />
               </Link>
               <Link
-                to={`/${orgSlug}/tournaments/${tournament.slug}`}
+                to={`/${tournament.slug}`}
                 className="inline-flex items-center gap-2 border border-[#004B8D] text-[#004B8D] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#004B8D]/5 transition-colors duration-200"
               >
                 View Details
@@ -460,7 +459,7 @@ function TournamentCard({ tournament, orgSlug }: TournamentCardProps) {
             </>
           ) : (
             <Link
-              to={`/${orgSlug}/tournaments/${tournament.slug}`}
+              to={`/${tournament.slug}`}
               className="inline-flex items-center gap-2 border border-[#004B8D] text-[#004B8D] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#004B8D]/5 transition-colors duration-200"
             >
               View Details

@@ -80,7 +80,8 @@ interface Tournament {
 }
 
 export const ScorecardPage: React.FC = () => {
-  const { orgSlug, tournamentSlug } = useParams<{ orgSlug: string; tournamentSlug: string }>();
+  const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
+  const orgSlug = 'make-a-wish-guam';
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const groupId = searchParams.get('group');
@@ -320,7 +321,7 @@ export const ScorecardPage: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
           <p className="text-gray-600 mb-4">{error || 'Failed to load scorecard'}</p>
           <Link
-            to={`/${orgSlug}/admin/tournaments/${tournamentSlug}`}
+            to={`/admin/tournaments/${tournamentSlug}`}
             className="text-green-600 hover:text-green-700"
           >
             ← Back to Tournament
@@ -335,8 +336,8 @@ export const ScorecardPage: React.FC = () => {
 
   // Determine back link based on auth type
   const backLink = (isGolferAuth || !orgSlug)
-    ? '/golfer/dashboard' 
-    : `/${orgSlug}/admin/tournaments/${tournamentSlug}`;
+    ? '/golfer/dashboard'
+    : `/admin/tournaments/${tournamentSlug}`;
   const backLabel = (isGolferAuth || !orgSlug) ? 'Dashboard' : 'Back';
 
   return (

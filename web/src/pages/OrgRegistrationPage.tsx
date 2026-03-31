@@ -39,8 +39,9 @@ interface FormData {
 
 export const OrgRegistrationPage: React.FC = () => {
   const navigate = useNavigate();
-  const { orgSlug, tournamentSlug } = useParams<{ orgSlug: string; tournamentSlug: string }>();
+  const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
   const { organization } = useOrganization();
+  const orgSlug = organization?.slug || 'make-a-wish-guam';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -150,7 +151,7 @@ export const OrgRegistrationPage: React.FC = () => {
       if (checkoutResponse.redirect_url) {
         window.location.href = checkoutResponse.redirect_url;
       } else {
-        navigate(`/${orgSlug}/tournaments/${tournamentSlug}/success`, {
+        navigate(`/${tournamentSlug}/success`, {
           state: {
             golfer: result.golfer,
             tournament: tournament,
@@ -185,7 +186,7 @@ export const OrgRegistrationPage: React.FC = () => {
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-neutral-900 mb-2">Tournament Not Found</h1>
           <p className="text-neutral-600 mb-4">{submitError || 'The tournament you are looking for does not exist.'}</p>
-          <Button onClick={() => navigate(`/${orgSlug}`)}>
+          <Button onClick={() => navigate('/')}>
             Back to Tournaments
           </Button>
         </Card>
@@ -203,7 +204,7 @@ export const OrgRegistrationPage: React.FC = () => {
             Registration for {tournament.name} is currently closed.
             {tournament.at_capacity && ' The tournament is at capacity.'}
           </p>
-          <Button onClick={() => navigate(`/${orgSlug}`)}>
+          <Button onClick={() => navigate('/')}>
             View Other Tournaments
           </Button>
         </Card>
@@ -224,7 +225,7 @@ export const OrgRegistrationPage: React.FC = () => {
       >
         <div className="relative z-10 max-w-6xl mx-auto px-6 py-8 sm:py-10">
           <button
-            onClick={() => navigate(`/${orgSlug}/tournaments/${tournamentSlug}`)}
+            onClick={() => navigate(`/${tournamentSlug}`)}
             className="inline-flex items-center gap-1 text-sm text-white/70 hover:text-white transition-colors duration-200 mb-4"
           >
             <ChevronLeft className="w-4 h-4" strokeWidth={2} />

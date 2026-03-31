@@ -383,7 +383,7 @@ export const OrgTournamentAdmin: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <Link
-                to={`/${organization.slug}/admin`}
+                to="/admin"
                 className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-2"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -401,7 +401,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                 <span>Add Golfer</span>
               </button>
               <Link
-                to={`/${organization.slug}/admin/tournaments/${tournamentSlug}/checkin`}
+                to={`/admin/tournaments/${tournamentSlug}/checkin`}
                 className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-500 font-semibold"
               >
                 <UserCheck className="w-5 h-5" />

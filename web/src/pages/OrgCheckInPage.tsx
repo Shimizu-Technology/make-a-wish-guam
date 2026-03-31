@@ -184,7 +184,7 @@ export const OrgCheckInPage: React.FC = () => {
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <Link
-              to={`/${organization?.slug}/admin/tournaments/${tournamentSlug}`}
+              to={`/admin/tournaments/${tournamentSlug}`}
               className="flex items-center gap-2 text-gray-400 hover:text-white transition"
             >
               <ArrowLeft className="w-5 h-5" />

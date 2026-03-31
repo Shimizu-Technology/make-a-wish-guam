@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useOrganization } from '../components/OrganizationProvider';
 import { useAuthToken } from '../hooks/useAuthToken';
 import { ImageUpload } from '../components/ImageUpload';
@@ -58,7 +58,6 @@ const colorPresets = [
 ];
 
 export const OrgSettingsPage: React.FC = () => {
-  const { orgSlug } = useParams<{ orgSlug: string }>();
   const { organization } = useOrganization();
   const { getToken } = useAuthToken();
   const [formData, setFormData] = useState<FormData | null>(null);
@@ -245,7 +244,7 @@ export const OrgSettingsPage: React.FC = () => {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <Link
-            to={`/${orgSlug}/admin`}
+            to={"/admin"}
             className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -305,7 +304,7 @@ export const OrgSettingsPage: React.FC = () => {
                 </label>
                 <div className="flex items-center">
                   <span className="px-4 py-3 bg-gray-100 border border-r-0 border-gray-300 rounded-l-xl text-gray-500">
-                    pacificgolf.io/
+                    maw-guam.events/
                   </span>
                   <input
                     type="text"
@@ -489,7 +488,7 @@ export const OrgSettingsPage: React.FC = () => {
           {/* Submit */}
           <div className="flex items-center justify-between">
             <Link
-              to={`/${orgSlug}/admin`}
+              to={"/admin"}
               className="px-6 py-3 text-gray-700 hover:text-gray-900"
             >
               Cancel

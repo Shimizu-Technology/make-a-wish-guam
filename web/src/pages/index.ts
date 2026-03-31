@@ -1,14 +1,6 @@
-export { HomePage } from './HomePage';
-export { LandingPage } from './LandingPage';
 export { PaymentSuccessPage } from './PaymentSuccessPage';
 export { PaymentCancelPage } from './PaymentCancelPage';
 export { AdminLoginPage } from './AdminLoginPage';
-export { AdminDashboard } from './AdminDashboard';
-export { GroupManagementPage } from './GroupManagementPage';
-export { CheckInPage } from './CheckInPage';
-export { AdminSettingsPage } from './AdminSettingsPage';
-export { ReportsPage } from './ReportsPage';
-export { TournamentManagementPage } from './TournamentManagementPage';
 export { OrganizationLandingPage } from './OrganizationLandingPage';
 export { OrgRegistrationPage } from './OrgRegistrationPage';
 export { OrgTournamentPage } from './OrgTournamentPage';
@@ -21,6 +13,9 @@ export { RaffleBoardPage } from './RaffleBoardPage';
 export { RaffleManagementPage } from './RaffleManagementPage';
 export { SponsorManagementPage } from './SponsorManagementPage';
 export { SponsorPortalPage } from './SponsorPortalPage';
+export { OrgAdminDashboard } from './OrgAdminDashboard';
+export { OrgTournamentAdmin } from './OrgTournamentAdmin';
+export { OrgSettingsPage } from './OrgSettingsPage';
 
 // Golfer Scoring Access Pages
 export { GolferLoginPage } from './GolferLoginPage';

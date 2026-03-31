@@ -7,8 +7,9 @@ import confetti from 'canvas-confetti';
 import { formatEventDate } from '../utils/dates';
 
 export function OrgRegistrationSuccessPage() {
-  const { orgSlug, tournamentSlug } = useParams<{ orgSlug: string; tournamentSlug: string }>();
+  const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
   const { organization } = useOrganization();
+  const orgSlug = organization?.slug || 'make-a-wish-guam';
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -47,7 +48,7 @@ export function OrgRegistrationSuccessPage() {
   // If no state, redirect to tournament page
   useEffect(() => {
     if (!tournament && !golfer) {
-      navigate(`/${orgSlug}/tournaments/${tournamentSlug}`);
+      navigate(`/${tournamentSlug}`);
     }
   }, [tournament, golfer, navigate, orgSlug, tournamentSlug]);
 
@@ -193,7 +194,7 @@ export function OrgRegistrationSuccessPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <Link to={`/${orgSlug}`} className="flex-1">
+          <Link to="/" className="flex-1">
             <Button variant="outline" className="w-full">
               <ArrowLeft size={18} className="mr-2" />
               View More Tournaments
@@ -206,7 +207,7 @@ export function OrgRegistrationSuccessPage() {
                 navigator.share({
                   title: tournament.display_name,
                   text: `I just registered for ${tournament.display_name}!`,
-                  url: window.location.origin + `/${orgSlug}/tournaments/${tournamentSlug}`,
+                  url: window.location.origin + `/${tournamentSlug}`,
                 });
               }
             }}

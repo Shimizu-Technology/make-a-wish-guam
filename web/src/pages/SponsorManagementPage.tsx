@@ -145,7 +145,7 @@ export const SponsorManagementPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <Link
-                to={`/${organization?.slug}/admin/tournaments/${tournamentSlug}`}
+                to={`/admin/tournaments/${tournamentSlug}`}
                 className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-2"
               >
                 <ArrowLeft className="w-4 h-4" />

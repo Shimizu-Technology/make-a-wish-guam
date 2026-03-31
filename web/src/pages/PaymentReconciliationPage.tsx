@@ -277,7 +277,6 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
 
 export const PaymentReconciliationPage: React.FC = () => {
   const { tournamentSlug } = useParams<{
-    orgSlug: string;
     tournamentSlug: string;
   }>();
   const { organization } = useOrganization();
@@ -415,7 +414,7 @@ export const PaymentReconciliationPage: React.FC = () => {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-2">
             <Link
-              to={`/${organization?.slug}/admin/tournaments/${tournamentSlug}`}
+              to={`/admin/tournaments/${tournamentSlug}`}
               className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition"
             >
               <ArrowLeft className="w-5 h-5" />

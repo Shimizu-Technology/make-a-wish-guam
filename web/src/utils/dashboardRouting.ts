@@ -17,7 +17,7 @@ export async function resolveBestDashboardPath(
     const organizations = await api.getMyOrganizationsWithToken(token);
 
     if (Array.isArray(organizations) && organizations.length === 1 && organizations[0]?.slug) {
-      return `/${organizations[0].slug}/admin`;
+      return '/admin';
     }
 
     if (Array.isArray(organizations) && organizations.length > 1) {

@@ -52,7 +52,8 @@ interface RaffleBoardData {
 }
 
 export const RaffleBoardPage: React.FC = () => {
-  const { orgSlug, tournamentSlug } = useParams<{ orgSlug: string; tournamentSlug: string }>();
+  const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
+  const orgSlug = 'make-a-wish-guam';
   const [data, setData] = useState<RaffleBoardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +156,7 @@ export const RaffleBoardPage: React.FC = () => {
           <h2 className="text-xl font-semibold text-white mb-2">Raffle Unavailable</h2>
           <p className="text-gray-300 mb-4">{error}</p>
           <Link
-            to={`/${orgSlug}/tournaments/${tournamentSlug}`}
+            to={`/${tournamentSlug}`}
             className="text-yellow-400 hover:text-yellow-300"
           >
             ← Back to Tournament
@@ -175,7 +176,7 @@ export const RaffleBoardPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <Link
-                to={`/${orgSlug}/tournaments/${tournamentSlug}`}
+                to={`/${tournamentSlug}`}
                 className="inline-flex items-center gap-1 text-white/60 hover:text-white text-sm mb-1"
               >
                 <ArrowLeft className="w-4 h-4" />

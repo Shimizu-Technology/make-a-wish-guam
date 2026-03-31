@@ -310,7 +310,7 @@ export const RaffleManagementPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <Link
-                to={`/${organization?.slug}/admin/tournaments/${tournamentSlug}`}
+                to={`/admin/tournaments/${tournamentSlug}`}
                 className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-2"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -323,7 +323,7 @@ export const RaffleManagementPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-3">
               <Link
-                to={`/${organization?.slug}/tournaments/${tournamentSlug}/raffle`}
+                to={`/${tournamentSlug}/raffle`}
                 className="px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20"
                 target="_blank"
               >

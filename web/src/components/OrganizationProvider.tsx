@@ -7,17 +7,20 @@ import { AlertTriangle } from 'lucide-react';
 interface OrganizationProviderProps {
   children: React.ReactNode;
   fallbackPath?: string;
+  orgSlug?: string; // If provided, use this instead of URL param
 }
 
 /**
  * OrganizationProvider fetches and provides organization context based on URL slug.
  * Wraps routes that need organization context.
  */
-export function OrganizationProvider({ 
-  children, 
-  fallbackPath = '/admin/login' 
+export function OrganizationProvider({
+  children,
+  fallbackPath = '/admin/login',
+  orgSlug: propOrgSlug,
 }: OrganizationProviderProps) {
-  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const { orgSlug: paramOrgSlug } = useParams<{ orgSlug: string }>();
+  const orgSlug = propOrgSlug || paramOrgSlug || 'make-a-wish-guam';
   const navigate = useNavigate();
   const { organization, setOrganization, setLoading, setError, isLoading, error } = useOrganizationStore();
 
