@@ -1,0 +1,4 @@
+user_one_org_one_admin:
+  user: user_one
+  organization: org_one
+  role: admin

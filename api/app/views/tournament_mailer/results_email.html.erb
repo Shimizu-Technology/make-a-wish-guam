@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background-color: <%= @primary_color %>; padding: 30px 40px; text-align: center;">
+              <% if @logo_url.present? %>
+                <img src="<%= @logo_url %>" alt="<%= @org_name %>" style="max-height: 60px; margin-bottom: 10px;">
+              <% end %>
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: bold;"><%= @tournament.name %></h1>
+              <p style="margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Tournament Results</p>
+            </td>
+          </tr>
+
+          <!-- Banner -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; text-align: center; padding: 20px;">
+              <span style="font-size: 36px; display: block; margin-bottom: 5px;">🏆</span>
+              <span style="font-size: 18px; font-weight: bold;">Tournament Complete!</span>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 30px 40px;">
+              <h2 style="margin: 0 0 20px 0; color: #1e3a5f; font-size: 22px;">Hi <%= @golfer.name %>!</h2>
+              
+              <p style="margin: 0 0 25px 0; color: #4a5568; font-size: 15px; line-height: 1.6;">
+                Thank you for participating in the <strong><%= @tournament.display_name %></strong>! 
+                Here's a summary of the tournament results.
+              </p>
+
+              <% if @results[:winners].present? %>
+                <!-- Winners Section -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; margin-bottom: 25px; border: 2px solid #f59e0b;">
+                  <tr>
+                    <td style="padding: 25px;">
+                      <h3 style="margin: 0 0 15px 0; color: #78350f; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">🏆 Winners</h3>
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                        <% @results[:winners].each_with_index do |winner, index| %>
+                          <tr>
+                            <td style="padding: 8px 0; color: #78350f; font-size: 14px;">
+                              <% medal = index == 0 ? '🥇' : (index == 1 ? '🥈' : (index == 2 ? '🥉' : '')) %>
+                              <strong><%= medal %> <%= winner[:place] %></strong>
+                            </td>
+                            <td style="padding: 8px 0; color: #78350f; font-size: 14px; text-align: right;">
+                              <%= winner[:name] %> (<%= winner[:score] %>)
+                            </td>
+                          </tr>
+                        <% end %>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              <% end %>
+
+              <% if @results[:your_result].present? %>
+                <!-- Your Result -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f0f9ff; border-radius: 8px; margin-bottom: 25px; border: 2px solid #3b82f6;">
+                  <tr>
+                    <td style="padding: 20px; text-align: center;">
+                      <h3 style="margin: 0 0 10px 0; color: #1e40af; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Your Result</h3>
+                      <p style="margin: 0 0 5px 0; color: #1e40af; font-size: 32px; font-weight: bold;"><%= @results[:your_result][:score] %></p>
+                      <p style="margin: 0; color: #3b82f6; font-size: 14px;">Finished <%= @results[:your_result][:place] %></p>
+                    </td>
+                  </tr>
+                </table>
+              <% end %>
+
+              <% if @results[:stats].present? %>
+                <!-- Tournament Stats -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border-radius: 8px; margin-bottom: 25px;">
+                  <tr>
+                    <td style="padding: 20px;">
+                      <h3 style="margin: 0 0 15px 0; color: #1e3a5f; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">📊 Tournament Stats</h3>
+                      <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
+                        <% if @results[:stats][:total_players] %>
+                          <tr>
+                            <td style="padding: 5px 0; color: #718096; font-size: 14px;">Total Players:</td>
+                            <td style="padding: 5px 0; color: #2d3748; font-size: 14px; text-align: right; font-weight: 500;"><%= @results[:stats][:total_players] %></td>
+                          </tr>
+                        <% end %>
+                        <% if @results[:stats][:lowest_score] %>
+                          <tr>
+                            <td style="padding: 5px 0; color: #718096; font-size: 14px;">Lowest Score:</td>
+                            <td style="padding: 5px 0; color: #2d3748; font-size: 14px; text-align: right; font-weight: 500;"><%= @results[:stats][:lowest_score] %></td>
+                          </tr>
+                        <% end %>
+                        <% if @results[:stats][:average_score] %>
+                          <tr>
+                            <td style="padding: 5px 0; color: #718096; font-size: 14px;">Average Score:</td>
+                            <td style="padding: 5px 0; color: #2d3748; font-size: 14px; text-align: right; font-weight: 500;"><%= @results[:stats][:average_score] %></td>
+                          </tr>
+                        <% end %>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              <% end %>
+
+              <p style="margin: 0 0 20px 0; color: #4a5568; font-size: 15px; line-height: 1.6;">
+                Thank you for being part of this event. We hope to see you at the next tournament!
+              </p>
+
+              <p style="margin: 0; color: #4a5568; font-size: 15px;">
+                Best regards,<br>
+                <strong><%= @org_name %></strong>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 20px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; color: #718096; font-size: 12px;">
+                Powered by Pacific Golf
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

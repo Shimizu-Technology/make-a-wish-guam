@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: pacific-golf-api
+    env: ruby
+    rootDir: api
+    plan: starter
+    autoDeploy: true
+    buildCommand: bundle install && bundle exec rails db:migrate
+    startCommand: bundle exec puma -C config/puma.rb
+    healthCheckPath: /health
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: RAILS_LOG_TO_STDOUT
+        value: "true"
+      - key: RAILS_SERVE_STATIC_FILES
+        value: "true"
+      - key: ASSUME_SSL
+        value: "true"
+      - key: FORCE_SSL
+        value: "true"

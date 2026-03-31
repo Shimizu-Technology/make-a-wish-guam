@@ -1,0 +1,22 @@
+# Score fixtures
+score_one:
+  tournament: tournament_one
+  golfer: confirmed_paid
+  group: group_one
+  hole: 1
+  strokes: 4
+  par: 4
+  relative_score: 0
+  verified: false
+  notes: ""
+
+score_two:
+  tournament: tournament_one
+  golfer: confirmed_checked_in
+  group: group_one
+  hole: 1
+  strokes: 5
+  par: 4
+  relative_score: 1
+  verified: true
+  notes: "Nice shot"

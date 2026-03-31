@@ -1,0 +1,42 @@
+# Tournament fixtures
+tournament_one:
+  organization: org_one
+  name: "Test Tournament"
+  slug: "test-tournament-2026"
+  year: 2026
+  edition: "5th"
+  status: "open"
+  event_date: "January 9, 2026"
+  registration_time: "11:00 am"
+  start_time: "12:30 pm"
+  location_name: "Test Golf Course"
+  location_address: "Test Address"
+  max_capacity: 50
+  entry_fee: 12500
+  format_name: "Individual Callaway"
+  fee_includes: "Green Fee, Ditty Bag"
+  checks_payable_to: "Test Org"
+  contact_name: "Test Contact"
+  contact_phone: "671-555-0000"
+  registration_open: true
+
+tournament_archived:
+  organization: org_one
+  name: "Old Tournament"
+  slug: "old-tournament-2025"
+  year: 2025
+  edition: "4th"
+  status: "archived"
+  event_date: "January 10, 2025"
+  registration_time: "11:00 am"
+  start_time: "12:30 pm"
+  location_name: "Test Golf Course"
+  location_address: "Test Address"
+  max_capacity: 50
+  entry_fee: 12500
+  format_name: "Individual Callaway"
+  fee_includes: "Green Fee, Ditty Bag"
+  checks_payable_to: "Test Org"
+  contact_name: "Test Contact"
+  contact_phone: "671-555-0000"
+  registration_open: false

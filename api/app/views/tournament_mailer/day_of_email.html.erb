@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background-color: <%= @primary_color %>; padding: 30px 40px; text-align: center;">
+              <% if @logo_url.present? %>
+                <img src="<%= @logo_url %>" alt="<%= @org_name %>" style="max-height: 60px; margin-bottom: 10px;">
+              <% end %>
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: bold;"><%= @tournament.name %></h1>
+              <p style="margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Presented by <%= @org_name %></p>
+            </td>
+          </tr>
+
+          <!-- Banner -->
+          <tr>
+            <td style="background-color: #059669; color: white; text-align: center; padding: 15px;">
+              <span style="font-size: 20px;">🏌️</span>
+              <span style="font-size: 16px; font-weight: bold; margin-left: 8px;">It's Tournament Day!</span>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 30px 40px;">
+              <h2 style="margin: 0 0 20px 0; color: #1e3a5f; font-size: 22px;">Good Morning, <%= @golfer.name %>! ☀️</h2>
+              
+              <p style="margin: 0 0 25px 0; color: #4a5568; font-size: 15px; line-height: 1.6;">
+                Today's the day! Here are your final instructions for <strong><%= @tournament.display_name %></strong>.
+              </p>
+
+              <!-- Schedule Box -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #ecfdf5; border-radius: 8px; margin-bottom: 25px; border: 2px solid #059669;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <h3 style="margin: 0 0 15px 0; color: #059669; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Today's Schedule</h3>
+                    <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
+                      <tr>
+                        <td style="padding: 8px 0; color: #059669; font-size: 14px; font-weight: bold; width: 120px;">
+                          <%= @tournament.registration_time || @tournament.check_in_time || 'TBA' %>
+                        </td>
+                        <td style="padding: 8px 0; color: #2d3748; font-size: 14px;">
+                          Check-in Opens
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #059669; font-size: 14px; font-weight: bold;">
+                          <%= @tournament.start_time || 'TBA' %>
+                        </td>
+                        <td style="padding: 8px 0; color: #2d3748; font-size: 14px;">
+                          <%= @tournament.shotgun_start ? 'Shotgun Start' : 'First Tee Time' %>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Location -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border-radius: 8px; margin-bottom: 25px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <h3 style="margin: 0 0 10px 0; color: #1e3a5f; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">📍 Location</h3>
+                    <p style="margin: 0; color: #2d3748; font-size: 16px; font-weight: 500;"><%= @tournament.location_name %></p>
+                    <% if @tournament.location_address.present? %>
+                      <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;"><%= @tournament.location_address %></p>
+                    <% end %>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Instructions -->
+              <h3 style="margin: 0 0 15px 0; color: #1e3a5f; font-size: 16px;">📋 When You Arrive</h3>
+              <ol style="margin: 0 0 25px 0; padding-left: 20px; color: #4a5568; font-size: 14px; line-height: 1.8;">
+                <li>Head to the <strong>registration table</strong> to check in</li>
+                <li>Pick up your <strong>scorecard and cart assignment</strong></li>
+                <% if @tournament.fee_includes.present? %>
+                  <li>Your entry includes: <%= @tournament.fee_includes %></li>
+                <% end %>
+                <li>Find your cart and warm up at the practice area</li>
+                <li>Listen for announcements before the start</li>
+              </ol>
+
+              <% if @tournament.format_name.present? %>
+                <p style="margin: 0 0 20px 0; color: #4a5568; font-size: 14px; background-color: #f0f9ff; padding: 15px; border-radius: 8px;">
+                  <strong>Format:</strong> <%= @tournament.format_name %><%= " (#{@tournament.team_size}-person teams)" if @tournament.team_size && @tournament.team_size > 1 %>
+                </p>
+              <% end %>
+
+              <% if @tournament.contact_phone.present? %>
+                <p style="margin: 0 0 15px 0; color: #4a5568; font-size: 15px;">
+                  <strong>Questions?</strong> Call <%= @tournament.contact_name || 'us' %> at <strong><%= @tournament.contact_phone %></strong>
+                </p>
+              <% end %>
+
+              <p style="margin: 0; color: #4a5568; font-size: 15px; line-height: 1.6;">
+                Have an amazing round! May your drives be long and your putts be true! ⛳🏆
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 20px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; color: #718096; font-size: 12px;">
+                Powered by Pacific Golf
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

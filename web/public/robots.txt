@@ -1,0 +1,16 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow admin pages from being indexed
+Disallow: /admin/
+Disallow: /admin/*
+
+# Allow main public pages
+Allow: /
+Allow: /register
+
+# Sitemap
+# Update to your live domain or Netlify URL before launch.
+Sitemap: https://YOUR_NETLIFY_SUBDOMAIN.netlify.app/sitemap.xml
+

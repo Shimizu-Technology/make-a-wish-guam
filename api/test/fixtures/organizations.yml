@@ -1,0 +1,6 @@
+# Organization fixtures
+org_one:
+  name: "Rotary Club of Guam"
+  slug: "rotary-guam"
+  description: "Test organization"
+  primary_color: "#1e40af"

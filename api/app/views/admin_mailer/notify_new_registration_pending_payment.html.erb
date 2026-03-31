@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%); padding: 25px 40px; text-align: center;">
+              <h1 style="margin: 0 0 5px 0; color: #d4a54a; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;">Admin Notification</h1>
+              <h2 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: bold;">📝 New Registration - Awaiting Payment</h2>
+            </td>
+          </tr>
+
+          <!-- Status Badges Row -->
+          <tr>
+            <td style="padding: 25px 40px 0 40px; text-align: center;">
+              <% if @golfer.registration_status == 'confirmed' %>
+                <span style="display: inline-block; background-color: #059669; color: white; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-right: 8px;">
+                  ✓ Confirmed
+                </span>
+              <% else %>
+                <span style="display: inline-block; background-color: #d97706; color: white; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-right: 8px;">
+                  📋 Waitlist
+                </span>
+              <% end %>
+              <span style="display: inline-block; background-color: #d97706; color: white; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;">
+                ⏳ Awaiting Payment
+              </span>
+              <% if @is_employee %>
+                <span style="display: inline-block; background-color: #2563eb; color: white; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-left: 8px;">
+                  👤 Employee
+                </span>
+              <% end %>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 25px 40px;">
+              
+              <!-- Payment Link Sent Notice -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 16px 20px;">
+                    <p style="margin: 0; color: #92400e; font-size: 14px;">
+                      <strong>📧 Payment link sent to golfer.</strong> They will receive an email with a secure link to pay online.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Amount Due Badge -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef3c7; border-radius: 8px; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 20px; text-align: center;">
+                    <p style="margin: 0 0 5px 0; color: #92400e; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Amount Due</p>
+                    <p style="margin: 0; color: #92400e; font-size: 28px; font-weight: bold;">$<%= sprintf('%.2f', @entry_fee) %></p>
+                    <% if @is_employee %>
+                      <p style="margin: 8px 0 0 0; color: #92400e; font-size: 12px;">(Employee Rate)</p>
+                    <% end %>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Golfer Info Card -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border-radius: 8px; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <h3 style="margin: 0 0 15px 0; color: #1e3a5f; font-size: 18px; font-weight: bold;"><%= @golfer.name %></h3>
+                    
+                    <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
+                      <tr>
+                        <td style="padding: 6px 0; color: #718096; font-size: 13px; width: 100px;">📧 Email</td>
+                        <td style="padding: 6px 0; color: #2d3748; font-size: 13px;"><a href="mailto:<%= @golfer.email %>" style="color: #2563eb; text-decoration: none;"><%= @golfer.email %></a></td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #718096; font-size: 13px;">📱 Phone</td>
+                        <td style="padding: 6px 0; color: #2d3748; font-size: 13px;"><%= format_phone(@golfer.phone) %></td>
+                      </tr>
+                      <% if @golfer.company.present? %>
+                      <tr>
+                        <td style="padding: 6px 0; color: #718096; font-size: 13px;">🏢 Company</td>
+                        <td style="padding: 6px 0; color: #2d3748; font-size: 13px;"><%= @golfer.company %></td>
+                      </tr>
+                      <% end %>
+                      <% if @golfer.address.present? %>
+                      <tr>
+                        <td style="padding: 6px 0; color: #718096; font-size: 13px;">📍 Address</td>
+                        <td style="padding: 6px 0; color: #2d3748; font-size: 13px;"><%= @golfer.address %></td>
+                      </tr>
+                      <% end %>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Registration Details -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border-radius: 8px; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <h4 style="margin: 0 0 12px 0; color: #1e3a5f; font-size: 14px; font-weight: bold;">Registration Details</h4>
+                    
+                    <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
+                      <tr>
+                        <td style="padding: 6px 0; color: #718096; font-size: 13px; width: 120px;">🏌️ Tournament</td>
+                        <td style="padding: 6px 0; color: #2d3748; font-size: 13px;"><%= @tournament&.name || 'Golf Tournament' %></td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #718096; font-size: 13px;">📅 Created</td>
+                        <td style="padding: 6px 0; color: #2d3748; font-size: 13px;"><%= @golfer.created_at.in_time_zone('Guam').strftime('%B %d, %Y at %I:%M %p') %> (Guam)</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #718096; font-size: 13px;">💳 Payment</td>
+                        <td style="padding: 6px 0; color: #d97706; font-size: 13px; font-weight: 600;">Pending - Payment link sent</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Note -->
+              <p style="margin: 0; color: #718096; font-size: 12px; text-align: center;">
+                You will receive another notification when this golfer completes their payment.
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #1e3a5f; padding: 20px 40px; text-align: center;">
+              <p style="margin: 0; color: #a0aec0; font-size: 12px;">
+                Golf Tournament Admin System
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+

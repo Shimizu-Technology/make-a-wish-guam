@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background-color: <%= @primary_color %>; padding: 30px 40px; text-align: center;">
+              <% if @logo_url.present? %>
+                <img src="<%= @logo_url %>" alt="<%= @org_name %>" style="max-height: 60px; margin-bottom: 10px;">
+              <% end %>
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: bold;"><%= @tournament.name %></h1>
+              <p style="margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Raffle Drawing</p>
+            </td>
+          </tr>
+
+          <!-- Winner Banner -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; text-align: center; padding: 25px;">
+              <span style="font-size: 48px; display: block; margin-bottom: 10px;">🎉</span>
+              <span style="font-size: 24px; font-weight: bold;">CONGRATULATIONS!</span>
+              <p style="margin: 10px 0 0 0; font-size: 16px;">You're a Winner!</p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 30px 40px;">
+              <h2 style="margin: 0 0 20px 0; color: #1e3a5f; font-size: 22px;">Hi <%= @prize.winner_name %>!</h2>
+              
+              <p style="margin: 0 0 25px 0; color: #4a5568; font-size: 15px; line-height: 1.6;">
+                Great news! Your raffle ticket was drawn as a winner at the <strong><%= @tournament.display_name %></strong>!
+              </p>
+
+              <!-- Prize Box -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; margin-bottom: 25px; border: 2px solid #f59e0b;">
+                <tr>
+                  <td style="padding: 25px; text-align: center;">
+                    <p style="margin: 0 0 5px 0; color: #92400e; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;">You Won</p>
+                    <h3 style="margin: 0 0 10px 0; color: #78350f; font-size: 28px; font-weight: bold;"><%= @prize.name %></h3>
+                    <% if @prize.value_cents && @prize.value_cents > 0 %>
+                      <p style="margin: 0 0 10px 0; color: #92400e; font-size: 18px; font-weight: 500;">
+                        Value: $<%= number_with_delimiter(@prize.value_cents / 100) %>
+                      </p>
+                    <% end %>
+                    <% if @prize.description.present? %>
+                      <p style="margin: 0; color: #78350f; font-size: 14px;"><%= @prize.description %></p>
+                    <% end %>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Ticket Info -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border-radius: 8px; margin-bottom: 25px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <h3 style="margin: 0 0 10px 0; color: #1e3a5f; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">🎫 Winning Ticket</h3>
+                    <p style="margin: 0; color: #2d3748; font-size: 20px; font-weight: bold; font-family: 'Courier New', monospace;">
+                      <%= @ticket&.ticket_number || 'N/A' %>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- How to Claim -->
+              <h3 style="margin: 0 0 15px 0; color: #1e3a5f; font-size: 16px;">📋 How to Claim Your Prize</h3>
+              <p style="margin: 0 0 20px 0; color: #4a5568; font-size: 14px; line-height: 1.6;">
+                Please contact the tournament organizers to arrange pickup of your prize:
+              </p>
+              
+              <% if @tournament.contact_name.present? || @tournament.contact_phone.present? %>
+                <table role="presentation" cellspacing="0" cellpadding="0" style="margin-bottom: 25px;">
+                  <% if @tournament.contact_name.present? %>
+                    <tr>
+                      <td style="padding: 5px 0; color: #718096; font-size: 14px; width: 80px;">Contact:</td>
+                      <td style="padding: 5px 0; color: #2d3748; font-size: 14px; font-weight: 500;"><%= @tournament.contact_name %></td>
+                    </tr>
+                  <% end %>
+                  <% if @tournament.contact_phone.present? %>
+                    <tr>
+                      <td style="padding: 5px 0; color: #718096; font-size: 14px;">Phone:</td>
+                      <td style="padding: 5px 0; color: #2d3748; font-size: 14px; font-weight: 500;"><%= @tournament.contact_phone %></td>
+                    </tr>
+                  <% end %>
+                </table>
+              <% end %>
+
+              <% if @prize.sponsor_name.present? %>
+                <p style="margin: 0 0 15px 0; color: #718096; font-size: 13px;">
+                  This prize was generously donated by <strong><%= @prize.sponsor_name %></strong>.
+                </p>
+              <% end %>
+
+              <p style="margin: 0; color: #4a5568; font-size: 15px; line-height: 1.6;">
+                Thank you for participating in our raffle. Enjoy your prize! 🎊
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 20px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; color: #718096; font-size: 12px;">
+                Powered by Pacific Golf
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

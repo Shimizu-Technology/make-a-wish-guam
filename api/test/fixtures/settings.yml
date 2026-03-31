@@ -1,0 +1,20 @@
+# Settings fixture
+one:
+  max_capacity: 50
+  registration_open: true
+  tournament_entry_fee: 12500
+  payment_mode: "test"
+  tournament_year: "2026"
+  tournament_edition: "5th"
+  tournament_title: "AIRPORT WEEK"
+  tournament_name: "Edward A.P. Muna II Memorial Golf Tournament"
+  event_date: "January 9, 2026"
+  registration_time: "11:00 am"
+  start_time: "12:30 pm"
+  location_name: "Country Club of the Pacific"
+  location_address: "Windward Hills, Guam"
+  format_name: "Individual Callaway"
+  fee_includes: "Green Fee, Ditty Bag, Drinks & Food"
+  checks_payable_to: "GIAAEO"
+  contact_name: "Peter Torres"
+  contact_phone: "671.689.8677"

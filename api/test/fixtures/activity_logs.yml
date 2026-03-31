@@ -1,0 +1,27 @@
+# ActivityLog fixtures
+check_in_log:
+  tournament: tournament_one
+  user: user_one
+  action: "golfer_checked_in"
+  target_type: "Golfer"
+  target_id: 1
+  target_name: "Bob Checked"
+  details: "Checked in Bob Checked"
+
+payment_log:
+  tournament: tournament_one
+  user: user_one
+  action: "payment_marked"
+  target_type: "Golfer"
+  target_id: 1
+  target_name: "John Confirmed"
+  details: "Marked John Confirmed as paid (cash)"
+
+group_assign_log:
+  tournament: tournament_one
+  user: super_admin
+  action: "golfer_assigned_to_group"
+  target_type: "Golfer"
+  target_id: 1
+  target_name: "John Confirmed"
+  details: "Assigned John Confirmed to Group 1"

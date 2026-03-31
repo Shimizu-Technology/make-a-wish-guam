@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+api/.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rails
+api/log/*
+api/tmp/*
+api/storage/*
+api/public/assets
+api/.bundle
+
+# Test coverage
+coverage/
+
+# Misc
+*.log
+
+# Imported legacy reference project (do not commit)
+giaa-tournament/
+
+# Local Netlify folder
+.netlify

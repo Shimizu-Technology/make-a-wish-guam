@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%); padding: 25px 40px; text-align: center;">
+              <h1 style="margin: 0 0 5px 0; color: #d4a54a; font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;">Admin Notification</h1>
+              <h2 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: bold;">💰 Payment Received</h2>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 25px 40px;">
+              
+              <!-- Amount Badge -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #d1fae5; border-radius: 8px; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 20px; text-align: center;">
+                    <p style="margin: 0 0 5px 0; color: #065f46; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Amount</p>
+                    <p style="margin: 0; color: #065f46; font-size: 28px; font-weight: bold;">$<%= sprintf('%.2f', @entry_fee) %></p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Golfer Info Card -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border-radius: 8px; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <h3 style="margin: 0 0 15px 0; color: #1e3a5f; font-size: 18px; font-weight: bold;"><%= @golfer.name %></h3>
+                    
+                    <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
+                      <tr>
+                        <td style="padding: 6px 0; color: #718096; font-size: 13px; width: 100px;">📧 Email</td>
+                        <td style="padding: 6px 0; color: #2d3748; font-size: 13px;"><a href="mailto:<%= @golfer.email %>" style="color: #2563eb; text-decoration: none;"><%= @golfer.email %></a></td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #718096; font-size: 13px;">💳 Method</td>
+                        <td style="padding: 6px 0; color: #2d3748; font-size: 13px;"><%= @golfer.payment_method || (@golfer.payment_type == 'stripe' ? 'Online' : 'On Day') %></td>
+                      </tr>
+                      <% if @golfer.receipt_number.present? %>
+                      <tr>
+                        <td style="padding: 6px 0; color: #718096; font-size: 13px;">🧾 Receipt #</td>
+                        <td style="padding: 6px 0; color: #2d3748; font-size: 13px;"><%= @golfer.receipt_number %></td>
+                      </tr>
+                      <% end %>
+                      <% if @golfer.payment_notes.present? %>
+                      <tr>
+                        <td style="padding: 6px 0; color: #718096; font-size: 13px;">📝 Notes</td>
+                        <td style="padding: 6px 0; color: #2d3748; font-size: 13px;"><%= @golfer.payment_notes %></td>
+                      </tr>
+                      <% end %>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #1e3a5f; padding: 20px 40px; text-align: center;">
+              <p style="margin: 0; color: #a0aec0; font-size: 12px;">
+                Golf Tournament Admin System
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

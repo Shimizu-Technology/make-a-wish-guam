@@ -1,0 +1,15 @@
+{
+  "name": "pacific-golf",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tenant golf tournament management SaaS",
+  "scripts": {
+    "api:dev": "cd api && bin/rails server",
+    "web:dev": "cd web && npm run dev",
+    "dev": "concurrently \"pnpm api:dev\" \"pnpm web:dev\"",
+    "build": "cd web && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

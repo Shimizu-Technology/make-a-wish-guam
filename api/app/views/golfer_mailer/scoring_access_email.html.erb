@@ -1,0 +1,122 @@
+  <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; background-color: #f5f5f5;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, <%= @primary_color %> 0%, <%= darken_color(@primary_color, 20) %> 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+              <% if @org_logo_url.present? %>
+                <img src="<%= @org_logo_url %>" alt="<%= @org_name %>" style="max-height: 50px; margin-bottom: 15px;">
+              <% end %>
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                Your Scoring Access
+              </h1>
+              <p style="margin: 10px 0 0; color: rgba(255,255,255,0.8); font-size: 14px;">
+                <%= @tournament&.name || "Golf Tournament" %>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 30px;">
+              
+              <!-- Greeting -->
+              <p style="margin: 0 0 20px; font-size: 16px; color: #333;">
+                Hi <%= @golfer.name %>,
+              </p>
+
+              <p style="margin: 0 0 25px; font-size: 16px; color: #555; line-height: 1.6;">
+                You requested access to enter scores for the tournament. Click the button below to access your scorecard.
+              </p>
+
+              <!-- Access Button -->
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="<%= @magic_link %>" style="display: inline-block; background: linear-gradient(135deg, <%= @primary_color %> 0%, <%= darken_color(@primary_color, 20) %> 100%); color: #ffffff; padding: 16px 40px; font-size: 18px; font-weight: 600; text-decoration: none; border-radius: 8px;">
+                  Access Scoring
+                </a>
+              </div>
+
+              <p style="margin: 0 0 20px; font-size: 14px; color: #666; text-align: center;">
+                Or copy this link: <br>
+                <a href="<%= @magic_link %>" style="color: <%= @primary_color %>; word-break: break-all;"><%= @magic_link %></a>
+              </p>
+
+              <p style="margin: 0 0 25px; font-size: 13px; color: #888; text-align: center; background-color: #fef3c7; padding: 12px; border-radius: 6px;">
+                This link expires in 24 hours. You can request a new one anytime.
+              </p>
+
+              <% if @group %>
+              <!-- Group Assignment -->
+              <div style="background-color: #f0fdf4; border: 2px solid <%= @primary_color %>; border-radius: 12px; padding: 25px; text-align: center; margin-bottom: 25px;">
+                <p style="margin: 0 0 5px; font-size: 14px; color: <%= @primary_color %>; text-transform: uppercase; letter-spacing: 1px;">
+                  Your Starting Position
+                </p>
+                <p style="margin: 0; font-size: 48px; font-weight: bold; color: <%= @primary_color %>;">
+                  <%= @hole_position || "Group #{@group.group_number}" %>
+                </p>
+                <% if @group.hole_number %>
+                <p style="margin: 10px 0 0; font-size: 14px; color: <%= @primary_color %>;">
+                  Starting at Hole <%= @group.hole_number %>
+                </p>
+                <% end %>
+              </div>
+
+              <!-- Teammates -->
+              <% if @group.golfers.count > 1 %>
+              <div style="background-color: #f8fafc; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+                <h3 style="margin: 0 0 15px; color: <%= @primary_color %>; font-size: 16px; font-weight: 600;">
+                  Your Group
+                </h3>
+                <ul style="margin: 0; padding: 0 0 0 20px; color: #555;">
+                  <% @group.golfers.each do |teammate| %>
+                  <li style="padding: 5px 0; font-size: 14px;">
+                    <%= teammate.name %><%= teammate.id == @golfer.id ? ' (you)' : '' %>
+                  </li>
+                  <% end %>
+                </ul>
+              </div>
+              <% end %>
+              <% else %>
+              <!-- No group yet -->
+              <div style="background-color: #fef3c7; border-radius: 8px; padding: 20px; margin-bottom: 25px; text-align: center;">
+                <p style="margin: 0; font-size: 14px; color: #92400e;">
+                  Your group assignment will be available closer to tournament day.
+                </p>
+              </div>
+              <% end %>
+
+              <!-- Quick Instructions -->
+              <div style="background-color: #f8fafc; border-radius: 8px; padding: 20px;">
+                <h3 style="margin: 0 0 15px; color: #333; font-size: 16px; font-weight: 600;">
+                  How to Enter Scores
+                </h3>
+                <ol style="margin: 0; padding: 0 0 0 20px; color: #555; font-size: 14px; line-height: 1.8;">
+                  <li>Click the "Access Scoring" button above</li>
+                  <li>You'll see your group's scorecard</li>
+                  <li>After each hole, tap to enter your score</li>
+                  <li>Scores are saved automatically</li>
+                  <li>The leaderboard updates in real-time!</li>
+                </ol>
+              </div>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 25px; text-align: center; border-radius: 0 0 12px 12px; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0 0 10px; font-size: 12px; color: #888;">
+                Questions? Reply to this email or contact the tournament organizers.
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #888;">
+                <%= @org_name %> | Powered by Pacific Golf
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
