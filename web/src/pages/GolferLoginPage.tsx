@@ -60,7 +60,7 @@ export const GolferLoginPage: React.FC = () => {
         <div className="max-w-md mx-auto flex items-center gap-3">
           <Trophy className="w-8 h-8 text-yellow-400" />
           <div>
-            <h1 className="text-xl font-bold">Pacific Golf</h1>
+            <h1 className="text-xl font-bold">Shimizu Technology</h1>
             <p className="text-green-200 text-sm">Live Scoring</p>
           </div>
         </div>
@@ -164,7 +164,7 @@ export const GolferLoginPage: React.FC = () => {
       {/* Footer */}
       <footer className="py-4 text-center text-sm text-gray-500">
         <p className="flex items-center justify-center gap-1.5">
-          Powered by Pacific Golf
+          Powered by Shimizu Technology
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="5" r="3"/>
             <path d="M12 8v8"/>

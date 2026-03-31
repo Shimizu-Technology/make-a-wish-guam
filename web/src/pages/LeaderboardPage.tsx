@@ -512,7 +512,7 @@ export const LeaderboardPage: React.FC = () => {
       <footer className="fixed bottom-0 left-0 right-0 bg-gray-800/90 backdrop-blur-sm border-t border-gray-700/50 py-3">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <p className="text-gray-500 text-sm">
-            Powered by Pacific Golf &middot; Scores update every 30 seconds
+            Powered by Shimizu Technology &middot; Scores update every 30 seconds
           </p>
         </div>
       </footer>

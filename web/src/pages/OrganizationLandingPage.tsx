@@ -22,7 +22,7 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
-import { hexToRgba, adjustColor } from '../utils/colors';
+import { hexToRgba } from '../utils/colors';
 import { formatEventDate } from '../utils/dates';
 
 // ---------------------------------------------------------------------------
@@ -49,21 +49,6 @@ const staggerItem = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease } },
 };
-
-// ---------------------------------------------------------------------------
-// Noise overlay for depth
-// ---------------------------------------------------------------------------
-
-function NoiseOverlay() {
-  return (
-    <div
-      className="absolute inset-0 pointer-events-none opacity-[0.035]"
-      style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-      }}
-    />
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Scroll-triggered wrapper
@@ -127,10 +112,10 @@ export function OrganizationLandingPage() {
   // Loading state
   if (orgLoading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-stone-300 border-t-stone-700 mx-auto" />
-          <p className="mt-5 text-sm text-stone-500 tracking-wide uppercase">Loading</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#004B8D]/20 border-t-[#004B8D] mx-auto" />
+          <p className="mt-5 text-sm text-neutral-500 tracking-wide uppercase">Loading</p>
         </div>
       </div>
     );
@@ -139,13 +124,13 @@ export function OrganizationLandingPage() {
   // Not found
   if (!organization) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center max-w-md px-6">
-          <Flag className="w-12 h-12 text-stone-300 mx-auto mb-6" strokeWidth={1.5} />
-          <h1 className="text-2xl font-semibold text-stone-900 tracking-tight">
+          <Flag className="w-12 h-12 text-neutral-300 mx-auto mb-6" strokeWidth={1.5} />
+          <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">
             Organization Not Found
           </h1>
-          <p className="mt-3 text-stone-500 leading-relaxed">
+          <p className="mt-3 text-neutral-500 leading-relaxed">
             The requested organization does not exist or may have been removed.
           </p>
         </div>
@@ -153,70 +138,36 @@ export function OrganizationLandingPage() {
     );
   }
 
-  const primaryColor = organization.primary_color || '#1e3a2f';
-  const primaryDark = adjustColor(primaryColor, -0.15);
-
   return (
     <MotionConfig reducedMotion="user">
-    <div className="min-h-screen bg-stone-50 text-stone-900">
+    <div className="min-h-screen bg-white text-neutral-900">
       <SignedInAdminBar dashboardPath={`/${orgSlug}/admin`} />
-      {/* ================================================================= */}
-      {/* HERO                                                               */}
-      {/* ================================================================= */}
-      <header className="relative overflow-hidden">
-        {organization.banner_url ? (
-          <>
-            <div className="absolute inset-0">
-              <img
-                src={organization.banner_url}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
-            </div>
-            <NoiseOverlay />
-          </>
-        ) : (
-          <>
-            <div
-              className="absolute inset-0"
-              style={{
-                background: `linear-gradient(145deg, ${primaryDark} 0%, ${primaryColor} 40%, ${adjustColor(primaryColor, 0.08)} 100%)`,
-              }}
-            />
-            <NoiseOverlay />
-          </>
-        )}
 
-        <div className="relative z-10 max-w-5xl mx-auto px-6 lg:px-8 py-16 sm:py-24 text-center">
-          {organization.logo_url ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, ease }}
-              className="mb-10"
-            >
-              <div className="inline-block rounded-2xl bg-white/10 backdrop-blur-md p-4 ring-1 ring-white/20">
-                <img
-                  src={organization.logo_url}
-                  alt={organization.name}
-                  className="h-16 sm:h-20 object-contain"
-                />
-              </div>
-            </motion.div>
-          ) : (
-            <motion.p
-              className="text-lg sm:text-xl font-medium text-white/70 tracking-wide uppercase mb-4"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease }}
-            >
-              Make-A-Wish® Guam &amp; CNMI
-            </motion.p>
-          )}
+      {/* ================================================================= */}
+      {/* HERO — MAW Blue header                                            */}
+      {/* ================================================================= */}
+      <header
+        className="relative overflow-hidden min-h-[280px] lg:min-h-[360px] flex items-center"
+        style={{
+          background: 'linear-gradient(135deg, #004B8D 0%, #003a6e 100%)',
+        }}
+      >
+        <div className="relative z-10 max-w-5xl mx-auto px-6 lg:px-8 py-16 lg:py-24 w-full">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease }}
+            className="mb-8"
+          >
+            <img
+              src="/images/maw-logo.png"
+              alt="Make-A-Wish Guam & CNMI"
+              className="h-12 brightness-0 invert"
+            />
+          </motion.div>
 
           <motion.h1
-            className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-5"
+            className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white mb-3"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.15, ease }}
@@ -224,53 +175,57 @@ export function OrganizationLandingPage() {
             {organization.name}
           </motion.h1>
 
-          {organization.description && (
-            <motion.p
-              className="text-lg sm:text-xl text-white/80 max-w-2xl mx-auto leading-relaxed"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.35, ease }}
-            >
-              {organization.description}
-            </motion.p>
-          )}
+          <motion.p
+            className="text-base sm:text-lg text-white/90 mb-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.25, ease }}
+          >
+            Granting wishes since 1988
+          </motion.p>
+
+          <motion.p
+            className="text-base sm:text-lg text-white/75 max-w-2xl leading-relaxed"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.35, ease }}
+          >
+            Together we create life-changing wishes for children with critical illnesses
+          </motion.p>
         </div>
       </header>
 
       {/* ================================================================= */}
-      {/* TOURNAMENTS                                                        */}
+      {/* UPCOMING EVENTS                                                    */}
       {/* ================================================================= */}
-      <main className="max-w-5xl mx-auto px-6 lg:px-8 py-12 sm:py-16">
+      <main className="max-w-5xl mx-auto px-6 lg:px-8 py-16 lg:py-24">
         <ScrollReveal>
-          <div className="flex items-center gap-3 mb-10">
-            <Trophy className="w-5 h-5" style={{ color: primaryColor }} strokeWidth={2} />
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Tournaments</h2>
+          <div className="mb-10">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-900">
+              Upcoming Events
+            </h2>
+            <div className="mt-3 h-1 w-16 rounded-full bg-[#E31837]" />
           </div>
         </ScrollReveal>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-xl mb-8 text-sm">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl mb-8 text-sm">
             {error}
           </div>
         )}
 
         {tournaments.length === 0 ? (
           <ScrollReveal>
-            <div className="text-center py-20 bg-white rounded-2xl border border-stone-200">
-              <Flag
-                className="w-10 h-10 mx-auto mb-5"
-                style={{ color: primaryColor }}
-                strokeWidth={1.5}
-              />
-              <p className="text-stone-600 font-medium">No tournaments available at this time.</p>
-              <p className="text-sm text-stone-400 mt-2">Check back soon for upcoming events.</p>
+            <div className="text-center py-20 bg-[#F5F5F5] rounded-2xl border border-neutral-200">
+              <Flag className="w-10 h-10 text-[#004B8D] mx-auto mb-5" strokeWidth={1.5} />
+              <p className="text-neutral-600 font-medium">No tournaments available at this time.</p>
+              <p className="text-sm text-neutral-400 mt-2">Check back soon for upcoming events.</p>
             </div>
           </ScrollReveal>
         ) : (
           <TournamentList
             tournaments={tournaments}
             orgSlug={orgSlug!}
-            primaryColor={primaryColor}
           />
         )}
       </main>
@@ -279,83 +234,76 @@ export function OrganizationLandingPage() {
       {/* CONTACT                                                            */}
       {/* ================================================================= */}
       {(organization.contact_email || organization.contact_phone || organization.website_url) && (
-        <section className="max-w-5xl mx-auto px-6 lg:px-8 pb-16 sm:pb-20">
-          <ScrollReveal>
-            <h3 className="text-xl font-semibold tracking-tight mb-8">Get in Touch</h3>
-          </ScrollReveal>
+        <section className="bg-[#F5F5F5]">
+          <div className="max-w-5xl mx-auto px-6 lg:px-8 py-16 lg:py-24">
+            <ScrollReveal>
+              <h3 className="text-xl font-semibold tracking-tight mb-8">Get in Touch</h3>
+            </ScrollReveal>
 
-          <div className="grid sm:grid-cols-3 gap-4">
-            {organization.contact_email && (
-              <ScrollReveal delay={0}>
-                <a
-                  href={`mailto:${organization.contact_email}`}
-                  className="group flex items-start gap-4 p-5 bg-white rounded-xl border border-stone-200 hover:border-stone-300 transition-colors duration-200"
-                >
-                  <div
-                    className="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: hexToRgba(primaryColor, 0.08) }}
+            <div className="grid sm:grid-cols-3 gap-4">
+              {organization.contact_email && (
+                <ScrollReveal delay={0}>
+                  <a
+                    href={`mailto:${organization.contact_email}`}
+                    className="group flex items-start gap-4 p-5 bg-white rounded-2xl border border-neutral-200 hover:shadow-md transition-shadow duration-200"
                   >
-                    <Mail className="w-5 h-5" style={{ color: primaryColor }} strokeWidth={1.5} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-stone-400 uppercase tracking-wider mb-1">
-                      Email
-                    </p>
-                    <p className="text-sm text-stone-700 group-hover:text-stone-900 truncate transition-colors">
-                      {organization.contact_email}
-                    </p>
-                  </div>
-                </a>
-              </ScrollReveal>
-            )}
-            {organization.contact_phone && (
-              <ScrollReveal delay={0.08}>
-                <a
-                  href={`tel:${organization.contact_phone}`}
-                  className="group flex items-start gap-4 p-5 bg-white rounded-xl border border-stone-200 hover:border-stone-300 transition-colors duration-200"
-                >
-                  <div
-                    className="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: hexToRgba(primaryColor, 0.08) }}
+                    <div className="shrink-0 w-10 h-10 rounded-full bg-[#004B8D]/10 flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-[#004B8D]" strokeWidth={1.5} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">
+                        Email
+                      </p>
+                      <p className="text-sm text-neutral-700 group-hover:text-neutral-900 truncate transition-colors">
+                        {organization.contact_email}
+                      </p>
+                    </div>
+                  </a>
+                </ScrollReveal>
+              )}
+              {organization.contact_phone && (
+                <ScrollReveal delay={0.08}>
+                  <a
+                    href={`tel:${organization.contact_phone}`}
+                    className="group flex items-start gap-4 p-5 bg-white rounded-2xl border border-neutral-200 hover:shadow-md transition-shadow duration-200"
                   >
-                    <Phone className="w-5 h-5" style={{ color: primaryColor }} strokeWidth={1.5} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-stone-400 uppercase tracking-wider mb-1">
-                      Phone
-                    </p>
-                    <p className="text-sm text-stone-700 group-hover:text-stone-900 transition-colors">
-                      {organization.contact_phone}
-                    </p>
-                  </div>
-                </a>
-              </ScrollReveal>
-            )}
-            {organization.website_url && (
-              <ScrollReveal delay={0.16}>
-                <a
-                  href={organization.website_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-start gap-4 p-5 bg-white rounded-xl border border-stone-200 hover:border-stone-300 transition-colors duration-200"
-                >
-                  <div
-                    className="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: hexToRgba(primaryColor, 0.08) }}
+                    <div className="shrink-0 w-10 h-10 rounded-full bg-[#004B8D]/10 flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-[#004B8D]" strokeWidth={1.5} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">
+                        Phone
+                      </p>
+                      <p className="text-sm text-neutral-700 group-hover:text-neutral-900 transition-colors">
+                        {organization.contact_phone}
+                      </p>
+                    </div>
+                  </a>
+                </ScrollReveal>
+              )}
+              {organization.website_url && (
+                <ScrollReveal delay={0.16}>
+                  <a
+                    href={organization.website_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-start gap-4 p-5 bg-white rounded-2xl border border-neutral-200 hover:shadow-md transition-shadow duration-200"
                   >
-                    <Globe className="w-5 h-5" style={{ color: primaryColor }} strokeWidth={1.5} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-stone-400 uppercase tracking-wider mb-1">
-                      Website
-                    </p>
-                    <p className="text-sm text-stone-700 group-hover:text-stone-900 truncate transition-colors">
-                      {organization.website_url.replace(/^https?:\/\//, '')}
-                    </p>
-                  </div>
-                </a>
-              </ScrollReveal>
-            )}
+                    <div className="shrink-0 w-10 h-10 rounded-full bg-[#004B8D]/10 flex items-center justify-center">
+                      <Globe className="w-5 h-5 text-[#004B8D]" strokeWidth={1.5} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">
+                        Website
+                      </p>
+                      <p className="text-sm text-neutral-700 group-hover:text-neutral-900 truncate transition-colors">
+                        {organization.website_url.replace(/^https?:\/\//, '')}
+                      </p>
+                    </div>
+                  </a>
+                </ScrollReveal>
+              )}
+            </div>
           </div>
         </section>
       )}
@@ -363,11 +311,11 @@ export function OrganizationLandingPage() {
       {/* ================================================================= */}
       {/* FOOTER                                                             */}
       {/* ================================================================= */}
-      <footer className="border-t border-stone-200">
-        <div className="max-w-5xl mx-auto px-6 lg:px-8 py-8 flex items-center justify-between text-sm text-stone-400">
+      <footer className="border-t border-neutral-200">
+        <div className="max-w-5xl mx-auto px-6 lg:px-8 py-8 flex items-center justify-between text-sm text-neutral-400">
           <p>
             Powered by{' '}
-            <span className="font-medium text-stone-600">Shimizu Technology</span>
+            <span className="font-medium text-neutral-600">Shimizu Technology</span>
           </p>
           <p className="hidden sm:block">Supporting children with critical illnesses</p>
         </div>
@@ -384,11 +332,9 @@ export function OrganizationLandingPage() {
 function TournamentList({
   tournaments,
   orgSlug,
-  primaryColor,
 }: {
   tournaments: Tournament[];
   orgSlug: string;
-  primaryColor: string;
 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '0px' });
@@ -406,7 +352,6 @@ function TournamentList({
           <TournamentCard
             tournament={tournament}
             orgSlug={orgSlug}
-            primaryColor={primaryColor}
           />
         </motion.div>
       ))}
@@ -421,21 +366,21 @@ function TournamentList({
 interface TournamentCardProps {
   tournament: Tournament;
   orgSlug: string;
-  primaryColor: string;
 }
 
-const statusConfig: Record<string, { label: string; dot: string }> = {
-  open: { label: 'Registration Open', dot: 'bg-emerald-500' },
-  closed: { label: 'Registration Closed', dot: 'bg-red-400' },
-  in_progress: { label: 'In Progress', dot: 'bg-amber-500' },
-  completed: { label: 'Completed', dot: 'bg-stone-400' },
-  draft: { label: 'Coming Soon', dot: 'bg-sky-400' },
+const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
+  open: { label: 'Registration Open', bg: 'bg-[#E31837]', text: 'text-white' },
+  closed: { label: 'Registration Closed', bg: 'bg-neutral-200', text: 'text-neutral-600' },
+  in_progress: { label: 'In Progress', bg: 'bg-amber-500', text: 'text-white' },
+  completed: { label: 'Completed', bg: 'bg-neutral-200', text: 'text-neutral-600' },
+  draft: { label: 'Coming Soon', bg: 'bg-[#004B8D]', text: 'text-white' },
 };
 
-function TournamentCard({ tournament, orgSlug, primaryColor }: TournamentCardProps) {
+function TournamentCard({ tournament, orgSlug }: TournamentCardProps) {
   const status = statusConfig[tournament.status] || {
     label: tournament.status,
-    dot: 'bg-stone-400',
+    bg: 'bg-neutral-200',
+    text: 'text-neutral-600',
   };
 
   const capacityPercent =
@@ -444,36 +389,36 @@ function TournamentCard({ tournament, orgSlug, primaryColor }: TournamentCardPro
       : null;
 
   return (
-    <div className="group bg-white rounded-2xl border border-stone-200 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-stone-200/60">
+    <div className="group bg-white rounded-2xl border border-neutral-200 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden">
       <div className="p-6 sm:p-7">
-        {/* Top row: name + status */}
+        {/* Top row: status badge + name */}
         <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
-          <h3 className="text-lg sm:text-xl font-semibold tracking-tight text-stone-900">
-            {tournament.display_name}
-          </h3>
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 bg-stone-100 rounded-full px-3 py-1">
-            <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-            {status.label}
-          </span>
+          <div>
+            <span className={`inline-flex items-center text-xs font-semibold rounded-full px-3 py-1 mb-3 ${status.bg} ${status.text}`}>
+              {status.label}
+            </span>
+            <h3 className="text-xl font-bold tracking-tight text-neutral-900">
+              {tournament.display_name}
+            </h3>
+          </div>
         </div>
 
         {/* Details grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-4 gap-x-6 text-sm">
           {tournament.event_date && (
-            <Detail icon={Calendar} label="Date" value={formatEventDate(tournament.event_date)} color={primaryColor} />
+            <Detail icon={Calendar} label="Date" value={formatEventDate(tournament.event_date)} />
           )}
           {tournament.location_name && (
-            <Detail icon={MapPin} label="Location" value={tournament.location_name} color={primaryColor} />
+            <Detail icon={MapPin} label="Location" value={tournament.location_name} />
           )}
           {tournament.format_name && (
-            <Detail icon={Clock} label="Format" value={tournament.format_name} color={primaryColor} />
+            <Detail icon={Flag} label="Format" value={tournament.format_name} />
           )}
           {tournament.entry_fee_dollars !== undefined && (
             <Detail
               icon={DollarSign}
               label="Entry Fee"
               value={`$${tournament.entry_fee_dollars.toFixed(2)}`}
-              color={primaryColor}
             />
           )}
         </div>
@@ -481,20 +426,17 @@ function TournamentCard({ tournament, orgSlug, primaryColor }: TournamentCardPro
         {/* Capacity bar */}
         {tournament.max_capacity != null && capacityPercent != null && (
           <div className="mt-5">
-            <div className="flex items-center justify-between text-xs text-stone-500 mb-1.5">
+            <div className="flex items-center justify-between text-xs text-neutral-500 mb-1.5">
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" strokeWidth={1.5} />
                 {tournament.confirmed_count ?? 0} / {tournament.max_capacity} registered
               </span>
               <span>{capacityPercent}%</span>
             </div>
-            <div className="h-1.5 rounded-full bg-stone-100 overflow-hidden">
+            <div className="h-1.5 rounded-full bg-neutral-100 overflow-hidden">
               <div
-                className="h-full rounded-full transition-all duration-700 ease-out"
-                style={{
-                  width: `${capacityPercent}%`,
-                  backgroundColor: primaryColor,
-                }}
+                className="h-full rounded-full bg-[#004B8D] transition-all duration-700 ease-out"
+                style={{ width: `${capacityPercent}%` }}
               />
             </div>
           </div>
@@ -506,24 +448,14 @@ function TournamentCard({ tournament, orgSlug, primaryColor }: TournamentCardPro
             <>
               <Link
                 to={`/${orgSlug}/tournaments/${tournament.slug}/register`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-                style={{
-                  backgroundColor: primaryColor,
-                  boxShadow: `0 2px 8px ${hexToRgba(primaryColor, 0.25)}`,
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.boxShadow = `0 6px 20px ${hexToRgba(primaryColor, 0.35)}`;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.boxShadow = `0 2px 8px ${hexToRgba(primaryColor, 0.25)}`;
-                }}
+                className="inline-flex items-center gap-2 bg-[#E31837] hover:bg-[#c41230] text-white font-semibold text-sm rounded-full px-6 py-2.5 transition-colors duration-200"
               >
                 Register Now
                 <ChevronRight className="w-4 h-4" strokeWidth={2} />
               </Link>
               <Link
                 to={`/${orgSlug}/tournaments/${tournament.slug}`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-stone-500 hover:text-stone-700 transition-colors duration-200"
+                className="inline-flex items-center gap-2 border border-[#004B8D] text-[#004B8D] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#004B8D]/5 transition-colors duration-200"
               >
                 View Details
               </Link>
@@ -531,7 +463,7 @@ function TournamentCard({ tournament, orgSlug, primaryColor }: TournamentCardPro
           ) : (
             <Link
               to={`/${orgSlug}/tournaments/${tournament.slug}`}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-stone-600 bg-stone-100 rounded-xl hover:bg-stone-200 transition-colors duration-200"
+              className="inline-flex items-center gap-2 border border-[#004B8D] text-[#004B8D] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#004B8D]/5 transition-colors duration-200"
             >
               View Details
               <ChevronRight className="w-4 h-4" strokeWidth={2} />
@@ -551,19 +483,17 @@ function Detail({
   icon: Icon,
   label,
   value,
-  color,
 }: {
   icon: React.ComponentType<{ className?: string; strokeWidth?: number | string; style?: React.CSSProperties }>;
   label: string;
   value: string;
-  color: string;
 }) {
   return (
     <div className="flex items-start gap-2.5">
-      <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color }} strokeWidth={1.5} />
+      <Icon className="w-4 h-4 mt-0.5 shrink-0 text-[#004B8D]" strokeWidth={1.5} />
       <div>
-        <p className="text-xs text-stone-400 uppercase tracking-wider leading-none mb-1">{label}</p>
-        <p className="text-stone-700 font-medium">{value}</p>
+        <p className="text-xs text-neutral-400 uppercase tracking-wider leading-none mb-1">{label}</p>
+        <p className="text-neutral-700 font-medium">{value}</p>
       </div>
     </div>
   );

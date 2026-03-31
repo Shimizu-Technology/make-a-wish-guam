@@ -338,7 +338,7 @@ export const RaffleBoardPage: React.FC = () => {
       <footer className="fixed bottom-0 left-0 right-0 bg-black/30 backdrop-blur-sm border-t border-white/10 py-3">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <p className="text-white/40 text-sm">
-            Powered by Pacific Golf • Updates every 10 seconds
+            Powered by Shimizu Technology • Updates every 10 seconds
           </p>
         </div>
       </footer>

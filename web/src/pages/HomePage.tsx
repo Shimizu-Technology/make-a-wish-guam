@@ -47,7 +47,7 @@ export const HomePage: React.FC = () => {
                 <Trophy size={18} />
               </div>
               <div>
-                <p className="text-sm font-semibold tracking-wide text-stone-900">Pacific Golf</p>
+                <p className="text-sm font-semibold tracking-wide text-stone-900">Shimizu Technology</p>
                 <p className="text-xs text-stone-600">Multi-tenant tournament platform</p>
               </div>
             </div>
@@ -102,7 +102,7 @@ export const HomePage: React.FC = () => {
                 One platform for every tournament host.
               </h1>
               <p className="max-w-2xl text-lg leading-relaxed text-stone-700">
-                Pacific Golf replaces manual spreadsheets and disconnected workflows with one secure system for
+                This platform replaces manual spreadsheets and disconnected workflows with one secure system for
                 registration, check-in, scoring, raffles, sponsor workflows, and operations.
               </p>
 
@@ -142,7 +142,7 @@ export const HomePage: React.FC = () => {
               <p className="mt-3 text-xs text-stone-500">
                 URL preview:{' '}
                 <span className="font-medium text-stone-700">
-                  pacific-golf.com/{cleanedSlug || 'your-organization'}
+                  events.shimizu-technology.com/{cleanedSlug || 'your-organization'}
                 </span>
               </p>
 
@@ -167,7 +167,7 @@ export const HomePage: React.FC = () => {
 
         <section className="relative border-y border-stone-200/80 bg-white/70">
           <div className="max-w-6xl mx-auto px-6 py-12 lg:py-16">
-            <h2 className="mb-3 text-2xl font-display font-semibold tracking-tight text-stone-900">How organizations use Pacific Golf</h2>
+            <h2 className="mb-3 text-2xl font-display font-semibold tracking-tight text-stone-900">How organizations use this platform</h2>
             <p className="mb-6 max-w-3xl text-sm leading-relaxed text-stone-600">
               Built from real tournament operations in Guam. Teams move from manual coordination to one shared
               platform where updates are immediate and every critical action is visible.
@@ -232,7 +232,7 @@ export const HomePage: React.FC = () => {
         <section className="max-w-6xl mx-auto px-6 py-10 text-sm text-stone-600">
           <div className="flex flex-col gap-4 border-t border-stone-200 pt-6 md:flex-row md:items-center md:justify-between">
             <p>
-              Subdomain support (for example <span className="font-medium text-stone-800">rotary.pacific-golf.com</span>)
+              Subdomain support (for example <span className="font-medium text-stone-800">rotary.events.shimizu-technology.com</span>)
               is planned as a future enhancement.
             </p>
             <a

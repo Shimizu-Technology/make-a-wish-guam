@@ -76,7 +76,7 @@ export const LandingPage: React.FC = () => {
             className="inline-flex items-center gap-2 rounded-lg border border-[#1e3a5f]/20 bg-white/70 px-3 py-2 text-xs md:text-sm font-medium text-[#1e3a5f] transition-colors hover:bg-white"
           >
             <ArrowLeft size={16} />
-            Back to Pacific Golf Home
+            Back to Home
           </button>
         </div>
 

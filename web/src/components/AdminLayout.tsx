@@ -51,9 +51,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               onClick={() => navigate('/')}
               className="flex items-center gap-2 lg:gap-3 hover:opacity-80 transition-opacity"
             >
-              <Trophy size={28} className="lg:w-8 lg:h-8" />
+              <img src="/images/maw-logo.png" alt="MAW" className="h-7 lg:h-8 brightness-0 invert" />
               <div className="text-left">
-                <h1 className="font-bold text-base lg:text-lg">Tournament Admin</h1>
+                <h1 className="font-bold text-base lg:text-lg">Golf for Wishes Admin</h1>
                 <p className="text-[10px] lg:text-xs text-brand-200 hidden sm:block">
                   {currentTournament?.name?.replace(' Golf Tournament', '') || 'Loading...'}
                 </p>

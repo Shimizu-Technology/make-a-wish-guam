@@ -246,7 +246,7 @@ export const GolferDashboardPage: React.FC = () => {
       {/* Footer */}
       <footer className="py-6 text-center text-sm text-gray-500">
         <p className="flex items-center justify-center gap-1.5">
-          Powered by Pacific Golf
+          Powered by Shimizu Technology
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="5" r="3"/>
             <path d="M12 8v8"/>
