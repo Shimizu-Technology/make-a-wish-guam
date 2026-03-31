@@ -28,6 +28,8 @@
 - [ ] Walk-in surcharge pricing tier
 - [ ] Day-of raffle purchase via SwipeSimple or cash
 - [ ] Push notifications for raffle
+- [ ] SMS notifications via ClickSend (phone format: +1671XXXXXXX E.164 — stored correctly, integration pending)
+      Needed for: registration confirmation, raffle announcements, day-of reminders
 
 ### Future (Gala Aug 22+)
 - Table/seating management

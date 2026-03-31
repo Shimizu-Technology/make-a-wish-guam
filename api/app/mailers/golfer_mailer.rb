@@ -9,12 +9,18 @@ class GolferMailer < ApplicationMailer
     @setting = Setting.instance
     @tournament = golfer.tournament
     @entry_fee = calculate_entry_fee(golfer)
+    @payment_type = golfer.payment_type
+    @is_swipe_simple = golfer.payment_type == "swipe_simple"
     @is_employee = golfer.is_employee
     set_org_branding
 
-    subject = @is_confirmed ?
-      "Your Golf Tournament Registration is Confirmed!" :
-      "You've Been Added to the Waitlist"
+    if @is_swipe_simple
+      subject = "Registration Submitted — Complete Your Payment"
+    elsif @is_confirmed
+      subject = "Your Golf Tournament Registration is Confirmed!"
+    else
+      subject = "You've Been Added to the Waitlist"
+    end
 
     mail(to: golfer.email, subject: subject)
   end
@@ -120,6 +126,20 @@ class GolferMailer < ApplicationMailer
     mail(
       to: golfer.email,
       subject: "Complete Your Payment - #{@tournament&.name || 'Golf Tournament'}"
+    )
+  end
+
+  def partner_confirmation_email(golfer)
+    @golfer = golfer
+    @tournament = golfer.tournament
+    @is_swipe_simple = golfer.payment_type == "swipe_simple"
+    set_org_branding
+
+    mail(
+      to: golfer.partner_email,
+      subject: @is_swipe_simple ?
+        "You've Been Registered for Golf for Wishes 2026" :
+        "Golf for Wishes 2026 — Registration Confirmed"
     )
   end
 

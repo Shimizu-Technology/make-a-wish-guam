@@ -202,7 +202,7 @@ export function OrgTournamentPage() {
             {tournament.max_capacity && (
               <div className="flex items-center gap-2 text-neutral-600">
                 <Users className="w-4 h-4 text-[#004B8D]" strokeWidth={1.5} />
-                <span>{(tournament.max_capacity - (tournament.confirmed_count || 0))} spots remaining</span>
+                <span>{tournament.public_capacity_remaining ?? (tournament.max_capacity - (tournament.confirmed_count || 0))} / {tournament.max_capacity} spots open</span>
               </div>
             )}
           </div>

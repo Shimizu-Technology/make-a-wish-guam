@@ -35,7 +35,19 @@
           <tr>
             <td style="padding: 30px 40px;">
               <h2 style="margin: 0 0 20px 0; color: <%= @primary_color %>; font-size: 22px;">Hafa Adai, <%= @golfer.name %>!</h2>
-              
+
+              <% if @is_swipe_simple %>
+                <div style="background:#FEF3C7;border:1px solid #F59E0B;padding:16px;border-radius:8px;margin:16px 0;">
+                  <strong>⚠️ Action Required: Complete Your Payment</strong><br>
+                  Your registration has been submitted but is not confirmed until payment is received.<br><br>
+                  Please complete your $300 team payment via Bank of Guam SwipeSimple:<br>
+                  <a href="https://swipesimple.com/links/lnk_e1c8f45f9c401c93552781ef3d52fdfc"
+                     style="display:inline-block;background:#E31837;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:8px;">
+                    Complete Payment →
+                  </a>
+                </div>
+              <% end %>
+
               <% if @is_confirmed %>
                 <p style="margin: 0 0 25px 0; color: #4a5568; font-size: 15px; line-height: 1.6;">
                   Thank you for registering for the <strong><%= @setting.tournament_edition %> Annual <%= @setting.tournament_name %></strong>. Your spot has been secured!

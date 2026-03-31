@@ -298,7 +298,9 @@ class Golfer < ApplicationRecord
   # For Stripe payments, don't send emails until payment is confirmed
   # For pay_on_day, send emails immediately
   def should_send_immediate_emails?
-    payment_type != "stripe"
+    # Send immediately for swipe_simple (external payment link) and pay_on_day
+    # Don't send for stripe — wait for webhook confirmation
+    %w[pay_on_day swipe_simple].include?(payment_type)
   end
 
   def set_registration_status
@@ -326,9 +328,18 @@ class Golfer < ApplicationRecord
   def send_confirmation_email
     return if Rails.env.test?
     GolferMailer.confirmation_email(self).deliver_later
+    # Also send to partner if they have a different email
+    if partner_email.present? && partner_email != email
+      GolferMailer.partner_confirmation_email(self).deliver_later rescue nil
+    end
   rescue StandardError => e
     Rails.logger.error("Failed to send golfer confirmation email: #{e.message}")
   end
+
+  # TODO: Send SMS confirmation via ClickSend after email
+  # Phone is stored in E.164 format (+16714830219)
+  # ClickSend gem: https://github.com/ClickSend/clicksend-ruby
+  # Message: "You're registered for Golf for Wishes 2026! $300 payment pending. See you May 2 at LeoPalace Resort."
 
   def notify_admin
     return if Rails.env.test?

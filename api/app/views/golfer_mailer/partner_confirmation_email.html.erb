@@ -1,0 +1,11 @@
+<p>Hi <%= @golfer.partner_name %>,</p>
+<p><strong><%= @golfer.name %></strong> has registered you as their playing partner for <strong><%= @tournament.name %></strong>.</p>
+<p><strong>Event Details:</strong><br>
+Date: May 2, 2026<br>
+Location: LeoPalace Resort Country Club, Yona, Guam<br>
+Check-in: 7:00 AM | Shotgun Start: 8:00 AM</p>
+<% if @is_swipe_simple %>
+<p>Payment of $300/team is being processed by your team captain. You're all set!</p>
+<% end %>
+<p>Questions? Contact Eric Tydingco at etydingco@guam.wish.org or 671-649-9474.</p>
+<p>See you on the course!<br>Make-A-Wish Guam & CNMI</p>
