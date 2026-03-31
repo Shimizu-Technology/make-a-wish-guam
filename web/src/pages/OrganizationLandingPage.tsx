@@ -398,7 +398,7 @@ function TournamentCard({ tournament, orgSlug }: TournamentCardProps) {
               {status.label}
             </span>
             <h3 className="text-xl font-bold tracking-tight text-neutral-900">
-              {tournament.display_name}
+              {tournament.name}
             </h3>
           </div>
         </div>
@@ -414,13 +414,11 @@ function TournamentCard({ tournament, orgSlug }: TournamentCardProps) {
           {tournament.format_name && (
             <Detail icon={Flag} label="Format" value={tournament.format_name} />
           )}
-          {tournament.entry_fee_dollars !== undefined && (
-            <Detail
+          <Detail
               icon={DollarSign}
               label="Entry Fee"
-              value={`$${tournament.entry_fee_dollars.toFixed(2)}`}
+              value="$300/team"
             />
-          )}
         </div>
 
         {/* Capacity bar */}

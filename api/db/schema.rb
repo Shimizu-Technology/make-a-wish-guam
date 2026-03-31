@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_16_101000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_31_000004) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -68,12 +68,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_16_101000) do
     t.string "email"
     t.bigint "group_id"
     t.integer "hole_number"
+    t.boolean "is_team_captain", default: true
     t.datetime "magic_link_expires_at"
     t.string "magic_link_token"
     t.string "mobile"
     t.string "name"
     t.text "notes"
     t.datetime "paid_at"
+    t.string "partner_email"
+    t.string "partner_name"
+    t.string "partner_phone"
+    t.string "partner_tshirt_size"
+    t.datetime "partner_waiver_accepted_at"
     t.integer "payment_amount_cents"
     t.string "payment_method"
     t.text "payment_notes"
@@ -93,7 +99,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_16_101000) do
     t.string "stripe_checkout_session_id"
     t.string "stripe_payment_intent_id"
     t.string "stripe_refund_id"
+    t.string "team_name"
     t.bigint "tournament_id", null: false
+    t.string "tshirt_size"
     t.datetime "updated_at", null: false
     t.datetime "waiver_accepted_at"
     t.index ["group_id"], name: "index_golfers_on_group_id"
@@ -244,18 +252,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_16_101000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "sponsor_slots", force: :cascade do |t|
+    t.datetime "confirmed_at"
+    t.datetime "created_at", null: false
+    t.string "player_email"
+    t.string "player_name"
+    t.string "player_phone"
+    t.integer "slot_number", null: false
+    t.bigint "sponsor_id", null: false
+    t.bigint "tournament_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sponsor_id"], name: "index_sponsor_slots_on_sponsor_id"
+    t.index ["tournament_id"], name: "index_sponsor_slots_on_tournament_id"
+  end
+
   create_table "sponsors", force: :cascade do |t|
+    t.string "access_token"
+    t.datetime "access_token_expires_at"
     t.boolean "active", default: true
     t.datetime "created_at", null: false
     t.text "description"
     t.integer "hole_number"
+    t.string "login_email"
     t.string "logo_url"
     t.string "name", null: false
     t.integer "position", default: 0
+    t.integer "slot_count", default: 0
     t.string "tier", default: "bronze"
     t.bigint "tournament_id", null: false
     t.datetime "updated_at", null: false
     t.string "website_url"
+    t.index ["access_token"], name: "index_sponsors_on_access_token", unique: true, where: "(access_token IS NOT NULL)"
     t.index ["tournament_id", "hole_number"], name: "index_sponsors_on_tournament_id_and_hole_number"
     t.index ["tournament_id", "position"], name: "index_sponsors_on_tournament_id_and_position"
     t.index ["tournament_id", "tier"], name: "index_sponsors_on_tournament_id_and_tier"
@@ -331,6 +358,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_16_101000) do
     t.boolean "use_flights", default: false
     t.boolean "waitlist_enabled", default: true
     t.integer "waitlist_max"
+    t.integer "walkin_fee"
+    t.boolean "walkin_registration_open", default: false
     t.integer "year", null: false
     t.index ["early_bird_deadline"], name: "index_tournaments_on_early_bird_deadline"
     t.index ["organization_id", "slug"], name: "index_tournaments_on_organization_id_and_slug", unique: true
@@ -370,6 +399,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_16_101000) do
   add_foreign_key "scores", "groups"
   add_foreign_key "scores", "tournaments"
   add_foreign_key "scores", "users", column: "entered_by_id"
+  add_foreign_key "sponsor_slots", "sponsors"
+  add_foreign_key "sponsor_slots", "tournaments"
   add_foreign_key "sponsors", "tournaments"
   add_foreign_key "tournament_assignments", "tournaments"
   add_foreign_key "tournament_assignments", "users"

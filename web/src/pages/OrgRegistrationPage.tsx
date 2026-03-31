@@ -200,7 +200,7 @@ export const OrgRegistrationPage: React.FC = () => {
           <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-neutral-900 mb-2">Registration Closed</h1>
           <p className="text-neutral-600 mb-4">
-            Registration for {tournament.display_name} is currently closed.
+            Registration for {tournament.name} is currently closed.
             {tournament.at_capacity && ' The tournament is at capacity.'}
           </p>
           <Button onClick={() => navigate(`/${orgSlug}`)}>
@@ -237,7 +237,7 @@ export const OrgRegistrationPage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1, ease }}
           >
-            Register for {tournament.display_name}
+            Register for {tournament.name}
           </motion.h1>
 
           <motion.div
@@ -533,7 +533,7 @@ export const OrgRegistrationPage: React.FC = () => {
                   <div className="flex items-start gap-3">
                     <Trophy className="w-5 h-5 mt-0.5 shrink-0 text-[#004B8D]" strokeWidth={1.5} />
                     <div>
-                      <p className="font-medium text-neutral-900 text-sm">{tournament.display_name}</p>
+                      <p className="font-medium text-neutral-900 text-sm">{tournament.name}</p>
                     </div>
                   </div>
                   {tournament.event_date && (
