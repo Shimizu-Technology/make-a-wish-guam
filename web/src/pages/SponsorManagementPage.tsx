@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useOrganization } from '../components/OrganizationProvider';
-import { 
-  Building2, 
+import {
+  Building2,
   Plus,
   Trash2,
   Edit,
@@ -16,7 +16,9 @@ import {
   Award,
   Medal,
   X,
-  GripVertical
+  GripVertical,
+  Mail,
+  Users,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -34,6 +36,8 @@ interface Sponsor {
   major: boolean;
   display_label: string;
   slot_count: number;
+  login_email: string | null;
+  slots_filled: number;
 }
 
 interface Tournament {
@@ -95,6 +99,26 @@ export const SponsorManagementPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleSendAccessLink = async (sponsor: Sponsor) => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/sponsor_access/request_link`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: sponsor.login_email }),
+        }
+      );
+      if (res.ok) {
+        toast.success('Access link sent!');
+      } else {
+        toast.error('Failed to send access link');
+      }
+    } catch {
+      toast.error('Failed to send access link');
+    }
+  };
 
   const handleDelete = async (sponsor: Sponsor) => {
     if (!confirm(`Delete sponsor "${sponsor.name}"?`)) return;
@@ -240,7 +264,16 @@ export const SponsorManagementPage: React.FC = () => {
                       <h3 className="font-semibold text-gray-900 truncate">{sponsor.name}</h3>
                       <p className="text-sm text-gray-500">{sponsor.display_label}</p>
                       {sponsor.slot_count > 0 && (
-                        <span className="text-xs text-neutral-500">{sponsor.slot_count} player slots</span>
+                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium mt-1 ${
+                          (sponsor.slots_filled || 0) >= sponsor.slot_count
+                            ? 'bg-green-100 text-green-700'
+                            : (sponsor.slots_filled || 0) > 0
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          <Users className="w-3 h-3" />
+                          {sponsor.slots_filled || 0} / {sponsor.slot_count} slots filled
+                        </span>
                       )}
                       {sponsor.website_url && (
                         <a
@@ -252,6 +285,15 @@ export const SponsorManagementPage: React.FC = () => {
                           <ExternalLink className="w-3 h-3" />
                           Website
                         </a>
+                      )}
+                      {sponsor.login_email && (
+                        <button
+                          onClick={() => handleSendAccessLink(sponsor)}
+                          className="text-sm text-[#004B8D] hover:underline flex items-center gap-1 mt-1"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          Send Portal Access Link
+                        </button>
                       )}
                     </div>
                     <div className="flex gap-1">
@@ -313,6 +355,8 @@ const SponsorModal: React.FC<{
     description: sponsor?.description || '',
     hole_number: sponsor?.hole_number || '',
     active: sponsor?.active ?? true,
+    login_email: (sponsor as any)?.login_email || '',
+    slot_count: sponsor?.slot_count || 0,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -445,6 +489,36 @@ const SponsorModal: React.FC<{
               onChange={e => setForm({ ...form, description: e.target.value })}
               className="w-full border rounded-lg px-3 py-2"
               rows={2}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              Portal Login Email
+              <span className="text-xs text-neutral-400 ml-1">(sponsor uses this to access their player slots)</span>
+            </label>
+            <input
+              type="email"
+              placeholder="sponsor@company.com"
+              value={form.login_email || ''}
+              onChange={e => setForm({ ...form, login_email: e.target.value })}
+              className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:border-[#004B8D] focus:outline-none focus:ring-2 focus:ring-[#004B8D]/20"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              Player Slots
+              <span className="text-xs text-neutral-400 ml-1">(e.g. 6 slots = 3 teams)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="20"
+              placeholder="0"
+              value={form.slot_count || 0}
+              onChange={e => setForm({ ...form, slot_count: parseInt(e.target.value) || 0 })}
+              className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:border-[#004B8D] focus:outline-none focus:ring-2 focus:ring-[#004B8D]/20"
             />
           </div>
 

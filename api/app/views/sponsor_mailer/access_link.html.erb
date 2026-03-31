@@ -1,13 +1,44 @@
-<h2>Sponsor Portal Access</h2>
-
-<p>Hello <%= @sponsor.name %>,</p>
-
-<p>You've requested access to your sponsor portal for <strong><%= @tournament&.name || 'Golf for Wishes 2026' %></strong>.</p>
-
-<p>Click the link below to manage your player slots:</p>
-
-<p><a href="<%= @access_url %>" style="display: inline-block; padding: 12px 24px; background-color: <%= @primary_color %>; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">Access Sponsor Portal</a></p>
-
-<p>This link will expire in 7 days. If you need a new link, visit the sponsor portal page and request a new one.</p>
-
-<p>Thank you for sponsoring <%= @org_name %>!</p>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .container { max-width: 520px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header { background: #004B8D; padding: 32px; text-align: center; color: white; }
+    .header h1 { margin: 0 0 4px; font-size: 22px; }
+    .header p { margin: 0; opacity: 0.8; font-size: 14px; }
+    .body { padding: 32px; }
+    .body p { color: #374151; line-height: 1.6; margin: 0 0 16px; }
+    .btn { display: inline-block; padding: 14px 28px; background: #E31837; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin: 8px 0 24px; }
+    .info-box { background: #f0f4f9; border-radius: 8px; padding: 16px; margin: 16px 0; }
+    .info-box p { margin: 0; font-size: 13px; color: #6B7280; }
+    .footer { padding: 20px 32px; border-top: 1px solid #e5e7eb; text-align: center; }
+    .footer p { color: #9CA3AF; font-size: 12px; margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Sponsor Portal Access</h1>
+      <p>Golf for Wishes 2026 — Make-A-Wish Guam & CNMI</p>
+    </div>
+    <div class="body">
+      <p>Hello <strong><%= @sponsor.name %></strong>,</p>
+      <p>Thank you for sponsoring the <strong>Golf for Wishes 2026</strong> tournament! You have <strong><%= @sponsor.slot_count %> player slot<%= @sponsor.slot_count == 1 ? '' : 's' %></strong> to fill.</p>
+      <p>Click the button below to access your sponsor portal and enter your players' information:</p>
+      <a href="<%= @access_url %>" class="btn">Access Sponsor Portal →</a>
+      <div class="info-box">
+        <p><strong>Important:</strong> Player information must be submitted by <strong>7:30 AM on May 2, 2026</strong> (tournament check-in). After that time, changes will be locked.</p>
+      </div>
+      <p>If the button above doesn't work, copy and paste this link:<br>
+      <small style="color:#6B7280; word-break:break-all;"><%= @access_url %></small></p>
+      <p>This link expires in 7 days. If you need a new link, visit:<br>
+      <small><%= ENV.fetch('FRONTEND_URL', 'http://localhost:5173') %>/sponsor-portal</small></p>
+    </div>
+    <div class="footer">
+      <p>Golf for Wishes 2026 · Make-A-Wish® Guam & CNMI · Questions? etydingco@guam.wish.org</p>
+    </div>
+  </div>
+</body>
+</html>

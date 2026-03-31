@@ -112,7 +112,7 @@ module Api
       def sponsor_params
         params.require(:sponsor).permit(
           :name, :tier, :logo_url, :website_url, :description,
-          :hole_number, :position, :active
+          :hole_number, :position, :active, :login_email, :slot_count
         )
       end
 
@@ -130,7 +130,9 @@ module Api
           active: sponsor.active,
           major: sponsor.major?,
           display_label: sponsor.display_label,
-          slot_count: sponsor.slot_count
+          slot_count: sponsor.slot_count,
+          login_email: sponsor.login_email,
+          slots_filled: sponsor.sponsor_slots.where.not(player_name: [nil, '']).count
         }
       end
     end

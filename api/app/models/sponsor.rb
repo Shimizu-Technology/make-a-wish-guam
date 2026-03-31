@@ -58,6 +58,9 @@ class Sponsor < ApplicationRecord
     hole_sponsor? ? "Hole #{hole_number}" : tier_display
   end
 
+  # Auto-sync SponsorSlot records when slot_count changes
+  after_save :sync_sponsor_slots
+
   # Magic link authentication
   ACCESS_TOKEN_EXPIRY = 7.days
 
@@ -81,5 +84,25 @@ class Sponsor < ApplicationRecord
     sponsor = find_by(access_token: token)
     return nil unless sponsor&.access_token_valid?
     sponsor
+  end
+
+  private
+
+  def sync_sponsor_slots
+    return unless saved_change_to_slot_count?
+    current_count = sponsor_slots.count
+    target_count = slot_count.to_i
+
+    if target_count > current_count
+      # Add new slots
+      tournament_record = self.tournament
+      (current_count + 1..target_count).each do |num|
+        sponsor_slots.find_or_create_by!(slot_number: num, tournament: tournament_record)
+      end
+    elsif target_count < current_count
+      # Remove extra slots (remove unfilled ones first, then filled ones)
+      to_remove = sponsor_slots.order(player_name: :asc).last(current_count - target_count)
+      to_remove.each(&:destroy)
+    end
   end
 end

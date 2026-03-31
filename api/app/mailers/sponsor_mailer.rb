@@ -8,8 +8,7 @@ class SponsorMailer < ApplicationMailer
     @org_name = @org&.name.presence || 'Make-A-Wish Guam'
 
     frontend_url = ENV.fetch("FRONTEND_URL", "http://localhost:5173")
-    org_slug = @org&.slug || 'maw'
-    @access_url = "#{frontend_url}/#{org_slug}/sponsor-portal?token=#{token}"
+    @access_url = "#{frontend_url}/sponsor-portal?token=#{token}"
 
     mail(
       to: sponsor.login_email,
