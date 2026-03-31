@@ -19,17 +19,18 @@
 - Stripped SaaS super-admin flows
 - MAW-specific AGENTS.md / README
 
+### Completed
+- [x] SMS notifications via ClickSend (registration confirmation to both players, E.164 format)
+- [x] Manual payment reconciliation flow in admin (3-tab: pending/paid/summary, mark-as-paid modal, CSV export)
+- [x] Walk-in registration (admin quick-add modal, walk_in payment type, day-of flow)
+- [x] Configurable tournament settings (SwipeSimple URLs, walk-in fee, registration deadline, entry fee display, raffle settings)
+- [x] Raffle prize image upload (Active Storage S3, file upload + URL input, preview)
+
 ### Still Needs Building
 - [ ] Sponsor self-service portal (sponsors manage their own player slots)
-- [ ] SwipeSimple redirect in registration flow (frontend)
-- [ ] Team registration form (2 players, both sign waiver)
-- [ ] MAW branding (colors, logo, landing page)
-- [ ] Manual payment reconciliation flow in admin
-- [ ] Walk-in surcharge pricing tier
 - [ ] Day-of raffle purchase via SwipeSimple or cash
 - [ ] Push notifications for raffle
-- [ ] SMS notifications via ClickSend (phone format: +1671XXXXXXX E.164 — stored correctly, integration pending)
-      Needed for: registration confirmation, raffle announcements, day-of reminders
+- [ ] MAW branding (colors, logo, landing page)
 
 ### Future (Gala Aug 22+)
 - Table/seating management

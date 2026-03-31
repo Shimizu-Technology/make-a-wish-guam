@@ -5,17 +5,21 @@ import { PageTransition } from '../components/ui';
 import { useOrganization } from '../components/OrganizationProvider';
 import { useAuthToken } from '../hooks/useAuthToken';
 import { hexToRgba } from '../utils/colors';
-import { 
-  Users, 
-  DollarSign, 
-  Calendar, 
-  ChevronRight, 
+import {
+  Users,
+  DollarSign,
+  Calendar,
+  ChevronRight,
   Plus,
   Settings,
   Trophy,
   AlertCircle,
-  Loader2
+  Loader2,
+  UserPlus,
+  X,
+  CheckCircle,
 } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -51,6 +55,213 @@ interface OrgStats {
   total_revenue: number;
 }
 
+// Walk-in Registration Modal
+const WalkInModal: React.FC<{
+  tournament: TournamentSummary;
+  organizationSlug: string;
+  getToken: () => Promise<string | null>;
+  onClose: () => void;
+  onSuccess: () => void;
+}> = ({ tournament, organizationSlug, getToken, onClose, onSuccess }) => {
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    captainName: '',
+    captainEmail: '',
+    captainPhone: '+1671',
+    partnerName: '',
+    partnerEmail: '',
+    partnerPhone: '',
+    paymentMethod: 'cash' as 'cash' | 'check' | 'swipesimple',
+    amount: '300',
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.captainName || !form.captainEmail || !form.captainPhone) {
+      toast.error('Captain name, email, and phone are required');
+      return;
+    }
+    setSaving(true);
+    try {
+      const token = await getToken();
+
+      // First create the golfer as walk-in via admin endpoint
+      const createRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organizationSlug}/tournaments/${tournament.slug}/golfers`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            golfer: {
+              name: form.captainName,
+              email: form.captainEmail,
+              phone: form.captainPhone,
+              partner_name: form.partnerName || undefined,
+              partner_email: form.partnerEmail || undefined,
+              partner_phone: form.partnerPhone || undefined,
+              payment_type: 'walk_in',
+              payment_status: 'paid',
+            },
+            waiver_accepted: true,
+          }),
+        }
+      );
+
+      if (!createRes.ok) {
+        const data = await createRes.json();
+        throw new Error(data.errors?.join(', ') || data.error || 'Failed to create walk-in');
+      }
+
+      const data = await createRes.json();
+      const golferId = data.golfer?.id || data.id;
+
+      // Mark as paid
+      if (golferId) {
+        const amountCents = Math.round(parseFloat(form.amount || '300') * 100);
+        await fetch(
+          `${import.meta.env.VITE_API_URL}/api/v1/golfers/${golferId}/mark_paid`,
+          {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              payment_method: form.paymentMethod,
+              payment_amount_cents: amountCents,
+              payment_notes: `Walk-in registration - ${form.paymentMethod}`,
+            }),
+          }
+        );
+      }
+
+      toast.success('Walk-in registered successfully');
+      onSuccess();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to register walk-in');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Walk-in Registration</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Captain Name *</label>
+            <input
+              type="text"
+              value={form.captainName}
+              onChange={e => setForm({ ...form, captainName: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Captain Email *</label>
+            <input
+              type="email"
+              value={form.captainEmail}
+              onChange={e => setForm({ ...form, captainEmail: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Captain Phone *</label>
+            <input
+              type="tel"
+              value={form.captainPhone}
+              onChange={e => setForm({ ...form, captainPhone: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <hr className="my-2" />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Partner Name</label>
+            <input
+              type="text"
+              value={form.partnerName}
+              onChange={e => setForm({ ...form, partnerName: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Partner Email</label>
+            <input
+              type="email"
+              value={form.partnerEmail}
+              onChange={e => setForm({ ...form, partnerEmail: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Partner Phone</label>
+            <input
+              type="tel"
+              value={form.partnerPhone}
+              onChange={e => setForm({ ...form, partnerPhone: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <hr className="my-2" />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Payment</label>
+            <select
+              value={form.paymentMethod}
+              onChange={e => setForm({ ...form, paymentMethod: e.target.value as any })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="cash">Cash</option>
+              <option value="check">Check</option>
+              <option value="swipesimple">SwipeSimple</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={form.amount}
+              onChange={e => setForm({ ...form, amount: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              Register Walk-in
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 export const OrgAdminDashboard: React.FC = () => {
   const { organization, isLoading: orgLoading } = useOrganization();
   const { getToken } = useAuthToken();
@@ -59,6 +270,7 @@ export const OrgAdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<OrgStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showWalkIn, setShowWalkIn] = useState<TournamentSummary | null>(null);
 
   useEffect(() => {
     if (!organization) return;
@@ -162,6 +374,7 @@ export const OrgAdminDashboard: React.FC = () => {
     <MotionConfig reducedMotion="user">
     <PageTransition>
     <div className="min-h-screen bg-gray-50">
+      <Toaster position="top-right" />
       {/* Header */}
       <motion.header
         initial={{ opacity: 0 }}
@@ -176,13 +389,24 @@ export const OrgAdminDashboard: React.FC = () => {
               <h1 className="text-2xl font-bold">{organization.name}</h1>
               <p className="text-white/80 mt-1">Admin Dashboard</p>
             </div>
-            <Link
-              to="/admin/settings"
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition"
-            >
-              <Settings className="w-5 h-5" />
-              <span>Settings</span>
-            </Link>
+            <div className="flex items-center gap-3">
+              {tournaments.length > 0 && (
+                <button
+                  onClick={() => setShowWalkIn(tournaments.find(t => t.status === 'open') || tournaments[0])}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition"
+                >
+                  <UserPlus className="w-5 h-5" />
+                  <span>Walk-in</span>
+                </button>
+              )}
+              <Link
+                to="/admin/settings"
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition"
+              >
+                <Settings className="w-5 h-5" />
+                <span>Settings</span>
+              </Link>
+            </div>
           </div>
         </div>
       </motion.header>
@@ -326,6 +550,20 @@ export const OrgAdminDashboard: React.FC = () => {
           )}
         </motion.div>
       </main>
+
+      {/* Walk-in Registration Modal */}
+      {showWalkIn && organization && (
+        <WalkInModal
+          tournament={showWalkIn}
+          organizationSlug={organization.slug}
+          getToken={getToken}
+          onClose={() => setShowWalkIn(null)}
+          onSuccess={() => {
+            // Re-fetch data
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
     </PageTransition>
     </MotionConfig>

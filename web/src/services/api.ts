@@ -113,6 +113,19 @@ export interface Tournament {
   // Sponsors (public display)
   sponsors?: Sponsor[];
 
+  // SwipeSimple / walk-in settings
+  swipe_simple_url?: string;
+  walkin_swipe_simple_url?: string;
+  entry_fee_display?: string;
+  walkin_fee?: number;
+  walkin_registration_open?: boolean;
+
+  // Raffle settings
+  raffle_enabled?: boolean;
+  raffle_description?: string;
+  raffle_draw_time?: string;
+  raffle_auto_draw?: boolean;
+
   // Legacy compatibility fields (optional)
   employee_entry_fee?: number;
   employee_entry_fee_dollars?: number;

@@ -14,8 +14,7 @@ import {
   AlertCircle,
   X,
   FileText,
-  Banknote,
-  Gift,
+  Download,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -29,11 +28,15 @@ interface Golfer {
   email: string;
   phone: string;
   company: string | null;
+  partner_name: string | null;
+  partner_email: string | null;
+  partner_phone: string | null;
   registration_status: 'confirmed' | 'waitlist' | 'cancelled';
   payment_status: 'paid' | 'unpaid' | 'pending' | 'refunded';
   payment_method: string | null;
   payment_type: string | null;
   payment_notes: string | null;
+  payment_amount_cents: number | null;
   receipt_number: string | null;
   notes: string | null;
   checked_in_at: string | null;
@@ -44,22 +47,17 @@ interface Golfer {
 type PaymentMethod = 'swipesimple' | 'check' | 'cash' | 'comp';
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  swipesimple: 'SwipeSimple',
+  swipesimple: 'SwipeSimple Confirmed',
   check: 'Check',
   cash: 'Cash',
   comp: 'Comp',
 };
 
+type TabKey = 'pending' | 'paid' | 'summary';
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const formatDate = (dateString: string) =>
-  new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 
 const formatDateTime = (dateString: string) =>
   new Date(dateString).toLocaleDateString('en-US', {
@@ -82,6 +80,7 @@ const getPaymentBadge = (method: string | null) => {
     check: 'bg-amber-100 text-amber-700',
     cash: 'bg-green-100 text-green-700',
     comp: 'bg-purple-100 text-purple-700',
+    stripe: 'bg-indigo-100 text-indigo-700',
   };
   const label = method
     ? PAYMENT_METHOD_LABELS[method as PaymentMethod] || method
@@ -151,7 +150,6 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
             Mark as Paid
@@ -164,13 +162,12 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-6 py-4 space-y-4">
           <p className="text-sm text-gray-600">
             Recording payment for <span className="font-medium text-gray-900">{golfer.name}</span>
+            {golfer.partner_name && <span className="text-gray-500"> & {golfer.partner_name}</span>}
           </p>
 
-          {/* Payment Method */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Payment Method
@@ -188,7 +185,6 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
             </select>
           </div>
 
-          {/* Check-specific fields */}
           {method === 'check' && (
             <>
               <div>
@@ -200,18 +196,7 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
                   value={checkNumber}
                   onChange={(e) => setCheckNumber(e.target.value)}
                   placeholder="e.g. 1234"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date Received
-                </label>
-                <input
-                  type="date"
-                  value={dateReceived}
-                  onChange={(e) => setDateReceived(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -223,13 +208,23 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Date Received
+                </label>
+                <input
+                  type="date"
+                  value={dateReceived}
+                  onChange={(e) => setDateReceived(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </>
           )}
 
-          {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Notes
@@ -239,12 +234,11 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Optional notes..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200">
           <button
             onClick={onClose}
@@ -285,13 +279,11 @@ export const PaymentReconciliationPage: React.FC = () => {
   const [golfers, setGolfers] = useState<Golfer[]>([]);
   const [tournamentName, setTournamentName] = useState('');
   const [tournamentId, setTournamentId] = useState<string | null>(null);
+  const [entryFee, setEntryFee] = useState(30000);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [markingPaid, setMarkingPaid] = useState<Golfer | null>(null);
-
-  // -----------------------------------------------------------------------
-  // Fetch data
-  // -----------------------------------------------------------------------
+  const [activeTab, setActiveTab] = useState<TabKey>('pending');
 
   const fetchData = useCallback(async () => {
     if (!organization || !tournamentSlug) return;
@@ -302,19 +294,19 @@ export const PaymentReconciliationPage: React.FC = () => {
 
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments/${tournamentSlug}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (!response.ok) throw new Error('Failed to fetch data');
 
       const data = await response.json();
-      setTournamentName(data.tournament?.name || '');
-      setTournamentId(data.tournament?.id || null);
+      const t = data.tournament || data;
+      setTournamentName(t.name || '');
+      setTournamentId(t.id || null);
+      setEntryFee(t.entry_fee || 30000);
 
       const confirmed = (data.golfers || []).filter(
-        (g: Golfer) => g.registration_status === 'confirmed'
+        (g: Golfer) => g.registration_status !== 'cancelled'
       );
       setGolfers(confirmed);
       setError(null);
@@ -328,10 +320,6 @@ export const PaymentReconciliationPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // -----------------------------------------------------------------------
-  // Mark as paid handler
-  // -----------------------------------------------------------------------
 
   const handleMarkPaid = async (
     golfer: Golfer,
@@ -369,21 +357,40 @@ export const PaymentReconciliationPage: React.FC = () => {
     await fetchData();
   };
 
-  // -----------------------------------------------------------------------
   // Derived data
-  // -----------------------------------------------------------------------
-
   const pendingGolfers = golfers.filter(
     (g) => g.payment_status === 'pending' || g.payment_status === 'unpaid'
   );
   const paidGolfers = golfers.filter((g) => g.payment_status === 'paid');
+  const walkinGolfers = golfers.filter((g) => g.payment_type === 'walk_in');
+  const totalRevenue = paidGolfers.reduce(
+    (sum, g) => sum + (g.payment_amount_cents || entryFee),
+    0
+  );
 
-  const TEAM_FEE_CENTS = 30000; // $300 per team
-  const totalRevenue = paidGolfers.length * TEAM_FEE_CENTS;
+  const handleExportCSV = () => {
+    const headers = ['Name', 'Partner', 'Email', 'Phone', 'Payment Status', 'Payment Method', 'Amount', 'Paid At', 'Registered At'];
+    const rows = golfers.map((g) => [
+      g.name,
+      g.partner_name || '',
+      g.email,
+      g.phone,
+      g.payment_status,
+      g.payment_method || '',
+      g.payment_amount_cents ? (g.payment_amount_cents / 100).toFixed(2) : '',
+      g.paid_at || '',
+      g.created_at,
+    ]);
 
-  // -----------------------------------------------------------------------
-  // Render
-  // -----------------------------------------------------------------------
+    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${tournamentName.replace(/\s+/g, '_')}_payments.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (loading) {
     return (
@@ -435,49 +442,40 @@ export const PaymentReconciliationPage: React.FC = () => {
 
       <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Stats Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow-sm p-5">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-blue-50 rounded-lg">
                 <Users className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Registered</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {golfers.length}
-                </p>
+                <p className="text-sm text-gray-500">Registered</p>
+                <p className="text-2xl font-bold text-gray-900">{golfers.length}</p>
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-sm p-5">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-green-50 rounded-lg">
                 <CheckCircle className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Paid</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {paidGolfers.length}
-                </p>
+                <p className="text-sm text-gray-500">Paid</p>
+                <p className="text-2xl font-bold text-gray-900">{paidGolfers.length}</p>
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-sm p-5">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-amber-50 rounded-lg">
                 <Clock className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Pending</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {pendingGolfers.length}
-                </p>
+                <p className="text-sm text-gray-500">Pending</p>
+                <p className="text-2xl font-bold text-gray-900">{pendingGolfers.length}</p>
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-sm p-5">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-emerald-50 rounded-lg">
@@ -485,149 +483,239 @@ export const PaymentReconciliationPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(totalRevenue)}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Pending Payments */}
-        <section className="mb-8">
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
-              <Clock className="w-5 h-5 text-amber-500" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Pending Payments
-              </h2>
-              <span className="ml-auto text-sm text-gray-500">
-                {pendingGolfers.length} team{pendingGolfers.length !== 1 ? 's' : ''}
-              </span>
+        {/* Tabs */}
+        <div className="border-b border-gray-200 mb-6">
+          <div className="flex gap-8">
+            {([
+              { key: 'pending' as TabKey, label: 'Pending Payments', count: pendingGolfers.length, icon: Clock },
+              { key: 'paid' as TabKey, label: 'Paid Teams', count: paidGolfers.length, icon: CheckCircle },
+              { key: 'summary' as TabKey, label: 'Summary', icon: FileText },
+            ]).map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`pb-3 px-1 border-b-2 font-medium flex items-center gap-2 ${
+                  activeTab === tab.key
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+                {tab.count !== undefined && (
+                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{tab.count}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tab: Pending Payments */}
+        {activeTab === 'pending' && (
+          <section>
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              {pendingGolfers.length === 0 ? (
+                <div className="px-6 py-12 text-center text-gray-500">
+                  <CheckCircle className="w-10 h-10 text-green-400 mx-auto mb-3" />
+                  <p className="font-medium">All payments received</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-gray-50 text-xs uppercase text-gray-500 tracking-wider">
+                        <th className="px-6 py-3">Team</th>
+                        <th className="px-6 py-3">Captain Contact</th>
+                        <th className="px-6 py-3">Partner Contact</th>
+                        <th className="px-6 py-3">Registered</th>
+                        <th className="px-6 py-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {pendingGolfers.map((golfer) => (
+                        <tr key={golfer.id} className="hover:bg-gray-50 transition">
+                          <td className="px-6 py-4">
+                            <p className="font-medium text-gray-900">{golfer.name}</p>
+                            {golfer.partner_name && (
+                              <p className="text-sm text-gray-500">& {golfer.partner_name}</p>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm">
+                            <p className="text-gray-600">{golfer.email}</p>
+                            <p className="text-gray-400">{golfer.phone}</p>
+                          </td>
+                          <td className="px-6 py-4 text-sm">
+                            {golfer.partner_email ? (
+                              <>
+                                <p className="text-gray-600">{golfer.partner_email}</p>
+                                {golfer.partner_phone && <p className="text-gray-400">{golfer.partner_phone}</p>}
+                              </>
+                            ) : (
+                              <span className="text-gray-300">--</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {formatDateTime(golfer.created_at)}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={() => setMarkingPaid(golfer)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition"
+                            >
+                              <DollarSign className="w-4 h-4" />
+                              Mark as Paid
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Tab: Paid Teams */}
+        {activeTab === 'paid' && (
+          <section>
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              {paidGolfers.length === 0 ? (
+                <div className="px-6 py-12 text-center text-gray-500">
+                  <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                  <p className="font-medium">No payments recorded yet</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-gray-50 text-xs uppercase text-gray-500 tracking-wider">
+                        <th className="px-6 py-3">Team</th>
+                        <th className="px-6 py-3">Payment Method</th>
+                        <th className="px-6 py-3">Amount</th>
+                        <th className="px-6 py-3">Receipt #</th>
+                        <th className="px-6 py-3">Paid At</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {paidGolfers.map((golfer) => (
+                        <tr key={golfer.id} className="hover:bg-gray-50 transition">
+                          <td className="px-6 py-4">
+                            <p className="font-medium text-gray-900">{golfer.name}</p>
+                            {golfer.partner_name && (
+                              <p className="text-sm text-gray-500">& {golfer.partner_name}</p>
+                            )}
+                            <p className="text-xs text-gray-400">{golfer.email}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            {getPaymentBadge(golfer.payment_method)}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                            {golfer.payment_amount_cents
+                              ? formatCurrency(golfer.payment_amount_cents)
+                              : formatCurrency(entryFee)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {golfer.receipt_number || '--'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {golfer.paid_at
+                              ? formatDateTime(golfer.paid_at)
+                              : golfer.created_at
+                              ? formatDateTime(golfer.created_at)
+                              : '--'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Tab: Summary */}
+        {activeTab === 'summary' && (
+          <section className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">Payment Summary</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Total Registered</span>
+                    <span className="font-semibold text-gray-900">{golfers.length} teams ({golfers.length * 2} players)</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Total Paid</span>
+                    <span className="font-semibold text-green-600">{paidGolfers.length} teams</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Total Pending</span>
+                    <span className="font-semibold text-amber-600">{pendingGolfers.length} teams</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Walk-ins</span>
+                    <span className="font-semibold text-gray-900">{walkinGolfers.length} teams</span>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Revenue (Paid)</span>
+                    <span className="font-bold text-2xl text-green-600">{formatCurrency(totalRevenue)}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Expected (All)</span>
+                    <span className="font-semibold text-gray-900">{formatCurrency(golfers.length * entryFee)}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Outstanding</span>
+                    <span className="font-semibold text-amber-600">{formatCurrency(pendingGolfers.length * entryFee)}</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {pendingGolfers.length === 0 ? (
-              <div className="px-6 py-12 text-center text-gray-500">
-                <CheckCircle className="w-10 h-10 text-green-400 mx-auto mb-3" />
-                <p className="font-medium">All payments received</p>
+            {/* Payment method breakdown */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">By Payment Method</h3>
+              <div className="space-y-3">
+                {Object.entries(
+                  paidGolfers.reduce<Record<string, number>>((acc, g) => {
+                    const method = g.payment_method || 'unknown';
+                    acc[method] = (acc[method] || 0) + 1;
+                    return acc;
+                  }, {})
+                ).map(([method, count]) => (
+                  <div key={method} className="flex items-center justify-between py-2">
+                    {getPaymentBadge(method)}
+                    <span className="font-medium text-gray-900">{count} team{count !== 1 ? 's' : ''}</span>
+                  </div>
+                ))}
+                {paidGolfers.length === 0 && (
+                  <p className="text-gray-400 text-sm">No payments yet</p>
+                )}
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-gray-50 text-xs uppercase text-gray-500 tracking-wider">
-                      <th className="px-6 py-3">Team / Name</th>
-                      <th className="px-6 py-3">Email</th>
-                      <th className="px-6 py-3">Company</th>
-                      <th className="px-6 py-3">Registered</th>
-                      <th className="px-6 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {pendingGolfers.map((golfer) => (
-                      <tr
-                        key={golfer.id}
-                        className="hover:bg-gray-50 transition"
-                      >
-                        <td className="px-6 py-4">
-                          <p className="font-medium text-gray-900">
-                            {golfer.name}
-                          </p>
-                          <p className="text-sm text-gray-500">{golfer.phone}</p>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {golfer.email}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {golfer.company || '--'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {formatDateTime(golfer.created_at)}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => setMarkingPaid(golfer)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition"
-                          >
-                            <DollarSign className="w-4 h-4" />
-                            Mark as Paid
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Paid Teams */}
-        <section>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Paid Teams
-              </h2>
-              <span className="ml-auto text-sm text-gray-500">
-                {paidGolfers.length} team{paidGolfers.length !== 1 ? 's' : ''}
-              </span>
             </div>
 
-            {paidGolfers.length === 0 ? (
-              <div className="px-6 py-12 text-center text-gray-500">
-                <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="font-medium">No payments recorded yet</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-gray-50 text-xs uppercase text-gray-500 tracking-wider">
-                      <th className="px-6 py-3">Team / Name</th>
-                      <th className="px-6 py-3">Email</th>
-                      <th className="px-6 py-3">Company</th>
-                      <th className="px-6 py-3">Payment Method</th>
-                      <th className="px-6 py-3">Paid At</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {paidGolfers.map((golfer) => (
-                      <tr
-                        key={golfer.id}
-                        className="hover:bg-gray-50 transition"
-                      >
-                        <td className="px-6 py-4">
-                          <p className="font-medium text-gray-900">
-                            {golfer.name}
-                          </p>
-                          <p className="text-sm text-gray-500">{golfer.phone}</p>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {golfer.email}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {golfer.company || '--'}
-                        </td>
-                        <td className="px-6 py-4">
-                          {getPaymentBadge(golfer.payment_method)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {golfer.paid_at
-                            ? formatDateTime(golfer.paid_at)
-                            : golfer.created_at
-                            ? formatDateTime(golfer.created_at)
-                            : '--'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </section>
+            {/* Export */}
+            <div className="flex justify-end">
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition font-medium"
+              >
+                <Download className="w-5 h-5" />
+                Export CSV
+              </button>
+            </div>
+          </section>
+        )}
       </main>
 
       {/* Mark as Paid Modal */}

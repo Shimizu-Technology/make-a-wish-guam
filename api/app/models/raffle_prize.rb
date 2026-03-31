@@ -5,6 +5,9 @@ class RafflePrize < ApplicationRecord
   belongs_to :tournament
   belongs_to :winning_ticket, class_name: 'RaffleTicket', optional: true
 
+  # Active Storage
+  has_one_attached :image
+
   # Tiers
   TIERS = %w[grand platinum gold silver standard].freeze
 

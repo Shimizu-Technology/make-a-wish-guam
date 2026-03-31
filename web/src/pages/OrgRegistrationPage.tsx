@@ -559,7 +559,7 @@ export const OrgRegistrationPage: React.FC = () => {
                         </div>
                         <div className="flex justify-between items-baseline">
                           <span className="text-sm text-neutral-500">Entry Fee</span>
-                          <span className="text-xl font-bold text-neutral-900">$300/team</span>
+                          <span className="text-xl font-bold text-neutral-900">{(tournament as any).entry_fee_display || '$300/team'}</span>
                         </div>
                       </div>
 
@@ -669,7 +669,7 @@ export const OrgRegistrationPage: React.FC = () => {
                 <div className="border-t border-neutral-100 pt-4 mb-6">
                   <div className="flex justify-between items-baseline mb-2">
                     <span className="text-neutral-500 text-sm">Entry Fee</span>
-                    <span className="text-2xl font-bold text-neutral-900">$300</span>
+                    <span className="text-2xl font-bold text-neutral-900">{(tournament as any).entry_fee_display || '$300/team'}</span>
                   </div>
                   <p className="text-xs text-neutral-400">per team (2 players)</p>
 

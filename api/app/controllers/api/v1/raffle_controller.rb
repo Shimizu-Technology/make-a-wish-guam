@@ -81,6 +81,7 @@ module Api
         prize = @tournament.raffle_prizes.build(prize_params)
 
         if prize.save
+          attach_image(prize)
           render json: { prize: prize_response(prize), message: 'Prize created' }, status: :created
         else
           render json: { error: prize.errors.full_messages.join(', ') }, status: :unprocessable_entity
@@ -93,6 +94,7 @@ module Api
         prize = @tournament.raffle_prizes.find(params[:id])
 
         if prize.update(prize_params)
+          attach_image(prize)
           render json: { prize: prize_response(prize), message: 'Prize updated' }
         else
           render json: { error: prize.errors.full_messages.join(', ') }, status: :unprocessable_entity
@@ -274,8 +276,17 @@ module Api
       def prize_params
         params.require(:prize).permit(
           :name, :description, :value_cents, :tier, :image_url,
-          :sponsor_name, :sponsor_logo_url, :position
+          :sponsor_name, :sponsor_logo_url, :position, :image
         )
+      end
+
+      def attach_image(prize)
+        return unless params.dig(:prize, :image).present? && params[:prize][:image].respond_to?(:tempfile)
+
+        prize.image.attach(params[:prize][:image])
+        prize.update!(image_url: Rails.application.routes.url_helpers.rails_blob_url(prize.image, host: ENV.fetch('API_URL', 'http://localhost:3000')))
+      rescue => e
+        Rails.logger.error("Failed to attach image to prize #{prize.id}: #{e.message}")
       end
 
       def prize_response(prize, include_winner: false)

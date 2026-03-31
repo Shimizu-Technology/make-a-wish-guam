@@ -20,6 +20,10 @@ import {
   Trash2,
   Crown,
   DollarSign,
+  Calendar,
+  Gift,
+  CreditCard,
+  Link as LinkIcon,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -46,6 +50,22 @@ interface FormData {
   walkin_registration_open: boolean;
 }
 
+interface TournamentSettings {
+  id: string;
+  name: string;
+  registration_open: boolean;
+  registration_deadline: string;
+  walkin_fee: string;
+  max_capacity: string;
+  swipe_simple_url: string;
+  walkin_swipe_simple_url: string;
+  entry_fee_display: string;
+  raffle_enabled: boolean;
+  raffle_description: string;
+  raffle_draw_time: string;
+  raffle_auto_draw: boolean;
+}
+
 const colorPresets = [
   { name: 'Green', value: '#16a34a' },
   { name: 'Blue', value: '#2563eb' },
@@ -66,6 +86,8 @@ export const OrgSettingsPage: React.FC = () => {
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [addingMember, setAddingMember] = useState(false);
+  const [tournamentSettings, setTournamentSettings] = useState<TournamentSettings | null>(null);
+  const [savingTournament, setSavingTournament] = useState(false);
 
   useEffect(() => {
     if (organization) {
@@ -106,9 +128,98 @@ export const OrgSettingsPage: React.FC = () => {
   useEffect(() => {
     if (organization?.slug) {
       fetchMembers();
+      fetchTournamentSettings();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organization?.slug]);
+
+  const fetchTournamentSettings = async () => {
+    if (!organization?.slug) return;
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const tournaments = data.tournaments || [];
+        // Find the first active (non-archived) tournament
+        const active = tournaments.find((t: any) => t.status !== 'archived') || tournaments[0];
+        if (active) {
+          // Fetch full tournament details
+          const detailRes = await fetch(
+            `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments/${active.slug}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (detailRes.ok) {
+            const detail = await detailRes.json();
+            const t = detail.tournament || detail;
+            setTournamentSettings({
+              id: t.id?.toString() || '',
+              name: t.name || '',
+              registration_open: t.registration_open ?? false,
+              registration_deadline: t.registration_deadline || '',
+              walkin_fee: t.walkin_fee != null ? (t.walkin_fee / 100).toString() : '',
+              max_capacity: t.max_capacity?.toString() || '',
+              swipe_simple_url: t.swipe_simple_url || '',
+              walkin_swipe_simple_url: t.walkin_swipe_simple_url || '',
+              entry_fee_display: t.entry_fee_display || '$300/team',
+              raffle_enabled: t.raffle_enabled ?? false,
+              raffle_description: t.raffle_description || '',
+              raffle_draw_time: t.raffle_draw_time || '',
+              raffle_auto_draw: t.raffle_auto_draw ?? false,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch tournament settings:', err);
+    }
+  };
+
+  const handleTournamentChange = (field: keyof TournamentSettings, value: string | boolean) => {
+    setTournamentSettings(prev => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handleSaveTournament = async () => {
+    if (!tournamentSettings?.id) return;
+    setSavingTournament(true);
+    try {
+      const token = await getToken();
+      const body: Record<string, unknown> = {
+        registration_open: tournamentSettings.registration_open,
+        registration_deadline: tournamentSettings.registration_deadline || null,
+        walkin_fee: tournamentSettings.walkin_fee ? Math.round(parseFloat(tournamentSettings.walkin_fee) * 100) : null,
+        max_capacity: tournamentSettings.max_capacity ? parseInt(tournamentSettings.max_capacity) : null,
+        swipe_simple_url: tournamentSettings.swipe_simple_url || null,
+        walkin_swipe_simple_url: tournamentSettings.walkin_swipe_simple_url || null,
+        entry_fee_display: tournamentSettings.entry_fee_display || '$300/team',
+        raffle_enabled: tournamentSettings.raffle_enabled,
+        raffle_description: tournamentSettings.raffle_description || null,
+        raffle_draw_time: tournamentSettings.raffle_draw_time || null,
+        raffle_auto_draw: tournamentSettings.raffle_auto_draw,
+      };
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournamentSettings.id}`,
+        {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tournament: body }),
+        }
+      );
+      if (res.ok) {
+        toast.success('Tournament settings saved!');
+      } else {
+        const data = await res.json();
+        toast.error(data.errors?.join(', ') || 'Failed to save tournament settings');
+      }
+    } catch (err) {
+      toast.error('Failed to save tournament settings');
+    } finally {
+      setSavingTournament(false);
+    }
+  };
 
   const handleAddMember = async () => {
     if (!newMemberEmail.trim() || !organization?.slug) return;
@@ -485,8 +596,8 @@ export const OrgSettingsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Submit */}
-          <div className="flex items-center justify-between">
+          {/* Submit Org Settings */}
+          <div className="flex items-center justify-between mb-8">
             <Link
               to={"/admin"}
               className="px-6 py-3 text-gray-700 hover:text-gray-900"
@@ -512,6 +623,211 @@ export const OrgSettingsPage: React.FC = () => {
             </button>
           </div>
         </form>
+
+        {/* Tournament Settings Section */}
+        {tournamentSettings && (
+          <div className="mt-8 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Calendar className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Tournament Settings</h2>
+                <p className="text-sm text-gray-500">{tournamentSettings.name}</p>
+              </div>
+            </div>
+
+            {/* Registration Settings */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-md font-semibold text-gray-900 mb-4">Registration Settings</h3>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="registration_open"
+                    checked={tournamentSettings.registration_open}
+                    onChange={(e) => handleTournamentChange('registration_open', e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  />
+                  <label htmlFor="registration_open" className="text-sm font-medium text-gray-700">
+                    Registration Open
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Registration Deadline
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={tournamentSettings.registration_deadline ? tournamentSettings.registration_deadline.slice(0, 16) : ''}
+                    onChange={(e) => handleTournamentChange('registration_deadline', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">After this, walk-in rate applies</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Walk-in Fee ($)
+                  </label>
+                  <input
+                    type="number"
+                    value={tournamentSettings.walkin_fee}
+                    onChange={(e) => handleTournamentChange('walkin_fee', e.target.value)}
+                    placeholder="e.g. 350"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">Amount charged for day-of walk-in registrations</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Max Capacity
+                  </label>
+                  <input
+                    type="number"
+                    value={tournamentSettings.max_capacity}
+                    onChange={(e) => handleTournamentChange('max_capacity', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Settings */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-gray-400" />
+                Payment Settings
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    SwipeSimple Payment URL
+                  </label>
+                  <input
+                    type="url"
+                    value={tournamentSettings.swipe_simple_url}
+                    onChange={(e) => handleTournamentChange('swipe_simple_url', e.target.value)}
+                    placeholder="https://swipesimple.com/links/..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">Link for team registrations ($300)</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Walk-in SwipeSimple URL
+                  </label>
+                  <input
+                    type="url"
+                    value={tournamentSettings.walkin_swipe_simple_url}
+                    onChange={(e) => handleTournamentChange('walkin_swipe_simple_url', e.target.value)}
+                    placeholder="https://swipesimple.com/links/..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">Separate link for walk-in registrations (higher price)</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Entry Fee Display Label
+                  </label>
+                  <input
+                    type="text"
+                    value={tournamentSettings.entry_fee_display}
+                    onChange={(e) => handleTournamentChange('entry_fee_display', e.target.value)}
+                    placeholder="$300/team"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">What's shown to registrants</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Raffle Settings */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Gift className="w-5 h-5 text-purple-500" />
+                Raffle Settings
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="raffle_enabled"
+                    checked={tournamentSettings.raffle_enabled}
+                    onChange={(e) => handleTournamentChange('raffle_enabled', e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <label htmlFor="raffle_enabled" className="text-sm font-medium text-gray-700">
+                    Raffle Enabled
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Raffle Description
+                  </label>
+                  <textarea
+                    value={tournamentSettings.raffle_description}
+                    onChange={(e) => handleTournamentChange('raffle_description', e.target.value)}
+                    rows={3}
+                    placeholder="Description shown on public raffle page..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Draw Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={tournamentSettings.raffle_draw_time ? tournamentSettings.raffle_draw_time.slice(0, 16) : ''}
+                    onChange={(e) => handleTournamentChange('raffle_draw_time', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="raffle_auto_draw"
+                    checked={tournamentSettings.raffle_auto_draw}
+                    onChange={(e) => handleTournamentChange('raffle_auto_draw', e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <label htmlFor="raffle_auto_draw" className="text-sm font-medium text-gray-700">
+                    Auto-draw at scheduled time
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Save Tournament Settings */}
+            <div className="flex justify-end">
+              <button
+                onClick={handleSaveTournament}
+                disabled={savingTournament}
+                className="flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl font-semibold transition-colors shadow-lg shadow-blue-600/25"
+              >
+                {savingTournament ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    Save Tournament Settings
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Admin Management Section */}
         <div className="mt-8 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">

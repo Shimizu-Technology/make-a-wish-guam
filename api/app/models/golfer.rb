@@ -10,7 +10,7 @@ class Golfer < ApplicationRecord
                     uniqueness: { scope: :tournament_id, message: "has already registered for this tournament" },
                     format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :phone, presence: true
-  validates :payment_type, presence: true, inclusion: { in: %w[stripe pay_on_day swipe_simple] }
+  validates :payment_type, presence: true, inclusion: { in: %w[stripe pay_on_day swipe_simple walk_in] }
   validates :payment_status, inclusion: { in: %w[paid unpaid pending refunded], allow_nil: true }
   validates :registration_status, inclusion: { in: %w[confirmed waitlist cancelled], allow_nil: true }
   validates :waiver_accepted_at, presence: true
@@ -50,6 +50,7 @@ class Golfer < ApplicationRecord
   # For Stripe payments, emails are sent AFTER payment is confirmed (in CheckoutController#confirm)
   # For pay_on_day, emails are sent immediately on registration
   after_commit :send_confirmation_email, on: :create, if: :should_send_immediate_emails?
+  after_commit :send_sms_confirmation, on: :create, if: :should_send_immediate_emails?
   after_commit :notify_admin, on: :create, if: :should_send_immediate_emails?
 
   # Employee features have been removed - provide safe defaults for any remaining references
@@ -300,7 +301,7 @@ class Golfer < ApplicationRecord
   def should_send_immediate_emails?
     # Send immediately for swipe_simple (external payment link) and pay_on_day
     # Don't send for stripe — wait for webhook confirmation
-    %w[pay_on_day swipe_simple].include?(payment_type)
+    %w[pay_on_day swipe_simple walk_in].include?(payment_type)
   end
 
   def set_registration_status
@@ -336,10 +337,12 @@ class Golfer < ApplicationRecord
     Rails.logger.error("Failed to send golfer confirmation email: #{e.message}")
   end
 
-  # TODO: Send SMS confirmation via ClickSend after email
-  # Phone is stored in E.164 format (+16714830219)
-  # ClickSend gem: https://github.com/ClickSend/clicksend-ruby
-  # Message: "You're registered for Golf for Wishes 2026! $300 payment pending. See you May 2 at LeoPalace Resort."
+  def send_sms_confirmation
+    return if Rails.env.test?
+    SmsService.send_registration_confirmation(self)
+  rescue StandardError => e
+    Rails.logger.error("Failed to send SMS confirmation: #{e.message}")
+  end
 
   def notify_admin
     return if Rails.env.test?

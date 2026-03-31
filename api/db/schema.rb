@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_31_000004) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_31_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -316,6 +316,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_000004) do
     t.integer "early_bird_fee"
     t.string "edition"
     t.integer "entry_fee", default: 12500
+    t.string "entry_fee_display", default: "$300/team"
     t.string "event_date"
     t.string "fee_includes"
     t.jsonb "flights_config", default: {}
@@ -347,6 +348,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_000004) do
     t.string "slug"
     t.string "start_time"
     t.string "status", default: "draft", null: false
+    t.string "swipe_simple_url"
     t.integer "team_size", default: 4
     t.string "tee_name"
     t.integer "tee_time_interval_minutes", default: 10
@@ -360,6 +362,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_000004) do
     t.integer "waitlist_max"
     t.integer "walkin_fee"
     t.boolean "walkin_registration_open", default: false
+    t.string "walkin_swipe_simple_url"
     t.integer "year", null: false
     t.index ["early_bird_deadline"], name: "index_tournaments_on_early_bird_deadline"
     t.index ["organization_id", "slug"], name: "index_tournaments_on_organization_id_and_slug", unique: true

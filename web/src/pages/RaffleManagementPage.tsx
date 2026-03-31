@@ -667,15 +667,25 @@ const PrizeModal: React.FC<{
 }> = ({ prize, tournamentId, onClose, onSuccess }) => {
   const { getToken } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(prize?.image_url || null);
+  const [valueDollars, setValueDollars] = useState(prize ? (prize.value_cents / 100).toString() : '0');
   const [form, setForm] = useState({
     name: prize?.name || '',
     description: prize?.description || '',
-    value_cents: prize?.value_cents || 0,
     tier: prize?.tier || 'standard',
     image_url: prize?.image_url || '',
     sponsor_name: prize?.sponsor_name || '',
     position: prize?.position || 0,
   });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -687,16 +697,38 @@ const PrizeModal: React.FC<{
         ? `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournamentId}/raffle/prizes/${prize.id}`
         : `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournamentId}/raffle/prizes`;
 
-      const res = await fetch(url, {
-        method: prize ? 'PATCH' : 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prize: form }),
-      });
+      const valueCents = Math.round(parseFloat(valueDollars || '0') * 100);
 
-      if (!res.ok) throw new Error('Failed to save');
+      if (imageFile) {
+        // Use FormData for file upload
+        const fd = new FormData();
+        fd.append('prize[name]', form.name);
+        fd.append('prize[description]', form.description);
+        fd.append('prize[value_cents]', valueCents.toString());
+        fd.append('prize[tier]', form.tier);
+        fd.append('prize[image_url]', form.image_url);
+        fd.append('prize[sponsor_name]', form.sponsor_name);
+        fd.append('prize[position]', form.position.toString());
+        fd.append('prize[image]', imageFile);
+
+        const res = await fetch(url, {
+          method: prize ? 'PATCH' : 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: fd,
+        });
+        if (!res.ok) throw new Error('Failed to save');
+      } else {
+        const res = await fetch(url, {
+          method: prize ? 'PATCH' : 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ prize: { ...form, value_cents: valueCents } }),
+        });
+        if (!res.ok) throw new Error('Failed to save');
+      }
+
       toast.success(prize ? 'Prize updated' : 'Prize created');
       onSuccess();
     } catch (err) {
@@ -708,7 +740,7 @@ const PrizeModal: React.FC<{
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">{prize ? 'Edit Prize' : 'Add Prize'}</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -743,10 +775,11 @@ const PrizeModal: React.FC<{
               <label className="block text-sm font-medium mb-1">Value ($)</label>
               <input
                 type="number"
-                value={form.value_cents / 100}
-                onChange={e => setForm({ ...form, value_cents: Number(e.target.value) * 100 })}
+                value={valueDollars}
+                onChange={e => setValueDollars(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2"
                 min={0}
+                step="0.01"
               />
             </div>
             <div>
@@ -778,11 +811,35 @@ const PrizeModal: React.FC<{
             <input
               type="url"
               value={form.image_url}
-              onChange={e => setForm({ ...form, image_url: e.target.value })}
+              onChange={e => {
+                setForm({ ...form, image_url: e.target.value });
+                if (e.target.value && !imageFile) setImagePreview(e.target.value);
+              }}
               className="w-full border rounded-lg px-3 py-2"
               placeholder="https://..."
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Or Upload Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+
+          {imagePreview && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Preview</label>
+              <img
+                src={imagePreview}
+                alt="Prize preview"
+                className="w-full h-32 object-contain rounded-lg border bg-gray-50"
+              />
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <button

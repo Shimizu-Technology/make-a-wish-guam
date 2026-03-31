@@ -54,6 +54,9 @@ gem "resend"
 # Stripe payments
 gem "stripe"
 
+# ClickSend SMS
+gem "clicksend_client"
+
 # Pagination
 gem "kaminari"
 

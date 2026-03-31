@@ -318,8 +318,11 @@ module Api
         # Mark as pending swipe_simple payment
         golfer.update!(payment_type: "swipe_simple", payment_status: "pending")
 
+        payment_url = golfer.tournament.swipe_simple_url.presence ||
+                      ENV.fetch('SWIPE_SIMPLE_PAYMENT_URL', 'https://swipesimple.com/links/lnk_e1c8f45f9c401c93552781ef3d52fdfc')
+
         render json: {
-          redirect_url: ENV.fetch("SWIPE_SIMPLE_PAYMENT_URL", "https://swipesimple.com/links/lnk_e1c8f45f9c401c93552781ef3d52fdfc"),
+          redirect_url: payment_url,
           golfer_id: golfer.id
         }
       end
