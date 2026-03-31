@@ -27,16 +27,17 @@ class LeaderboardCalculator
   # Scramble format - team scores
   def scramble_leaderboard
     groups_with_scores.map do |group|
-      scores = group.team_scores
-      total_strokes = scores.sum(&:strokes)
-      total_relative = scores.sum(&:relative_score)
+      scores = Score.where(tournament: tournament, group: group, score_type: 'team').order(:hole)
+      total_strokes = scores.sum(:strokes)
+      total_relative = scores.sum(:relative_score)
       holes_played = scores.count
-      
+      team_label = group.golfers.first&.team_name.presence || "Group #{group.group_number}"
+
       {
         type: 'team',
         group_id: group.id,
         group_number: group.group_number,
-        team_name: group.team_name || "Group #{group.group_number}",
+        team_name: team_label,
         golfers: group.golfers.map { |g| { id: g.id, name: g.name } },
         total_strokes: total_strokes,
         relative_score: total_relative,
@@ -116,11 +117,13 @@ class LeaderboardCalculator
       total_relative = best_scores.sum(&:relative_score)
       holes_played = best_scores.count
       
+      team_label = group.golfers.first&.team_name.presence || "Group #{group.group_number}"
+
       {
         type: 'team',
         group_id: group.id,
         group_number: group.group_number,
-        team_name: group.team_name || "Group #{group.group_number}",
+        team_name: team_label,
         golfers: group.golfers.map { |g| { id: g.id, name: g.name } },
         total_strokes: total_strokes,
         relative_score: total_relative,

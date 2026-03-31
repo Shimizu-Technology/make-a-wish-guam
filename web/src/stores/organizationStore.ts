@@ -37,7 +37,7 @@ export const useOrganizationStore = create<OrganizationState>()(
       clearOrganization: () => set({ organization: null, error: null }),
     }),
     {
-      name: 'pacific-golf-organization',
+      name: 'maw-organization',
       partialize: (state) => ({ organization: state.organization }),
     }
   )

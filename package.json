@@ -1,8 +1,8 @@
 {
-  "name": "pacific-golf",
-  "version": "0.1.0",
+  "name": "make-a-wish-guam",
+  "version": "1.0.0",
   "private": true,
-  "description": "Multi-tenant golf tournament management SaaS",
+  "description": "Event registration and management for Make-A-Wish Guam & CNMI charity events",
   "scripts": {
     "api:dev": "cd api && bin/rails server",
     "web:dev": "cd web && npm run dev",

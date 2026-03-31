@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { UserButton, useUser } from '@clerk/clerk-react';
-import { Trophy, LayoutDashboard, Users, ClipboardCheck, Settings, Home, Menu, X, BarChart3, Calendar, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Settings, Home, Menu, X, Calendar, ChevronDown } from 'lucide-react';
 import { useTournament } from '../contexts';
 
 interface AdminLayoutProps {
@@ -18,11 +18,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { tournaments, currentTournament, setCurrentTournament, isLoading } = useTournament();
 
   const menuItems = [
-    { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/admin/groups', icon: Users, label: 'Groups' },
-    { path: '/admin/checkin', icon: ClipboardCheck, label: 'Check-In' },
-    { path: '/admin/reports', icon: BarChart3, label: 'Reports' },
-    { path: '/admin/tournaments', icon: Calendar, label: 'Tournaments' },
+    { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/settings', icon: Settings, label: 'Settings' },
   ];
 

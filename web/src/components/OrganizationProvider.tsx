@@ -40,13 +40,14 @@ export function OrganizationProvider({
       try {
         const response = await api.get(`/organizations/${orgSlug}`);
         setOrganization(response.data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to fetch organization:', err);
-        if (err.response?.status === 404) {
+        const message = err instanceof Error ? err.message : 'Failed to load organization';
+        if (message.includes('not found') || message.includes('404')) {
           setError('Organization not found');
           navigate(fallbackPath, { replace: true });
         } else {
-          setError(err.message || 'Failed to load organization');
+          setError(message);
         }
       } finally {
         setLoading(false);

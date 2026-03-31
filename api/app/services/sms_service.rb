@@ -1,7 +1,7 @@
 class SmsService
   CLICKSEND_USERNAME = ENV.fetch('CLICKSEND_USERNAME', nil)
   CLICKSEND_API_KEY = ENV.fetch('CLICKSEND_API_KEY', nil)
-  FROM = 'GolfWishes'  # Max 11 chars for alphanumeric sender
+  FROM = 'MAWGuam'  # Max 11 chars for alphanumeric sender
 
   def self.configured?
     CLICKSEND_USERNAME.present? && CLICKSEND_API_KEY.present?

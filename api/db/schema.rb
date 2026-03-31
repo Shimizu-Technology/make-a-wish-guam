@@ -14,6 +14,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
+  create_table "access_requests", force: :cascade do |t|
+    t.string "contact_name", null: false
+    t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.text "notes"
+    t.string "organization_name", null: false
+    t.string "phone"
+    t.datetime "reviewed_at"
+    t.bigint "reviewed_by_id"
+    t.string "source", default: "homepage", null: false
+    t.string "status", default: "new", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_access_requests_on_created_at"
+    t.index ["email"], name: "index_access_requests_on_email"
+    t.index ["reviewed_by_id"], name: "index_access_requests_on_reviewed_by_id"
+    t.index ["status"], name: "index_access_requests_on_status"
+  end
+
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -60,14 +78,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.index ["tournament_id"], name: "index_activity_logs_on_tournament_id"
   end
 
+  create_table "employee_numbers", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "employee_name"
+    t.string "employee_number", null: false
+    t.bigint "tournament_id", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "used", default: false, null: false
+    t.bigint "used_by_golfer_id"
+    t.index ["tournament_id", "employee_number"], name: "index_employee_numbers_on_tournament_id_and_employee_number", unique: true
+    t.index ["tournament_id"], name: "index_employee_numbers_on_tournament_id"
+    t.index ["used_by_golfer_id"], name: "index_employee_numbers_on_used_by_golfer_id"
+  end
+
   create_table "golfers", force: :cascade do |t|
     t.string "address"
     t.datetime "checked_in_at"
     t.string "company"
     t.datetime "created_at", null: false
     t.string "email"
+    t.string "employee_number"
+    t.bigint "employee_number_record_id"
     t.bigint "group_id"
     t.integer "hole_number"
+    t.boolean "is_employee", default: false, null: false
     t.boolean "is_team_captain", default: true
     t.datetime "magic_link_expires_at"
     t.string "magic_link_token"
@@ -104,6 +138,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.string "tshirt_size"
     t.datetime "updated_at", null: false
     t.datetime "waiver_accepted_at"
+    t.index ["employee_number_record_id"], name: "index_golfers_on_employee_number_record_id"
     t.index ["group_id"], name: "index_golfers_on_group_id"
     t.index ["magic_link_token"], name: "index_golfers_on_magic_link_token", unique: true, where: "(magic_link_token IS NOT NULL)"
     t.index ["paid_at"], name: "index_golfers_on_paid_at"
@@ -300,10 +335,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
   end
 
   create_table "tournaments", force: :cascade do |t|
+    t.string "accent_color_override"
     t.boolean "allow_card", default: true
     t.boolean "allow_cash", default: true
     t.boolean "allow_check", default: true
     t.boolean "allow_partial_teams", default: false
+    t.string "banner_url_override"
     t.string "check_in_time"
     t.string "checks_payable_to"
     t.jsonb "config", default: {}
@@ -315,6 +352,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.datetime "early_bird_deadline"
     t.integer "early_bird_fee"
     t.string "edition"
+    t.boolean "employee_discount_enabled", default: false, null: false
+    t.integer "employee_entry_fee", default: 5000
     t.integer "entry_fee", default: 12500
     t.string "entry_fee_display", default: "$300/team"
     t.string "event_date"
@@ -327,10 +366,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.jsonb "hole_pars", default: {}
     t.string "location_address"
     t.string "location_name"
+    t.string "logo_url_override"
     t.integer "max_capacity", default: 160
     t.string "name", null: false
     t.uuid "organization_id", null: false
     t.text "payment_instructions"
+    t.string "primary_color_override"
+    t.boolean "public_listed", default: true, null: false
     t.boolean "raffle_auto_draw", default: false
     t.text "raffle_description"
     t.datetime "raffle_draw_time"
@@ -344,6 +386,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.integer "reserved_slots", default: 0, null: false
     t.string "scoring_type", default: "gross"
     t.boolean "shotgun_start", default: true
+    t.string "signature_image_url_override"
     t.integer "slope_rating"
     t.string "slug"
     t.string "start_time"
@@ -353,11 +396,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.string "tee_name"
     t.integer "tee_time_interval_minutes", default: 10
     t.boolean "tee_times_enabled", default: false
+    t.string "theme_preset", default: "classic", null: false
     t.integer "total_holes", default: 18
     t.integer "total_par"
     t.string "tournament_format", default: "scramble"
     t.datetime "updated_at", null: false
     t.boolean "use_flights", default: false
+    t.boolean "use_org_branding", default: true, null: false
     t.boolean "waitlist_enabled", default: true
     t.integer "waitlist_max"
     t.integer "walkin_fee"
@@ -367,6 +412,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.index ["early_bird_deadline"], name: "index_tournaments_on_early_bird_deadline"
     t.index ["organization_id", "slug"], name: "index_tournaments_on_organization_id_and_slug", unique: true
     t.index ["organization_id"], name: "index_tournaments_on_organization_id"
+    t.index ["public_listed"], name: "index_tournaments_on_public_listed"
     t.index ["registration_deadline"], name: "index_tournaments_on_registration_deadline"
     t.index ["status", "year"], name: "index_tournaments_on_status_and_year"
     t.index ["status"], name: "index_tournaments_on_status"
@@ -383,10 +429,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.datetime "updated_at", null: false
   end
 
+  add_foreign_key "access_requests", "users", column: "reviewed_by_id", on_delete: :nullify
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "activity_logs", "tournaments"
   add_foreign_key "activity_logs", "users", column: "admin_id"
+  add_foreign_key "employee_numbers", "golfers", column: "used_by_golfer_id"
+  add_foreign_key "employee_numbers", "tournaments"
+  add_foreign_key "golfers", "employee_numbers", column: "employee_number_record_id"
   add_foreign_key "golfers", "groups"
   add_foreign_key "golfers", "tournaments"
   add_foreign_key "golfers", "users", column: "refunded_by_id", on_delete: :nullify

@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { ShieldX, Home, LogOut } from 'lucide-react';
 
 // Dev auth helpers
-const DEV_TOKEN_KEY = 'pacific_golf_dev_token';
+const DEV_TOKEN_KEY = 'maw_dev_token';
 const isDev = import.meta.env.DEV;
 
 export function getDevToken(): string | null {

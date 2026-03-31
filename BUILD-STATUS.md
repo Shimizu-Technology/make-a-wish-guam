@@ -3,7 +3,7 @@
 ## Golf for Wishes (May 2, 2026)
 
 ### Inherited from Pacific Golf (working)
-- Multi-tenant org model (MAW is the single org)
+- Single-org model (MAW is the organization)
 - Tournament management
 - Admin dashboard
 - Check-in system (WebSocket, real-time)
@@ -13,11 +13,10 @@
 - Clerk auth
 - Resend email
 
-### Modified (this PR)
+### Modified
 - SwipeSimple payment redirect endpoint
 - Team of 2 registration (partner fields added)
 - Stripped SaaS super-admin flows
-- MAW-specific AGENTS.md / README
 
 ### Completed
 - [x] SMS notifications via ClickSend (registration confirmation to both players, E.164 format)
@@ -25,9 +24,10 @@
 - [x] Walk-in registration (admin quick-add modal, walk_in payment type, day-of flow)
 - [x] Configurable tournament settings (SwipeSimple URLs, walk-in fee, registration deadline, entry fee display, raffle settings)
 - [x] Raffle prize image upload (Active Storage S3, file upload + URL input, preview)
+- [x] Sponsor self-service portal (sponsors manage their own player slots)
+- [x] Codebase cleanup: fixed admin routing, removed dead code, updated branding, dropped unused DB tables
 
 ### Still Needs Building
-- [ ] Sponsor self-service portal (sponsors manage their own player slots)
 - [ ] Day-of raffle purchase via SwipeSimple or cash
 - [ ] Push notifications for raffle
 - [ ] MAW branding (colors, logo, landing page)

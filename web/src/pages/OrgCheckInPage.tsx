@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuthToken } from '../hooks/useAuthToken';
 import { useOrganization } from '../components/OrganizationProvider';
+import { useGolferChannel } from '../hooks/useGolferChannel';
 import {
   Search,
   UserCheck,
@@ -50,6 +51,23 @@ export const OrgCheckInPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCheckedIn, setShowCheckedIn] = useState(false);
   const [checkingIn, setCheckingIn] = useState<number | null>(null);
+
+  // Real-time updates via WebSocket
+  useGolferChannel({
+    onGolferUpdated: (updatedGolfer) => {
+      setGolfers(prev => prev.map(g =>
+        g.id === updatedGolfer.id ? { ...g, ...updatedGolfer } : g
+      ));
+    },
+    onGolferCreated: (newGolfer) => {
+      if (newGolfer.registration_status === 'confirmed') {
+        setGolfers(prev => [...prev.filter(g => g.id !== newGolfer.id), newGolfer as unknown as Golfer]);
+      }
+    },
+    onGolferDeleted: (golferId) => {
+      setGolfers(prev => prev.filter(g => g.id !== golferId));
+    },
+  });
 
   const fetchData = useCallback(async () => {
     if (!organization || !tournamentSlug) return;

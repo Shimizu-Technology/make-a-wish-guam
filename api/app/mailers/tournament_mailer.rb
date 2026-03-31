@@ -69,7 +69,7 @@ class TournamentMailer
 
   def set_branding
     @primary_color = @organization&.primary_color || '#1e40af'
-    @org_name = @organization&.name || 'Pacific Golf'
+    @org_name = @organization&.name || 'Make-A-Wish Guam & CNMI'
     @logo_url = @organization&.logo_url
   end
 

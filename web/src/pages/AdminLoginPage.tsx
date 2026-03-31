@@ -46,7 +46,7 @@ const DevLoginPanel: React.FC = () => {
       const data = await res.json();
       if (data.token) {
         setDevToken(data.token);
-        navigate('/admin/dashboard', { replace: true });
+        navigate('/admin', { replace: true });
       } else {
         setError(data.error || 'Login failed');
       }
@@ -95,7 +95,7 @@ export const AdminLoginPage: React.FC = () => {
   // If already have a dev token, redirect
   useEffect(() => {
     if (isDev && getDevToken()) {
-      navigate('/admin/dashboard', { replace: true });
+      navigate('/admin', { replace: true });
     }
   }, [navigate]);
 
@@ -109,7 +109,7 @@ export const AdminLoginPage: React.FC = () => {
   // Redirect to dashboard if already signed in via Clerk
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      navigate('/admin/dashboard', { replace: true });
+      navigate('/admin', { replace: true });
     }
   }, [isSignedIn, isLoaded, navigate]);
 
@@ -162,8 +162,8 @@ export const AdminLoginPage: React.FC = () => {
 
         <div className="flex justify-center">
           <SignIn 
-            forceRedirectUrl="/admin/dashboard"
-            signUpForceRedirectUrl="/admin/dashboard"
+            forceRedirectUrl="/admin"
+            signUpForceRedirectUrl="/admin"
             appearance={{
               elements: {
                 rootBox: "w-full",

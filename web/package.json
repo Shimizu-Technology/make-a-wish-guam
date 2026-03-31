@@ -1,5 +1,5 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "make-a-wish-guam-web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -19,7 +19,6 @@
     "@rails/actioncable": "^8.1.100",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.5.3",
-    "@supabase/supabase-js": "^2.57.4",
     "canvas-confetti": "^1.9.4",
     "framer-motion": "^12.34.0",
     "lucide-react": "^0.344.0",
