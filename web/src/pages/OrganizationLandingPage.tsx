@@ -156,7 +156,7 @@ export function OrganizationLandingPage() {
           background: 'linear-gradient(135deg, #004B8D 0%, #003a6e 100%)',
         }}
       >
-        <div className="relative z-10 max-w-5xl mx-auto px-6 lg:px-8 py-16 lg:py-24 w-full">
+        <div className="relative z-10 max-w-5xl mx-auto px-6 lg:px-8 py-10 lg:py-20 w-full">
           <motion.div
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -171,7 +171,7 @@ export function OrganizationLandingPage() {
           </motion.div>
 
           <motion.h1
-            className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white mb-3"
+            className="text-3xl lg:text-5xl font-bold tracking-tight text-white mb-3"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.15, ease }}
@@ -196,6 +196,26 @@ export function OrganizationLandingPage() {
           >
             Together we create life-changing wishes for children with critical illnesses
           </motion.p>
+
+          <motion.div
+            className="flex gap-8 mt-8 pt-8 border-t border-white/20"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.45, ease }}
+          >
+            <div>
+              <div className="text-2xl font-bold text-white">38+</div>
+              <div className="text-sm text-white/70">Years granting wishes</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-white">100s</div>
+              <div className="text-sm text-white/70">Wishes granted in Guam</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-white">May 2</div>
+              <div className="text-sm text-white/70">Golf for Wishes</div>
+            </div>
+          </motion.div>
         </div>
       </header>
 
@@ -204,11 +224,14 @@ export function OrganizationLandingPage() {
       {/* ================================================================= */}
       <main className="max-w-5xl mx-auto px-6 lg:px-8 py-16 lg:py-24">
         <ScrollReveal>
-          <div className="mb-10">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-900">
-              Upcoming Events
-            </h2>
-            <div className="mt-3 h-1 w-16 rounded-full bg-[#E31837]" />
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-full bg-[#004B8D]/10 flex items-center justify-center">
+              <Trophy className="w-5 h-5 text-[#004B8D]" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-neutral-900 tracking-tight">Upcoming Events</h2>
+              <p className="text-sm text-neutral-500">Register for Make-A-Wish Guam & CNMI charity events</p>
+            </div>
           </div>
         </ScrollReveal>
 
@@ -320,7 +343,12 @@ export function OrganizationLandingPage() {
             Powered by{' '}
             <span className="font-medium text-neutral-600">Shimizu Technology</span>
           </p>
-          <p className="hidden sm:block">Supporting children with critical illnesses</p>
+          <div className="flex items-center gap-4">
+            <p className="hidden sm:block">Supporting children with critical illnesses</p>
+            <Link to="/admin" className="text-xs text-neutral-400 hover:text-neutral-600 transition-colors">
+              Admin
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
@@ -388,7 +416,8 @@ function TournamentCard({ tournament }: TournamentCardProps) {
       : null;
 
   return (
-    <div className="group bg-white rounded-2xl border border-neutral-200 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden">
+    <div className="rounded-2xl border border-neutral-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-[#E31837] to-[#004B8D]" />
       <div className="p-6 sm:p-7">
         {/* Top row: status badge + name */}
         <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
@@ -440,19 +469,19 @@ function TournamentCard({ tournament }: TournamentCardProps) {
         )}
 
         {/* CTA */}
-        <div className="mt-6 flex items-center gap-3">
+        <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {tournament.can_register ? (
             <>
               <Link
                 to={`/${tournament.slug}/register`}
-                className="inline-flex items-center gap-2 bg-[#E31837] hover:bg-[#c41230] text-white font-semibold text-sm rounded-full px-6 py-2.5 transition-colors duration-200"
+                className="inline-flex items-center justify-center gap-2 bg-[#E31837] hover:bg-[#c41230] text-white font-semibold text-sm rounded-full px-6 py-2.5 transition-colors duration-200 w-full sm:w-auto min-h-[44px]"
               >
                 Register Now
                 <ChevronRight className="w-4 h-4" strokeWidth={2} />
               </Link>
               <Link
                 to={`/${tournament.slug}`}
-                className="inline-flex items-center gap-2 border border-[#004B8D] text-[#004B8D] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#004B8D]/5 transition-colors duration-200"
+                className="inline-flex items-center justify-center gap-2 border border-[#004B8D] text-[#004B8D] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#004B8D]/5 transition-colors duration-200 w-full sm:w-auto min-h-[44px]"
               >
                 View Details
               </Link>
@@ -460,7 +489,7 @@ function TournamentCard({ tournament }: TournamentCardProps) {
           ) : (
             <Link
               to={`/${tournament.slug}`}
-              className="inline-flex items-center gap-2 border border-[#004B8D] text-[#004B8D] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#004B8D]/5 transition-colors duration-200"
+              className="inline-flex items-center justify-center gap-2 border border-[#004B8D] text-[#004B8D] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#004B8D]/5 transition-colors duration-200 w-full sm:w-auto min-h-[44px]"
             >
               View Details
               <ChevronRight className="w-4 h-4" strokeWidth={2} />

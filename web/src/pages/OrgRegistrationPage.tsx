@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
-import { Button, Input, Card, PageTransition } from '../components/ui';
+import { Button, Card, PageTransition } from '../components/ui';
 import { LiabilityWaiver } from '../components/LiabilityWaiver';
-import { Trophy, AlertCircle, Loader2, Calendar, MapPin, ChevronLeft, Check, DollarSign } from 'lucide-react';
+import { Trophy, AlertCircle, Loader2, Calendar, MapPin, ChevronLeft, Check, DollarSign, ChevronRight } from 'lucide-react';
 import { api, Tournament } from '../services/api';
 import { useOrganization } from '../components/OrganizationProvider';
-import { hexToRgba, adjustColor } from '../utils/colors';
 import { formatEventDate } from '../utils/dates';
 
 // ---------------------------------------------------------------------------
@@ -34,6 +33,35 @@ interface FormData {
 }
 
 // ---------------------------------------------------------------------------
+// Step indicator
+// ---------------------------------------------------------------------------
+
+const stepNames = ['Team Captain', 'Partner', 'Waiver', 'Review & Pay'];
+
+function StepIndicator({ currentStep }: { currentStep: number }) {
+  return (
+    <div className="flex items-center justify-between mb-8">
+      {stepNames.map((stepName, index) => (
+        <React.Fragment key={index}>
+          <div className="flex flex-col items-center">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm
+              ${currentStep > index + 1 ? 'bg-[#004B8D] text-white' :
+                currentStep === index + 1 ? 'bg-[#E31837] text-white' :
+                'bg-neutral-200 text-neutral-500'}`}>
+              {currentStep > index + 1 ? <Check className="w-4 h-4" /> : index + 1}
+            </div>
+            <span className="text-xs mt-1.5 font-medium text-neutral-600 hidden sm:block">{stepName}</span>
+          </div>
+          {index < stepNames.length - 1 && (
+            <div className={`flex-1 h-0.5 mx-2 ${currentStep > index + 1 ? 'bg-[#004B8D]' : 'bg-neutral-200'}`} />
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
@@ -43,6 +71,7 @@ export const OrgRegistrationPage: React.FC = () => {
   const { organization } = useOrganization();
   const orgSlug = organization?.slug || 'make-a-wish-guam';
 
+  const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -95,34 +124,52 @@ export const OrgRegistrationPage: React.FC = () => {
     }
   };
 
-  const validate = (): boolean => {
+  const validateStep = (step: number): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
 
-    if (!formData.player1Name.trim()) newErrors.player1Name = 'Full name is required';
-    if (!formData.player1Email.trim()) {
-      newErrors.player1Email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.player1Email)) {
-      newErrors.player1Email = 'Please enter a valid email address';
+    if (step === 1) {
+      if (!formData.player1Name.trim()) newErrors.player1Name = 'Full name is required';
+      if (!formData.player1Email.trim()) {
+        newErrors.player1Email = 'Email is required';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.player1Email)) {
+        newErrors.player1Email = 'Please enter a valid email address';
+      }
+      if (!formData.player1Phone.trim()) newErrors.player1Phone = 'Phone number is required';
     }
-    if (!formData.player1Phone.trim()) newErrors.player1Phone = 'Phone number is required';
 
-    if (!formData.player2Name.trim()) newErrors.player2Name = 'Full name is required';
-    if (!formData.player2Email.trim()) {
-      newErrors.player2Email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.player2Email)) {
-      newErrors.player2Email = 'Please enter a valid email address';
+    if (step === 2) {
+      if (!formData.player2Name.trim()) newErrors.player2Name = 'Full name is required';
+      if (!formData.player2Email.trim()) {
+        newErrors.player2Email = 'Email is required';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.player2Email)) {
+        newErrors.player2Email = 'Please enter a valid email address';
+      }
+      if (!formData.player2Phone.trim()) newErrors.player2Phone = 'Phone number is required';
     }
-    if (!formData.player2Phone.trim()) newErrors.player2Phone = 'Phone number is required';
 
-    if (!formData.player1WaiverAccepted) newErrors.player1WaiverAccepted = 'Player 1 must accept the waiver';
-    if (!formData.player2WaiverAccepted) newErrors.player2WaiverAccepted = 'Player 2 must accept the waiver';
+    if (step === 3) {
+      if (!formData.player1WaiverAccepted) newErrors.player1WaiverAccepted = 'Player 1 must accept the waiver';
+      if (!formData.player2WaiverAccepted) newErrors.player2WaiverAccepted = 'Player 2 must accept the waiver';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => Math.min(prev + 1, 4));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleBack = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSubmit = async () => {
-    if (!validate() || !tournament) return;
+    if (!tournament) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -167,6 +214,8 @@ export const OrgRegistrationPage: React.FC = () => {
   };
 
   const tshirtSizes = ['S', 'M', 'L', 'XL', 'XXL'];
+  const inputClass = "w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors min-h-[44px]";
+  const selectClass = inputClass;
 
   if (isLoading) {
     return (
@@ -212,6 +261,10 @@ export const OrgRegistrationPage: React.FC = () => {
     );
   }
 
+  const displayTeamName = formData.teamName || (formData.player1Name && formData.player2Name
+    ? `${formData.player1Name} & ${formData.player2Name}`
+    : 'TBD');
+
   return (
     <MotionConfig reducedMotion="user">
     <PageTransition>
@@ -242,7 +295,7 @@ export const OrgRegistrationPage: React.FC = () => {
           </motion.h1>
 
           <motion.div
-            className="flex items-center gap-4 text-white/80 text-sm"
+            className="flex flex-wrap items-center gap-4 text-white/80 text-sm"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.25, ease }}
@@ -269,12 +322,15 @@ export const OrgRegistrationPage: React.FC = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* LEFT — Form */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 order-last lg:order-first">
+            {/* Step Indicator */}
+            <StepIndicator currentStep={currentStep} />
+
             {/* Error Display */}
             <AnimatePresence>
               {submitError && (
                 <motion.div
-                  className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm"
+                  className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm mb-6"
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
@@ -285,242 +341,324 @@ export const OrgRegistrationPage: React.FC = () => {
               )}
             </AnimatePresence>
 
-            {/* Player sections side by side on desktop */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Player 1 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1, ease }}
-              >
-                <div className="bg-white rounded-2xl border border-neutral-200 p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="border-l-4 border-[#E31837] pl-3">
-                      <h2 className="text-lg font-semibold text-neutral-900">Player 1 (Captain)</h2>
-                      <p className="text-sm text-neutral-500">Primary contact</p>
+            {/* Step Content */}
+            <AnimatePresence mode="wait">
+              {/* ---- STEP 1: Team Captain ---- */}
+              {currentStep === 1 && (
+                <motion.div
+                  key="step1"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease }}
+                >
+                  <div className="bg-white rounded-2xl border border-neutral-200 p-6 sm:p-8">
+                    <div className="border-l-4 border-[#E31837] pl-3 mb-6">
+                      <h2 className="text-lg font-semibold text-neutral-900">Team Captain (Player 1)</h2>
+                      <p className="text-sm text-neutral-500">Primary contact for the team</p>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Full Name *</label>
+                        <input
+                          name="player1Name"
+                          value={formData.player1Name}
+                          onChange={handleInputChange}
+                          placeholder="John Smith"
+                          className={inputClass}
+                        />
+                        {errors.player1Name && <p className="text-red-500 text-xs mt-1">{errors.player1Name}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email Address *</label>
+                        <input
+                          name="player1Email"
+                          type="email"
+                          value={formData.player1Email}
+                          onChange={handleInputChange}
+                          placeholder="john@example.com"
+                          className={inputClass}
+                        />
+                        {errors.player1Email && <p className="text-red-500 text-xs mt-1">{errors.player1Email}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Phone Number *</label>
+                        <input
+                          name="player1Phone"
+                          type="tel"
+                          value={formData.player1Phone}
+                          onChange={handleInputChange}
+                          placeholder="671-123-4567"
+                          className={inputClass}
+                        />
+                        {errors.player1Phone && <p className="text-red-500 text-xs mt-1">{errors.player1Phone}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">T-Shirt Size</label>
+                        <select
+                          name="player1TshirtSize"
+                          value={formData.player1TshirtSize}
+                          onChange={handleInputChange}
+                          className={selectClass}
+                        >
+                          <option value="">Select size (optional)</option>
+                          {tshirtSizes.map(size => (
+                            <option key={size} value={size}>{size}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Full Name *</label>
-                      <input
-                        name="player1Name"
-                        value={formData.player1Name}
-                        onChange={handleInputChange}
-                        placeholder="John Smith"
-                        className="w-full rounded-xl border border-neutral-200 px-4 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors"
-                      />
-                      {errors.player1Name && <p className="text-red-500 text-xs mt-1">{errors.player1Name}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email Address *</label>
-                      <input
-                        name="player1Email"
-                        type="email"
-                        value={formData.player1Email}
-                        onChange={handleInputChange}
-                        placeholder="john@example.com"
-                        className="w-full rounded-xl border border-neutral-200 px-4 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors"
-                      />
-                      {errors.player1Email && <p className="text-red-500 text-xs mt-1">{errors.player1Email}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Phone Number *</label>
-                      <input
-                        name="player1Phone"
-                        type="tel"
-                        value={formData.player1Phone}
-                        onChange={handleInputChange}
-                        placeholder="671-123-4567"
-                        className="w-full rounded-xl border border-neutral-200 px-4 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors"
-                      />
-                      {errors.player1Phone && <p className="text-red-500 text-xs mt-1">{errors.player1Phone}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">T-Shirt Size</label>
-                      <select
-                        name="player1TshirtSize"
-                        value={formData.player1TshirtSize}
-                        onChange={handleInputChange}
-                        className="w-full rounded-xl border border-neutral-200 px-4 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors"
-                      >
-                        <option value="">Select size (optional)</option>
-                        {tshirtSizes.map(size => (
-                          <option key={size} value={size}>{size}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              )}
 
-              {/* Player 2 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2, ease }}
-              >
-                <div className="bg-white rounded-2xl border border-neutral-200 p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="border-l-4 border-[#E31837] pl-3">
-                      <h2 className="text-lg font-semibold text-neutral-900">Player 2 (Partner)</h2>
+              {/* ---- STEP 2: Partner ---- */}
+              {currentStep === 2 && (
+                <motion.div
+                  key="step2"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease }}
+                >
+                  <div className="bg-white rounded-2xl border border-neutral-200 p-6 sm:p-8">
+                    <div className="border-l-4 border-[#E31837] pl-3 mb-6">
+                      <h2 className="text-lg font-semibold text-neutral-900">Playing Partner (Player 2)</h2>
                       <p className="text-sm text-neutral-500">Your teammate</p>
                     </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Full Name *</label>
-                      <input
-                        name="player2Name"
-                        value={formData.player2Name}
-                        onChange={handleInputChange}
-                        placeholder="Jane Doe"
-                        className="w-full rounded-xl border border-neutral-200 px-4 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors"
-                      />
-                      {errors.player2Name && <p className="text-red-500 text-xs mt-1">{errors.player2Name}</p>}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Full Name *</label>
+                        <input
+                          name="player2Name"
+                          value={formData.player2Name}
+                          onChange={handleInputChange}
+                          placeholder="Jane Doe"
+                          className={inputClass}
+                        />
+                        {errors.player2Name && <p className="text-red-500 text-xs mt-1">{errors.player2Name}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email Address *</label>
+                        <input
+                          name="player2Email"
+                          type="email"
+                          value={formData.player2Email}
+                          onChange={handleInputChange}
+                          placeholder="jane@example.com"
+                          className={inputClass}
+                        />
+                        {errors.player2Email && <p className="text-red-500 text-xs mt-1">{errors.player2Email}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Phone Number *</label>
+                        <input
+                          name="player2Phone"
+                          type="tel"
+                          value={formData.player2Phone}
+                          onChange={handleInputChange}
+                          placeholder="671-234-5678"
+                          className={inputClass}
+                        />
+                        {errors.player2Phone && <p className="text-red-500 text-xs mt-1">{errors.player2Phone}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">T-Shirt Size</label>
+                        <select
+                          name="player2TshirtSize"
+                          value={formData.player2TshirtSize}
+                          onChange={handleInputChange}
+                          className={selectClass}
+                        >
+                          <option value="">Select size (optional)</option>
+                          {tshirtSizes.map(size => (
+                            <option key={size} value={size}>{size}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="pt-2">
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Team Name</label>
+                        <input
+                          name="teamName"
+                          value={formData.teamName}
+                          onChange={handleInputChange}
+                          placeholder={`Defaults to "${formData.player1Name || 'Player 1'} & ${formData.player2Name || 'Player 2'}"`}
+                          className={inputClass}
+                        />
+                        <p className="text-xs text-neutral-400 mt-1">Optional — defaults to both player names</p>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email Address *</label>
-                      <input
-                        name="player2Email"
-                        type="email"
-                        value={formData.player2Email}
-                        onChange={handleInputChange}
-                        placeholder="jane@example.com"
-                        className="w-full rounded-xl border border-neutral-200 px-4 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors"
-                      />
-                      {errors.player2Email && <p className="text-red-500 text-xs mt-1">{errors.player2Email}</p>}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ---- STEP 3: Waiver ---- */}
+              {currentStep === 3 && (
+                <motion.div
+                  key="step3"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease }}
+                >
+                  <div className="bg-white rounded-2xl border border-neutral-200 p-6 sm:p-8">
+                    <div className="border-l-4 border-[#E31837] pl-3 mb-6">
+                      <h2 className="text-lg font-semibold text-neutral-900">Liability Waiver</h2>
+                      <p className="text-sm text-neutral-500">Both players must agree</p>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Phone Number *</label>
-                      <input
-                        name="player2Phone"
-                        type="tel"
-                        value={formData.player2Phone}
-                        onChange={handleInputChange}
-                        placeholder="671-234-5678"
-                        className="w-full rounded-xl border border-neutral-200 px-4 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors"
+
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 max-h-64 overflow-y-auto">
+                      <LiabilityWaiver
+                        organizationName={organization?.name || 'the tournament organizer'}
                       />
-                      {errors.player2Phone && <p className="text-red-500 text-xs mt-1">{errors.player2Phone}</p>}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">T-Shirt Size</label>
-                      <select
-                        name="player2TshirtSize"
-                        value={formData.player2TshirtSize}
-                        onChange={handleInputChange}
-                        className="w-full rounded-xl border border-neutral-200 px-4 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors"
-                      >
-                        <option value="">Select size (optional)</option>
-                        {tshirtSizes.map(size => (
-                          <option key={size} value={size}>{size}</option>
-                        ))}
-                      </select>
+
+                    <div className="space-y-4">
+                      <div className="p-4 bg-[#F5F5F5] rounded-2xl">
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="player1WaiverAccepted"
+                            checked={formData.player1WaiverAccepted}
+                            onChange={handleInputChange}
+                            className="mt-1 w-5 h-5 min-w-[20px] rounded border-neutral-300 accent-[#004B8D]"
+                          />
+                          <span className="text-sm text-neutral-700">
+                            I, <strong>{formData.player1Name || 'Player 1'}</strong>, have read and agree to the liability waiver
+                          </span>
+                        </label>
+                        {errors.player1WaiverAccepted && (
+                          <p className="text-red-500 text-sm mt-2">{errors.player1WaiverAccepted}</p>
+                        )}
+                      </div>
+                      <div className="p-4 bg-[#F5F5F5] rounded-2xl">
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="player2WaiverAccepted"
+                            checked={formData.player2WaiverAccepted}
+                            onChange={handleInputChange}
+                            className="mt-1 w-5 h-5 min-w-[20px] rounded border-neutral-300 accent-[#004B8D]"
+                          />
+                          <span className="text-sm text-neutral-700">
+                            I, <strong>{formData.player2Name || 'Player 2'}</strong>, have read and agree to the liability waiver
+                          </span>
+                        </label>
+                        {errors.player2WaiverAccepted && (
+                          <p className="text-red-500 text-sm mt-2">{errors.player2WaiverAccepted}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            </div>
+                </motion.div>
+              )}
 
-            {/* Team Name */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.3, ease }}
-            >
-              <div className="bg-white rounded-2xl border border-neutral-200 p-6">
-                <div className="border-l-4 border-[#E31837] pl-3 mb-4">
-                  <h2 className="text-lg font-semibold text-neutral-900">Team Name</h2>
-                </div>
-                <input
-                  name="teamName"
-                  value={formData.teamName}
-                  onChange={handleInputChange}
-                  placeholder="Defaults to Player 1 & Player 2"
-                  className="w-full rounded-xl border border-neutral-200 px-4 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors"
-                />
-              </div>
-            </motion.div>
+              {/* ---- STEP 4: Review & Pay ---- */}
+              {currentStep === 4 && (
+                <motion.div
+                  key="step4"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease }}
+                >
+                  <div className="bg-white rounded-2xl border border-neutral-200 p-6 sm:p-8">
+                    <div className="border-l-4 border-[#E31837] pl-3 mb-6">
+                      <h2 className="text-lg font-semibold text-neutral-900">Review & Pay</h2>
+                      <p className="text-sm text-neutral-500">Confirm your details before payment</p>
+                    </div>
 
-            {/* Liability Waiver */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.4, ease }}
-            >
-              <div className="bg-white rounded-2xl border border-neutral-200 p-6">
-                <div className="border-l-4 border-[#E31837] pl-3 mb-4">
-                  <h2 className="text-lg font-semibold text-neutral-900">Liability Waiver</h2>
-                </div>
+                    <div className="space-y-5">
+                      {/* Player 1 summary */}
+                      <div className="p-4 bg-[#F5F5F5] rounded-2xl">
+                        <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-2">Team Captain (Player 1)</p>
+                        <p className="font-medium text-neutral-900">{formData.player1Name}</p>
+                        <p className="text-sm text-neutral-600">{formData.player1Email}</p>
+                        <p className="text-sm text-neutral-600">{formData.player1Phone}</p>
+                        {formData.player1TshirtSize && <p className="text-sm text-neutral-500">Shirt: {formData.player1TshirtSize}</p>}
+                      </div>
 
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
-                  <LiabilityWaiver
-                    organizationName={organization?.name || 'the tournament organizer'}
-                  />
-                </div>
+                      {/* Player 2 summary */}
+                      <div className="p-4 bg-[#F5F5F5] rounded-2xl">
+                        <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-2">Playing Partner (Player 2)</p>
+                        <p className="font-medium text-neutral-900">{formData.player2Name}</p>
+                        <p className="text-sm text-neutral-600">{formData.player2Email}</p>
+                        <p className="text-sm text-neutral-600">{formData.player2Phone}</p>
+                        {formData.player2TshirtSize && <p className="text-sm text-neutral-500">Shirt: {formData.player2TshirtSize}</p>}
+                      </div>
 
-                <div className="space-y-4">
-                  <div className="p-4 bg-[#F5F5F5] rounded-2xl">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="player1WaiverAccepted"
-                        checked={formData.player1WaiverAccepted}
-                        onChange={handleInputChange}
-                        className="mt-1 w-5 h-5 rounded border-neutral-300 accent-[#004B8D]"
-                      />
-                      <span className="text-sm text-neutral-700">
-                        I, <strong>{formData.player1Name || 'Player 1'}</strong>, have read and agree to the liability waiver
-                      </span>
-                    </label>
-                    {errors.player1WaiverAccepted && (
-                      <p className="text-red-500 text-sm mt-2">{errors.player1WaiverAccepted}</p>
-                    )}
+                      {/* Team & fee */}
+                      <div className="p-4 bg-[#F5F5F5] rounded-2xl">
+                        <div className="flex justify-between items-baseline mb-2">
+                          <span className="text-sm text-neutral-500">Team Name</span>
+                          <span className="font-medium text-neutral-900">{displayTeamName}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-sm text-neutral-500">Entry Fee</span>
+                          <span className="text-xl font-bold text-neutral-900">$300/team</span>
+                        </div>
+                      </div>
+
+                      {/* Payment note */}
+                      <div className="bg-[#004B8D]/5 rounded-2xl p-4">
+                        <p className="text-sm text-neutral-600">
+                          Payment processed via Bank of Guam SwipeSimple. You will be redirected to complete payment.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-4 bg-[#F5F5F5] rounded-2xl">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="player2WaiverAccepted"
-                        checked={formData.player2WaiverAccepted}
-                        onChange={handleInputChange}
-                        className="mt-1 w-5 h-5 rounded border-neutral-300 accent-[#004B8D]"
-                      />
-                      <span className="text-sm text-neutral-700">
-                        I, <strong>{formData.player2Name || 'Player 2'}</strong>, have read and agree to the liability waiver
-                      </span>
-                    </label>
-                    {errors.player2WaiverAccepted && (
-                      <p className="text-red-500 text-sm mt-2">{errors.player2WaiverAccepted}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* Submit Button — mobile only (desktop has it in sidebar) */}
-            <div className="lg:hidden">
-              <motion.button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="w-full bg-[#E31837] hover:bg-[#c41230] disabled:bg-neutral-300 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-full text-lg transition-colors"
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {isSubmitting ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="animate-spin w-5 h-5" />
-                    Processing...
-                  </span>
-                ) : (
-                  'Register & Pay'
-                )}
-              </motion.button>
+            {/* Navigation Buttons */}
+            <div className="flex items-center justify-between mt-6">
+              {currentStep > 1 ? (
+                <button
+                  onClick={handleBack}
+                  className="inline-flex items-center gap-1 border border-neutral-300 text-neutral-700 font-medium text-sm rounded-full px-6 py-3 hover:bg-neutral-50 transition-colors min-h-[44px] w-full sm:w-auto justify-center"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Back
+                </button>
+              ) : (
+                <div />
+              )}
+
+              {currentStep < 4 ? (
+                <button
+                  onClick={handleNext}
+                  className="inline-flex items-center gap-1 bg-[#004B8D] hover:bg-[#003a6e] text-white font-semibold text-sm rounded-full px-6 py-3 transition-colors min-h-[44px] w-full sm:w-auto justify-center"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <motion.button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-2 bg-[#E31837] hover:bg-[#c41230] disabled:bg-neutral-300 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-full px-8 py-3 transition-colors min-h-[44px] w-full sm:w-auto justify-center"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {isSubmitting ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="animate-spin w-5 h-5" />
+                      Processing...
+                    </span>
+                  ) : (
+                    <>
+                      Register & Pay
+                      <ChevronRight className="w-4 h-4" />
+                    </>
+                  )}
+                </motion.button>
+              )}
             </div>
           </div>
 
           {/* RIGHT — Sticky Summary Card */}
-          <div className="hidden lg:block">
+          <div className="order-first lg:order-last">
             <div className="sticky top-8">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -566,28 +704,11 @@ export const OrgRegistrationPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="bg-[#004B8D]/5 rounded-2xl p-3 mb-6">
+                <div className="bg-[#004B8D]/5 rounded-2xl p-3">
                   <p className="text-xs text-neutral-600">
                     Payment processed via Bank of Guam SwipeSimple. You will be redirected after submitting.
                   </p>
                 </div>
-
-                <motion.button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="w-full bg-[#E31837] hover:bg-[#c41230] disabled:bg-neutral-300 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-full text-lg transition-colors"
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  {isSubmitting ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 className="animate-spin w-5 h-5" />
-                      Processing...
-                    </span>
-                  ) : (
-                    'Register & Pay'
-                  )}
-                </motion.button>
               </motion.div>
             </div>
           </div>
@@ -596,8 +717,11 @@ export const OrgRegistrationPage: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-neutral-200 mt-12">
-        <div className="max-w-6xl mx-auto px-6 py-8 text-center text-sm text-neutral-400">
-          Powered by <span className="font-medium text-neutral-600">Shimizu Technology</span>
+        <div className="max-w-6xl mx-auto px-6 py-8 flex items-center justify-between text-sm text-neutral-400">
+          <p>Powered by <span className="font-medium text-neutral-600">Shimizu Technology</span></p>
+          <Link to="/admin" className="text-xs text-neutral-400 hover:text-neutral-600 transition-colors">
+            Admin
+          </Link>
         </div>
       </footer>
     </div>

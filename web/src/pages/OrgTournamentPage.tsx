@@ -144,85 +144,39 @@ export function OrgTournamentPage() {
     <MotionConfig reducedMotion="user">
     <div className="min-h-screen bg-white text-neutral-900">
       {/* ================================================================= */}
-      {/* HERO with background image                                        */}
+      {/* HERO — MAW blue gradient (no photo)                               */}
       {/* ================================================================= */}
-      <header className="relative overflow-hidden min-h-[320px] lg:min-h-[400px] flex items-end">
-        <div className="absolute inset-0">
-          <img
-            src="/images/maw-hero.jpg"
-            alt=""
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-[#004B8D]/70" />
-        </div>
-
-        <div className="relative z-10 max-w-5xl mx-auto px-6 lg:px-8 py-10 sm:py-14 w-full">
-          <motion.div
-            initial={{ opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, ease }}
-          >
-            <Link
-              to="/"
-              className="inline-flex items-center gap-1 text-sm text-white/70 hover:text-white transition-colors duration-200 mb-6"
-            >
-              <ChevronLeft className="w-4 h-4" strokeWidth={2} />
-              Back to {organization?.name || 'Tournaments'}
-            </Link>
-          </motion.div>
-
-          <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="relative bg-gradient-to-br from-[#004B8D] via-[#00408a] to-[#002d63] text-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+          <div className="flex items-start gap-6">
+            <img
+              src="/images/maw-logo.png"
+              alt="Make-A-Wish Guam & CNMI"
+              className="h-10 brightness-0 invert opacity-90 hidden sm:block flex-shrink-0 mt-1"
+            />
             <div>
-              <motion.h1
-                className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white mb-3"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.1, ease }}
-              >
-                {tournament.display_name}
-              </motion.h1>
-
-              {tournament.event_date && (
-                <motion.p
-                  className="text-lg text-white/80"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.25, ease }}
-                >
-                  {formatEventDate(tournament.event_date)}
-                </motion.p>
-              )}
-
-              {organization?.name && (organization.name.includes('Make-A-Wish') || organization.name.includes('MAW')) && (
-                <motion.p
-                  className="text-base text-white/60 mt-2 max-w-xl"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.35, ease }}
-                >
-                  A fundraising golf tournament benefiting children with critical illnesses in Guam &amp; CNMI
-                </motion.p>
-              )}
+              <Link to="/" className="inline-flex items-center gap-1 text-white/70 hover:text-white text-sm mb-4 transition-colors">
+                <ChevronLeft className="w-4 h-4" />
+                Back to Events
+              </Link>
+              <h1 className="text-3xl lg:text-4xl font-bold tracking-tight mb-3">
+                {tournament.name}
+              </h1>
+              <p className="text-white/80 text-lg mb-4">{formatEventDate(tournament.event_date)} · {tournament.location_name}</p>
+              <span className="inline-flex items-center gap-1.5 bg-[#E31837] text-white text-sm font-semibold px-3 py-1.5 rounded-full">
+                {status.label}
+              </span>
             </div>
-
-            <motion.span
-              className={`inline-flex items-center text-xs font-semibold rounded-full px-3 py-1.5 ${status.bg} ${status.text}`}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.3, ease }}
-            >
-              {status.label}
-            </motion.span>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* ================================================================= */}
       {/* KEY STATS BAR                                                      */}
       {/* ================================================================= */}
       <div className="bg-white border-b border-neutral-200 shadow-sm">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 py-4">
-          <div className="flex flex-wrap items-center gap-6 sm:gap-8 text-sm">
+          <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 sm:gap-8 text-sm">
             {tournament.event_date && (
               <div className="flex items-center gap-2 text-neutral-600">
                 <Calendar className="w-4 h-4 text-[#004B8D]" strokeWidth={1.5} />
@@ -241,12 +195,10 @@ export function OrgTournamentPage() {
                 <span>{tournament.format_name}</span>
               </div>
             )}
-            {tournament.entry_fee_dollars !== undefined && (
-              <div className="flex items-center gap-2 text-neutral-600">
-                <DollarSign className="w-4 h-4 text-[#004B8D]" strokeWidth={1.5} />
-                <span>${tournament.entry_fee_dollars.toFixed(2)}</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2 text-neutral-600">
+              <DollarSign className="w-4 h-4 text-[#004B8D]" strokeWidth={1.5} />
+              <span>$300/team</span>
+            </div>
             {tournament.max_capacity && (
               <div className="flex items-center gap-2 text-neutral-600">
                 <Users className="w-4 h-4 text-[#004B8D]" strokeWidth={1.5} />
@@ -261,9 +213,9 @@ export function OrgTournamentPage() {
       {/* MAIN CONTENT — Two columns                                        */}
       {/* ================================================================= */}
       <main className="max-w-5xl mx-auto px-6 lg:px-8 py-12 sm:py-16">
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Details Column */}
-          <ScrollReveal className="md:col-span-2">
+          <ScrollReveal className="lg:col-span-2">
             <div className="bg-white rounded-2xl border border-neutral-200 p-6 sm:p-8">
               <h2 className="text-xl font-bold tracking-tight mb-6">Tournament Details</h2>
 
@@ -352,7 +304,7 @@ export function OrgTournamentPage() {
                   <div className="flex justify-between items-baseline">
                     <span className="text-neutral-500 text-sm">Entry Fee</span>
                     <span className="font-bold text-xl text-neutral-900">
-                      ${tournament.current_fee_dollars?.toFixed(2) || tournament.entry_fee_dollars?.toFixed(2)}
+                      $300/team
                     </span>
                   </div>
 
@@ -539,7 +491,12 @@ export function OrgTournamentPage() {
             Powered by{' '}
             <span className="font-medium text-neutral-600">Shimizu Technology</span>
           </p>
-          <p className="hidden sm:block">Supporting children with critical illnesses</p>
+          <div className="flex items-center gap-4">
+            <p className="hidden sm:block">Supporting children with critical illnesses</p>
+            <Link to="/admin" className="text-xs text-neutral-400 hover:text-neutral-600 transition-colors">
+              Admin
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
