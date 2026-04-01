@@ -98,7 +98,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           label: 'Registrations',
           path: adminEventPath(activeTournament.slug, 'registrations'),
           icon: ClipboardList,
-          match: () => routeSection === 'overview' || routeSection === 'registrations',
+          match: () => routeSection === 'registrations',
         },
         {
           label: 'Payments',
