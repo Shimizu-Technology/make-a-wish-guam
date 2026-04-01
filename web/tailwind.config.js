@@ -3,28 +3,26 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
-      // Custom fonts
       fontFamily: {
         sans: ['DM Sans', 'system-ui', '-apple-system', 'sans-serif'],
         display: ['Space Grotesk', 'system-ui', '-apple-system', 'sans-serif'],
       },
-      // Custom color palette
       colors: {
-        // Golf green brand color
+        // Make-A-Wish blue — primary brand color (#0057B8)
         brand: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
-          950: '#052e16',
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#0057B8',
+          700: '#004A9E',
+          800: '#003D84',
+          900: '#00306A',
+          950: '#001E42',
         },
-        // Accent color (golf gold)
+        // Warm gold accent — wish star
         accent: {
           50: '#fffbeb',
           100: '#fef3c7',
@@ -37,28 +35,26 @@ export default {
           800: '#92400e',
           900: '#78350f',
         },
-        // Slightly warm neutrals (not pure gray)
+        // Cool neutrals
         neutral: {
-          50: '#fafaf9',
-          100: '#f5f5f4',
-          200: '#e7e5e4',
-          300: '#d6d3d1',
-          400: '#a8a29e',
-          500: '#78716c',
-          600: '#57534e',
-          700: '#44403c',
-          800: '#292524',
-          900: '#1c1917',
-          950: '#0c0a09',
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
+          950: '#020617',
         },
       },
-      // Improved border radius tokens
       borderRadius: {
         '4xl': '2rem',
       },
-      // Box shadows with color tint
       boxShadow: {
-        'brand': '0 4px 14px 0 rgba(22, 163, 74, 0.15)',
+        'brand': '0 4px 14px 0 rgba(0, 87, 184, 0.15)',
         'accent': '0 4px 14px 0 rgba(245, 158, 11, 0.15)',
         'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
         'elevated': '0 10px 40px -10px rgba(0, 0, 0, 0.1)',

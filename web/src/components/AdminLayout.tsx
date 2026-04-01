@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { UserButton, useUser } from '@clerk/clerk-react';
-import { Trophy, LayoutDashboard, Users, ClipboardCheck, Settings, Home, Menu, X, BarChart3, Calendar, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Settings, Home, Menu, X, Calendar, ChevronDown } from 'lucide-react';
 import { useTournament } from '../contexts';
 
 interface AdminLayoutProps {
@@ -18,11 +18,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { tournaments, currentTournament, setCurrentTournament, isLoading } = useTournament();
 
   const menuItems = [
-    { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/admin/groups', icon: Users, label: 'Groups' },
-    { path: '/admin/checkin', icon: ClipboardCheck, label: 'Check-In' },
-    { path: '/admin/reports', icon: BarChart3, label: 'Reports' },
-    { path: '/admin/tournaments', icon: Calendar, label: 'Tournaments' },
+    { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/settings', icon: Settings, label: 'Settings' },
   ];
 
@@ -51,7 +47,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               onClick={() => navigate('/')}
               className="flex items-center gap-2 lg:gap-3 hover:opacity-80 transition-opacity"
             >
-              <img src="/images/maw-logo.png" alt="MAW" className="h-7 lg:h-8 brightness-0 invert" />
+              <img src="/images/maw-star-icon.png" alt="MAW" className="h-7 lg:h-8 rounded" />
               <div className="text-left">
                 <h1 className="font-bold text-base lg:text-lg">Golf for Wishes Admin</h1>
                 <p className="text-[10px] lg:text-xs text-brand-200 hidden sm:block">
@@ -89,7 +85,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                             onClick={() => handleTournamentSelect(tournament)}
                             className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                               currentTournament?.id === tournament.id
-                                ? 'bg-brand-100 text-brand-800'
+                                ? 'bg-brand-100 text-brand-700'
                                 : 'text-gray-700 hover:bg-gray-100'
                             }`}
                           >
@@ -117,7 +113,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                             onClick={() => handleTournamentSelect(tournament)}
                             className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                               currentTournament?.id === tournament.id
-                                ? 'bg-brand-100 text-brand-800'
+                                ? 'bg-brand-100 text-brand-700'
                                 : 'text-gray-500 hover:bg-gray-100'
                             }`}
                           >
@@ -131,7 +127,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                               setTournamentDropdownOpen(false);
                               navigate('/admin/tournaments');
                             }}
-                            className="w-full text-left px-3 py-2 text-xs text-brand-600 hover:text-brand-800"
+                            className="w-full text-left px-3 py-2 text-xs text-brand-600 hover:text-brand-700"
                           >
                             View all {archivedTournaments.length} archived →
                           </button>
@@ -145,7 +141,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                           setTournamentDropdownOpen(false);
                           navigate('/admin/tournaments');
                         }}
-                        className="w-full text-left px-3 py-2 text-sm text-brand-600 hover:text-brand-800 font-medium"
+                        className="w-full text-left px-3 py-2 text-sm text-brand-600 hover:text-brand-700 font-medium"
                       >
                         Manage Tournaments →
                       </button>
@@ -220,7 +216,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     onClick={() => handleNavigate(item.path)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       isActive
-                        ? 'bg-brand-800 text-white'
+                        ? 'bg-brand-600 text-white'
                         : 'text-brand-100 hover:bg-brand-700'
                     }`}
                   >
@@ -255,7 +251,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     onClick={() => navigate(item.path)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       isActive
-                        ? 'bg-brand-800 text-white'
+                        ? 'bg-brand-600 text-white'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
@@ -285,7 +281,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 onClick={() => navigate(item.path)}
                 className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-colors ${
                   isActive
-                    ? 'text-brand-800'
+                    ? 'text-brand-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >

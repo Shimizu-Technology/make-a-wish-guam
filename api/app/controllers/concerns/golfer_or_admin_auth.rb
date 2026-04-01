@@ -64,7 +64,14 @@ module GolferOrAdminAuth
     email = decoded['email'] || decoded['primary_email_address']
     return false unless clerk_id
 
-    @current_user = User.find_by_clerk_or_email(clerk_id: clerk_id, email: email)
+    @current_user = User.find_by(clerk_id: clerk_id)
+
+    # Safe one-time linking: only trust email claims from the verified JWT,
+    # never a client-provided header.
+    if @current_user.nil? && email.present?
+      @current_user = User.find_by('LOWER(email) = ?', email.downcase)
+    end
+
     return false unless @current_user
 
     Current.user = @current_user

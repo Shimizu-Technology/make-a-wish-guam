@@ -43,7 +43,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
         <React.Fragment key={index}>
           <div className="flex flex-col items-center">
             <div className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm
-              ${currentStep > index + 1 ? 'bg-[#004B8D] text-white' :
+              ${currentStep > index + 1 ? 'bg-[#0057B8] text-white' :
                 currentStep === index + 1 ? 'bg-[#E31837] text-white' :
                 'bg-neutral-200 text-neutral-500'}`}>
               {currentStep > index + 1 ? <Check className="w-4 h-4" /> : index + 1}
@@ -51,7 +51,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
             <span className="text-xs mt-1.5 font-medium text-neutral-600 hidden sm:block">{stepName}</span>
           </div>
           {index < stepNames.length - 1 && (
-            <div className={`flex-1 h-0.5 mx-2 ${currentStep > index + 1 ? 'bg-[#004B8D]' : 'bg-neutral-200'}`} />
+            <div className={`flex-1 h-0.5 mx-2 ${currentStep > index + 1 ? 'bg-[#0057B8]' : 'bg-neutral-200'}`} />
           )}
         </React.Fragment>
       ))}
@@ -209,13 +209,13 @@ export const OrgRegistrationPage: React.FC = () => {
     }
   };
 
-  const inputClass = "w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm text-neutral-900 focus:outline-none focus:border-[#004B8D] focus:ring-2 focus:ring-[#004B8D]/20 transition-colors min-h-[44px]";
+  const inputClass = "w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm text-neutral-900 focus:outline-none focus:border-[#0057B8] focus:ring-2 focus:ring-[#0057B8]/20 transition-colors min-h-[44px]";
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin mx-auto text-[#004B8D]" />
+          <Loader2 className="h-10 w-10 animate-spin mx-auto text-[#0057B8]" />
           <p className="mt-4 text-sm text-neutral-500 tracking-wide uppercase">Loading registration</p>
         </div>
       </div>
@@ -268,7 +268,7 @@ export const OrgRegistrationPage: React.FC = () => {
       {/* ================================================================= */}
       <header
         className="relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #004B8D 0%, #003a6e 100%)' }}
+        style={{ background: 'linear-gradient(135deg, #0057B8 0%, #003a6e 100%)' }}
       >
         <div className="relative z-10 max-w-6xl mx-auto px-6 py-8 sm:py-10">
           <button
@@ -487,7 +487,7 @@ export const OrgRegistrationPage: React.FC = () => {
                             name="player1WaiverAccepted"
                             checked={formData.player1WaiverAccepted}
                             onChange={handleInputChange}
-                            className="mt-1 w-5 h-5 min-w-[20px] rounded border-neutral-300 accent-[#004B8D]"
+                            className="mt-1 w-5 h-5 min-w-[20px] rounded border-neutral-300 accent-[#0057B8]"
                           />
                           <span className="text-sm text-neutral-700">
                             I, <strong>{formData.player1Name || 'Player 1'}</strong>, have read and agree to the liability waiver
@@ -504,7 +504,7 @@ export const OrgRegistrationPage: React.FC = () => {
                             name="player2WaiverAccepted"
                             checked={formData.player2WaiverAccepted}
                             onChange={handleInputChange}
-                            className="mt-1 w-5 h-5 min-w-[20px] rounded border-neutral-300 accent-[#004B8D]"
+                            className="mt-1 w-5 h-5 min-w-[20px] rounded border-neutral-300 accent-[#0057B8]"
                           />
                           <span className="text-sm text-neutral-700">
                             I, <strong>{formData.player2Name || 'Player 2'}</strong>, have read and agree to the liability waiver
@@ -564,7 +564,7 @@ export const OrgRegistrationPage: React.FC = () => {
                       </div>
 
                       {/* Payment note */}
-                      <div className="bg-[#004B8D]/5 rounded-2xl p-4">
+                      <div className="bg-[#0057B8]/5 rounded-2xl p-4">
                         <p className="text-sm text-neutral-600">
                           Payment processed via Bank of Guam SwipeSimple. You will be redirected to complete payment.
                         </p>
@@ -592,7 +592,7 @@ export const OrgRegistrationPage: React.FC = () => {
               {currentStep < 4 ? (
                 <button
                   onClick={handleNext}
-                  className="inline-flex items-center gap-1 bg-[#004B8D] hover:bg-[#003a6e] text-white font-semibold text-sm rounded-full px-6 py-3 transition-colors min-h-[44px] w-full sm:w-auto justify-center"
+                  className="inline-flex items-center gap-1 bg-[#0057B8] hover:bg-[#003a6e] text-white font-semibold text-sm rounded-full px-6 py-3 transition-colors min-h-[44px] w-full sm:w-auto justify-center"
                 >
                   Next
                   <ChevronRight className="w-4 h-4" />
@@ -647,20 +647,20 @@ export const OrgRegistrationPage: React.FC = () => {
 
                 <div className="space-y-3 mb-6">
                   <div className="flex items-start gap-3">
-                    <Trophy className="w-5 h-5 mt-0.5 shrink-0 text-[#004B8D]" strokeWidth={1.5} />
+                    <Trophy className="w-5 h-5 mt-0.5 shrink-0 text-[#0057B8]" strokeWidth={1.5} />
                     <div>
                       <p className="font-medium text-neutral-900 text-sm">{tournament.name}</p>
                     </div>
                   </div>
                   {tournament.event_date && (
                     <div className="flex items-center gap-3">
-                      <Calendar className="w-5 h-5 shrink-0 text-[#004B8D]" strokeWidth={1.5} />
+                      <Calendar className="w-5 h-5 shrink-0 text-[#0057B8]" strokeWidth={1.5} />
                       <p className="text-sm text-neutral-600">{formatEventDate(tournament.event_date)}</p>
                     </div>
                   )}
                   {tournament.location_name && (
                     <div className="flex items-center gap-3">
-                      <MapPin className="w-5 h-5 shrink-0 text-[#004B8D]" strokeWidth={1.5} />
+                      <MapPin className="w-5 h-5 shrink-0 text-[#0057B8]" strokeWidth={1.5} />
                       <p className="text-sm text-neutral-600">{tournament.location_name}</p>
                     </div>
                   )}
@@ -681,7 +681,7 @@ export const OrgRegistrationPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="bg-[#004B8D]/5 rounded-2xl p-3">
+                <div className="bg-[#0057B8]/5 rounded-2xl p-3">
                   <p className="text-xs text-neutral-600">
                     Payment processed via Bank of Guam SwipeSimple. You will be redirected after submitting.
                   </p>

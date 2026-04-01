@@ -203,7 +203,6 @@ export interface Group {
 export interface EmployeeNumber {
   id: number;
   tournament_id: number;
-  employee_number: string;
   employee_name: string | null;
   used: boolean;
   used_by_golfer_id: number | null;
@@ -356,7 +355,6 @@ export class ApiClient {
   private getAuthToken: (() => Promise<string | null>) | null = null;
   private currentTournamentId: number | null = null;
 
-  // Set the auth token getter (called from React component)
   setAuthTokenGetter(getter: () => Promise<string | null>) {
     this.getAuthToken = getter;
   }
@@ -380,7 +378,7 @@ export class ApiClient {
   }
 
   private async getHeaders(authenticated = true): Promise<HeadersInit> {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
@@ -986,65 +984,6 @@ export class ApiClient {
     return this.request(`/api/v1/activity_logs/golfer/${golferId}`);
   }
 
-  // Employee Numbers
-  async getEmployeeNumbers(tournamentId?: number): Promise<{ 
-    employee_numbers: EmployeeNumber[]; 
-    stats: { total: number; available: number; used: number } 
-  }> {
-    const id = tournamentId || this.currentTournamentId;
-    const query = id ? `?tournament_id=${id}` : '';
-    return this.request(`/api/v1/employee_numbers${query}`);
-  }
-
-  async createEmployeeNumber(data: { employee_number: string; employee_name?: string }): Promise<EmployeeNumber> {
-    return this.request('/api/v1/employee_numbers', {
-      method: 'POST',
-      body: JSON.stringify({ employee_number: data }),
-    });
-  }
-
-  async bulkCreateEmployeeNumbers(numbers: Array<{ employee_number: string; employee_name?: string } | string>): Promise<{
-    created: number;
-    errors: Array<{ employee_number: string; errors: string[] }>;
-    employee_numbers: EmployeeNumber[];
-  }> {
-    return this.request('/api/v1/employee_numbers/bulk_create', {
-      method: 'POST',
-      body: JSON.stringify({ employee_numbers: numbers }),
-    });
-  }
-
-  async updateEmployeeNumber(id: number, data: { employee_number?: string; employee_name?: string }): Promise<EmployeeNumber> {
-    return this.request(`/api/v1/employee_numbers/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ employee_number: data }),
-    });
-  }
-
-  async deleteEmployeeNumber(id: number): Promise<{ success: boolean; message: string }> {
-    return this.request(`/api/v1/employee_numbers/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async releaseEmployeeNumber(id: number): Promise<EmployeeNumber> {
-    return this.request(`/api/v1/employee_numbers/${id}/release`, {
-      method: 'POST',
-    });
-  }
-
-  async validateEmployeeNumber(employeeNumber: string): Promise<{
-    valid: boolean;
-    error?: string;
-    employee_fee?: number;
-    employee_fee_dollars?: number;
-    message?: string;
-  }> {
-    return this.request('/api/v1/employee_numbers/validate', {
-      method: 'POST',
-      body: JSON.stringify({ employee_number: employeeNumber }),
-    }, false); // No auth required
-  }
 }
 
 // Export singleton instance

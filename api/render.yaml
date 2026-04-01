@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: pacific-golf-api
+    name: make-a-wish-api
     env: ruby
     rootDir: api
     plan: starter

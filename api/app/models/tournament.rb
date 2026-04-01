@@ -86,10 +86,6 @@ class Tournament < ApplicationRecord
     status == 'archived'
   end
 
-  def can_register?
-    open? && registration_open?
-  end
-
   # Money helpers
   def entry_fee_dollars
     return 0.00 if entry_fee.nil?

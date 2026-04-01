@@ -33,8 +33,6 @@ class ActivityLog < ApplicationRecord
     tournament_created
     tournament_updated
     tournament_archived
-    employee_status_changed
-    bulk_employee_update
     bulk_payment_links_sent
   ].freeze
 

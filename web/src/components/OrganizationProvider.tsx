@@ -40,13 +40,14 @@ export function OrganizationProvider({
       try {
         const response = await api.get(`/organizations/${orgSlug}`);
         setOrganization(response.data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to fetch organization:', err);
-        if (err.response?.status === 404) {
+        const message = err instanceof Error ? err.message : 'Failed to load organization';
+        if (message.includes('not found') || message.includes('404')) {
           setError('Organization not found');
           navigate(fallbackPath, { replace: true });
         } else {
-          setError(err.message || 'Failed to load organization');
+          setError(message);
         }
       } finally {
         setLoading(false);
@@ -82,7 +83,7 @@ export function OrganizationProvider({
           </p>
           <button
             onClick={() => navigate('/')}
-            className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all shadow-lg shadow-green-600/25 hover:shadow-green-600/40"
+            className="px-6 py-3 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-all shadow-lg shadow-brand/25 hover:shadow-brand/40"
           >
             Go Home
           </button>

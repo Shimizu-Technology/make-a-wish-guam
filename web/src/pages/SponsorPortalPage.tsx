@@ -78,7 +78,7 @@ const LoginScreen: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <div className="text-center mb-8">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Mail className="w-8 h-8 text-[#004B8D]" />
+                <Mail className="w-8 h-8 text-[#0057B8]" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 Sponsor Portal
@@ -103,7 +103,7 @@ const LoginScreen: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="sponsor@example.com"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#004B8D] focus:border-[#004B8D] text-lg"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B8] focus:border-[#0057B8] text-lg"
                   disabled={isSubmitting}
                   autoComplete="email"
                   autoFocus
@@ -113,7 +113,7 @@ const LoginScreen: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting || !email.trim()}
-                className="w-full bg-[#004B8D] hover:bg-[#003a6e] disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 px-6 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition-colors"
+                className="w-full bg-[#0057B8] hover:bg-[#003a6e] disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 px-6 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition-colors"
               >
                 {isSubmitting ? (
                   <>
@@ -158,7 +158,7 @@ const LoginScreen: React.FC = () => {
                 setLinkSent(false);
                 setEmail('');
               }}
-              className="text-[#004B8D] hover:text-[#003a6e] font-medium"
+              className="text-[#0057B8] hover:text-[#003a6e] font-medium"
             >
               Try a different email
             </button>
@@ -187,7 +187,7 @@ const SlotCard: React.FC<SlotCardProps> = ({ slot, playerName, playerEmail, play
     <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[#004B8D] text-white flex items-center justify-center text-sm font-bold">
+          <div className="w-8 h-8 rounded-full bg-[#0057B8] text-white flex items-center justify-center text-sm font-bold">
             {slot.slot_number}
           </div>
           <span className="font-semibold text-neutral-900">Player Slot {slot.slot_number}</span>
@@ -210,7 +210,7 @@ const SlotCard: React.FC<SlotCardProps> = ({ slot, playerName, playerEmail, play
             placeholder="Player Name *"
             value={playerName}
             onChange={(e) => onChangeField('player_name', e.target.value)}
-            className="w-full px-3 py-2 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#004B8D]/20 focus:border-[#004B8D] text-sm"
+            className="w-full px-3 py-2 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#0057B8]/20 focus:border-[#0057B8] text-sm"
           />
         </div>
         <div>
@@ -223,7 +223,7 @@ const SlotCard: React.FC<SlotCardProps> = ({ slot, playerName, playerEmail, play
             placeholder="Email Address"
             value={playerEmail}
             onChange={(e) => onChangeField('player_email', e.target.value)}
-            className="w-full px-3 py-2 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#004B8D]/20 focus:border-[#004B8D] text-sm"
+            className="w-full px-3 py-2 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#0057B8]/20 focus:border-[#0057B8] text-sm"
           />
         </div>
         <div>
@@ -236,7 +236,7 @@ const SlotCard: React.FC<SlotCardProps> = ({ slot, playerName, playerEmail, play
             placeholder="+1671 xxx-xxxx"
             value={playerPhone}
             onChange={(e) => onChangeField('player_phone', e.target.value)}
-            className="w-full px-3 py-2 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#004B8D]/20 focus:border-[#004B8D] text-sm"
+            className="w-full px-3 py-2 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-[#0057B8]/20 focus:border-[#0057B8] text-sm"
           />
         </div>
       </div>
@@ -244,7 +244,7 @@ const SlotCard: React.FC<SlotCardProps> = ({ slot, playerName, playerEmail, play
       <button
         onClick={onSave}
         disabled={saving}
-        className="mt-4 w-full bg-[#004B8D] text-white rounded-xl py-2.5 font-medium hover:bg-[#003a6e] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+        className="mt-4 w-full bg-[#0057B8] text-white rounded-xl py-2.5 font-medium hover:bg-[#003a6e] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
       >
         {saving ? (
           <>
@@ -427,7 +427,7 @@ const Dashboard: React.FC<{ token: string }> = ({ token }) => {
     return (
       <main className="flex-1 flex items-center justify-center p-6">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-[#004B8D] mx-auto mb-3" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#0057B8] mx-auto mb-3" />
           <p className="text-gray-600">Verifying your access link...</p>
         </div>
       </main>
@@ -445,7 +445,7 @@ const Dashboard: React.FC<{ token: string }> = ({ token }) => {
           <p className="text-gray-600 mb-6">{error}</p>
           <a
             href="/sponsor-portal"
-            className="inline-flex items-center gap-2 text-[#004B8D] hover:text-[#003a6e] font-medium"
+            className="inline-flex items-center gap-2 text-[#0057B8] hover:text-[#003a6e] font-medium"
           >
             Request a new access link
           </a>
@@ -538,10 +538,10 @@ export const SponsorPortalPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 flex flex-col">
       {/* Header */}
-      <header className="bg-[#004B8D] text-white px-6 py-4">
+      <header className="bg-[#0057B8] text-white px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/images/maw-logo.png" alt="Make-A-Wish" className="h-8 brightness-0 invert" />
+            <img src="/images/maw-star-icon.png" alt="Make-A-Wish" className="h-8 rounded" />
             <div>
               <div className="font-bold text-lg">Sponsor Portal</div>
               <div className="text-white/70 text-sm">Golf for Wishes 2026</div>

@@ -8,8 +8,8 @@ export const LiabilityWaiver: React.FC<LiabilityWaiverProps> = ({ organizationNa
   const orgLabel = organizationName || 'the tournament organizer';
 
   return (
-    <div className="bg-brand-50 border-2 border-brand-800 rounded-lg p-6">
-      <h3 className="text-xl font-bold text-brand-800 mb-4 uppercase text-center">
+    <div className="bg-brand-50 border-2 border-brand-600 rounded-lg p-6">
+      <h3 className="text-xl font-bold text-brand-600 mb-4 uppercase text-center">
         Liability Waiver
       </h3>
       <div className="text-sm text-gray-700 space-y-3">

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_31_223029) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -68,6 +68,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.string "email"
     t.bigint "group_id"
     t.integer "hole_number"
+    t.boolean "is_employee", default: false, null: false
     t.boolean "is_team_captain", default: true
     t.datetime "magic_link_expires_at"
     t.string "magic_link_token"
@@ -300,10 +301,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
   end
 
   create_table "tournaments", force: :cascade do |t|
+    t.string "accent_color_override"
     t.boolean "allow_card", default: true
     t.boolean "allow_cash", default: true
     t.boolean "allow_check", default: true
     t.boolean "allow_partial_teams", default: false
+    t.string "banner_url_override"
     t.string "check_in_time"
     t.string "checks_payable_to"
     t.jsonb "config", default: {}
@@ -315,6 +318,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.datetime "early_bird_deadline"
     t.integer "early_bird_fee"
     t.string "edition"
+    t.boolean "employee_discount_enabled", default: false, null: false
+    t.integer "employee_entry_fee", default: 5000
     t.integer "entry_fee", default: 12500
     t.string "entry_fee_display", default: "$300/team"
     t.string "event_date"
@@ -327,10 +332,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.jsonb "hole_pars", default: {}
     t.string "location_address"
     t.string "location_name"
+    t.string "logo_url_override"
     t.integer "max_capacity", default: 160
     t.string "name", null: false
     t.uuid "organization_id", null: false
     t.text "payment_instructions"
+    t.string "primary_color_override"
+    t.boolean "public_listed", default: true, null: false
     t.boolean "raffle_auto_draw", default: false
     t.text "raffle_description"
     t.datetime "raffle_draw_time"
@@ -344,6 +352,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.integer "reserved_slots", default: 0, null: false
     t.string "scoring_type", default: "gross"
     t.boolean "shotgun_start", default: true
+    t.string "signature_image_url_override"
     t.integer "slope_rating"
     t.string "slug"
     t.string "start_time"
@@ -353,11 +362,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.string "tee_name"
     t.integer "tee_time_interval_minutes", default: 10
     t.boolean "tee_times_enabled", default: false
+    t.string "theme_preset", default: "classic", null: false
     t.integer "total_holes", default: 18
     t.integer "total_par"
     t.string "tournament_format", default: "scramble"
     t.datetime "updated_at", null: false
     t.boolean "use_flights", default: false
+    t.boolean "use_org_branding", default: true, null: false
     t.boolean "waitlist_enabled", default: true
     t.integer "waitlist_max"
     t.integer "walkin_fee"
@@ -367,6 +378,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_100001) do
     t.index ["early_bird_deadline"], name: "index_tournaments_on_early_bird_deadline"
     t.index ["organization_id", "slug"], name: "index_tournaments_on_organization_id_and_slug", unique: true
     t.index ["organization_id"], name: "index_tournaments_on_organization_id"
+    t.index ["public_listed"], name: "index_tournaments_on_public_listed"
     t.index ["registration_deadline"], name: "index_tournaments_on_registration_deadline"
     t.index ["status", "year"], name: "index_tournaments_on_status_and_year"
     t.index ["status"], name: "index_tournaments_on_status"

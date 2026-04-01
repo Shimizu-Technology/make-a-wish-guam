@@ -105,7 +105,7 @@ export function OrgTournamentPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#004B8D]/20 border-t-[#004B8D] mx-auto" />
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#0057B8]/20 border-t-[#0057B8] mx-auto" />
           <p className="mt-5 text-sm text-neutral-500 tracking-wide uppercase">Loading tournament</p>
         </div>
       </div>
@@ -121,7 +121,7 @@ export function OrgTournamentPage() {
           <p className="mt-3 text-neutral-500 leading-relaxed">{error || 'The tournament does not exist.'}</p>
           <Link
             to="/"
-            className="inline-flex items-center gap-2 mt-6 px-6 py-2.5 text-sm font-semibold text-white bg-[#004B8D] rounded-full transition-colors hover:bg-[#003a6e]"
+            className="inline-flex items-center gap-2 mt-6 px-6 py-2.5 text-sm font-semibold text-white bg-[#0057B8] rounded-full transition-colors hover:bg-[#003a6e]"
           >
             Back to Tournaments
           </Link>
@@ -135,7 +135,7 @@ export function OrgTournamentPage() {
     closed: { label: 'Registration Closed', bg: 'bg-neutral-200', text: 'text-neutral-600' },
     in_progress: { label: 'In Progress', bg: 'bg-amber-500', text: 'text-white' },
     completed: { label: 'Completed', bg: 'bg-neutral-200', text: 'text-neutral-600' },
-    draft: { label: 'Coming Soon', bg: 'bg-[#004B8D]', text: 'text-white' },
+    draft: { label: 'Coming Soon', bg: 'bg-[#0057B8]', text: 'text-white' },
   };
 
   const status = statusConfig[tournament.status] || { label: tournament.status, bg: 'bg-neutral-200', text: 'text-neutral-600' };
@@ -146,13 +146,13 @@ export function OrgTournamentPage() {
       {/* ================================================================= */}
       {/* HERO — MAW blue gradient (no photo)                               */}
       {/* ================================================================= */}
-      <div className="relative bg-gradient-to-br from-[#004B8D] via-[#00408a] to-[#002d63] text-white">
+      <div className="relative bg-gradient-to-br from-[#0057B8] via-[#00408a] to-[#002d63] text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
           <div className="flex items-start gap-6">
             <img
-              src="/images/maw-logo.png"
+              src="/images/maw-star-icon.png"
               alt="Make-A-Wish Guam & CNMI"
-              className="h-10 brightness-0 invert opacity-90 hidden sm:block flex-shrink-0 mt-1"
+              className="h-10 rounded-lg hidden sm:block flex-shrink-0 mt-1"
             />
             <div>
               <Link to="/" className="inline-flex items-center gap-1 text-white/70 hover:text-white text-sm mb-4 transition-colors">
@@ -179,30 +179,30 @@ export function OrgTournamentPage() {
           <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 sm:gap-8 text-sm">
             {tournament.event_date && (
               <div className="flex items-center gap-2 text-neutral-600">
-                <Calendar className="w-4 h-4 text-[#004B8D]" strokeWidth={1.5} />
+                <Calendar className="w-4 h-4 text-[#0057B8]" strokeWidth={1.5} />
                 <span>{formatEventDate(tournament.event_date)}</span>
               </div>
             )}
             {tournament.location_name && (
               <div className="flex items-center gap-2 text-neutral-600">
-                <MapPin className="w-4 h-4 text-[#004B8D]" strokeWidth={1.5} />
+                <MapPin className="w-4 h-4 text-[#0057B8]" strokeWidth={1.5} />
                 <span>{tournament.location_name}</span>
               </div>
             )}
             {tournament.format_name && (
               <div className="flex items-center gap-2 text-neutral-600">
-                <Flag className="w-4 h-4 text-[#004B8D]" strokeWidth={1.5} />
+                <Flag className="w-4 h-4 text-[#0057B8]" strokeWidth={1.5} />
                 <span>{tournament.format_name}</span>
               </div>
             )}
             <div className="flex items-center gap-2 text-neutral-600">
-              <DollarSign className="w-4 h-4 text-[#004B8D]" strokeWidth={1.5} />
+              <DollarSign className="w-4 h-4 text-[#0057B8]" strokeWidth={1.5} />
               <span>$300/team</span>
             </div>
             {tournament.max_capacity && (
               <div className="flex items-center gap-2 text-neutral-600">
-                <Users className="w-4 h-4 text-[#004B8D]" strokeWidth={1.5} />
-                <span>{tournament.public_capacity_remaining ?? (tournament.max_capacity - (tournament.confirmed_count || 0))} / {tournament.max_capacity} spots open</span>
+                <Users className="w-4 h-4 text-[#0057B8]" strokeWidth={1.5} />
+                <span>{tournament.confirmed_count || 0} / {tournament.max_capacity} registered</span>
               </div>
             )}
           </div>
@@ -222,7 +222,7 @@ export function OrgTournamentPage() {
               <div className="space-y-5">
                 {tournament.location_name && (
                   <div className="flex items-start gap-3">
-                    <MapPin className="w-5 h-5 mt-0.5 shrink-0 text-[#004B8D]" strokeWidth={1.5} />
+                    <MapPin className="w-5 h-5 mt-0.5 shrink-0 text-[#0057B8]" strokeWidth={1.5} />
                     <div>
                       <p className="font-medium text-neutral-900">{tournament.location_name}</p>
                       {tournament.location_address && (
@@ -233,7 +233,7 @@ export function OrgTournamentPage() {
                 )}
 
                 <div className="flex items-start gap-3">
-                  <Calendar className="w-5 h-5 mt-0.5 shrink-0 text-[#004B8D]" strokeWidth={1.5} />
+                  <Calendar className="w-5 h-5 mt-0.5 shrink-0 text-[#0057B8]" strokeWidth={1.5} />
                   <div>
                     <p className="font-medium text-neutral-900">{formatEventDate(tournament.event_date) || 'Date TBA'}</p>
                     {tournament.registration_time && (
@@ -247,7 +247,7 @@ export function OrgTournamentPage() {
 
                 {tournament.format_name && (
                   <div className="flex items-start gap-3">
-                    <Trophy className="w-5 h-5 mt-0.5 shrink-0 text-[#004B8D]" strokeWidth={1.5} />
+                    <Trophy className="w-5 h-5 mt-0.5 shrink-0 text-[#0057B8]" strokeWidth={1.5} />
                     <div>
                       <p className="font-medium text-neutral-900">Format: {tournament.format_name}</p>
                       {tournament.tournament_format && (
@@ -279,7 +279,7 @@ export function OrgTournamentPage() {
                 {(tournament.check_in_time || tournament.start_time) && (
                   <div className="mt-6 p-4 rounded-2xl bg-[#F5F5F5]">
                     <div className="flex items-center gap-2 mb-3">
-                      <Clock className="w-5 h-5 text-[#004B8D]" strokeWidth={1.5} />
+                      <Clock className="w-5 h-5 text-[#0057B8]" strokeWidth={1.5} />
                       <p className="font-medium text-neutral-900">Event Schedule</p>
                     </div>
                     <ul className="space-y-1.5 text-sm text-neutral-600">
@@ -369,24 +369,24 @@ export function OrgTournamentPage() {
                 <ul className="space-y-2.5 text-sm text-neutral-600">
                   {tournament.allow_card && (
                     <li className="flex items-center gap-2.5">
-                      <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#004B8D]/10">
-                        <Check className="w-3 h-3 text-[#004B8D]" />
+                      <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#0057B8]/10">
+                        <Check className="w-3 h-3 text-[#0057B8]" />
                       </div>
                       Credit/Debit Card
                     </li>
                   )}
                   {tournament.allow_cash && (
                     <li className="flex items-center gap-2.5">
-                      <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#004B8D]/10">
-                        <Check className="w-3 h-3 text-[#004B8D]" />
+                      <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#0057B8]/10">
+                        <Check className="w-3 h-3 text-[#0057B8]" />
                       </div>
                       Cash (on tournament day)
                     </li>
                   )}
                   {tournament.allow_check && (
                     <li className="flex items-center gap-2.5">
-                      <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#004B8D]/10">
-                        <Check className="w-3 h-3 text-[#004B8D]" />
+                      <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#0057B8]/10">
+                        <Check className="w-3 h-3 text-[#0057B8]" />
                       </div>
                       <span>
                         Check
@@ -565,7 +565,7 @@ function HoleSponsorGrid({
           variants={staggerItem}
           className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-neutral-200 transition-shadow duration-200 hover:shadow-md"
         >
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm bg-[#004B8D]/10 text-[#004B8D]">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm bg-[#0057B8]/10 text-[#0057B8]">
             {sponsor.hole_number}
           </div>
           <div className="flex-1 min-w-0">
@@ -575,7 +575,7 @@ function HoleSponsorGrid({
                 href={sponsor.website_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-[#004B8D] hover:underline"
+                className="text-xs text-[#0057B8] hover:underline"
               >
                 Visit Website
               </a>

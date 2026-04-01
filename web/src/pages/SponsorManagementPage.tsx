@@ -289,7 +289,7 @@ export const SponsorManagementPage: React.FC = () => {
                       {sponsor.login_email && (
                         <button
                           onClick={() => handleSendAccessLink(sponsor)}
-                          className="text-sm text-[#004B8D] hover:underline flex items-center gap-1 mt-1"
+                          className="text-sm text-[#0057B8] hover:underline flex items-center gap-1 mt-1"
                         >
                           <Mail className="w-3.5 h-3.5" />
                           Send Portal Access Link
@@ -457,7 +457,7 @@ const SponsorModal: React.FC<{
                 placeholder="https://example.com/logo.png"
                 value={form.logo_url}
                 onChange={e => setForm({ ...form, logo_url: e.target.value })}
-                className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:border-[#004B8D] focus:outline-none focus:ring-2 focus:ring-[#004B8D]/20"
+                className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:border-[#0057B8] focus:outline-none focus:ring-2 focus:ring-[#0057B8]/20"
               />
               <p className="text-xs text-neutral-500">
                 Paste a direct image URL (PNG, JPG, SVG). For best results, use a transparent PNG.
@@ -502,7 +502,7 @@ const SponsorModal: React.FC<{
               placeholder="sponsor@company.com"
               value={form.login_email || ''}
               onChange={e => setForm({ ...form, login_email: e.target.value })}
-              className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:border-[#004B8D] focus:outline-none focus:ring-2 focus:ring-[#004B8D]/20"
+              className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:border-[#0057B8] focus:outline-none focus:ring-2 focus:ring-[#0057B8]/20"
             />
           </div>
 
@@ -518,7 +518,7 @@ const SponsorModal: React.FC<{
               placeholder="0"
               value={form.slot_count || 0}
               onChange={e => setForm({ ...form, slot_count: parseInt(e.target.value) || 0 })}
-              className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:border-[#004B8D] focus:outline-none focus:ring-2 focus:ring-[#004B8D]/20"
+              className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:border-[#0057B8] focus:outline-none focus:ring-2 focus:ring-[#0057B8]/20"
             />
           </div>
 

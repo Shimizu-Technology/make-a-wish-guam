@@ -1,6 +1,6 @@
 import { api } from '../services/api';
 
-const DEFAULT_DASHBOARD_PATH = '/admin/dashboard';
+const DEFAULT_DASHBOARD_PATH = '/admin';
 
 type TokenGetter = (options?: { template?: string }) => Promise<string | null>;
 

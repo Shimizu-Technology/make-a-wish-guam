@@ -1,5 +1,5 @@
 class ApplicationMailer < ActionMailer::Base
-  default from: ENV.fetch("MAILER_FROM_EMAIL", "noreply@airportgolf.com")
+  default from: ENV.fetch("MAILER_FROM_EMAIL", "noreply@shimizu-technology.com")
   layout "mailer"
   helper MailerHelper
 
@@ -8,7 +8,7 @@ class ApplicationMailer < ActionMailer::Base
   def set_org_branding
     org = @golfer&.tournament&.organization
     @primary_color = org&.primary_color.presence || '#1e40af'
-    @org_name = org&.name.presence || 'Pacific Golf'
+    @org_name = org&.name.presence || 'Make-A-Wish Guam & CNMI'
     @org_logo_url = org&.logo_url
   end
 end

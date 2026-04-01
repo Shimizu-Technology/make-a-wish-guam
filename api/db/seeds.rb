@@ -1,98 +1,288 @@
 # frozen_string_literal: true
 
-# Pacific Golf Seeds
-# Seeds for development and testing
+# Make-A-Wish Guam & CNMI Seeds
+# This is a single-org app — seeds create the MAW organization,
+# Golf for Wishes tournament, sponsors, demo golfers, scores, and raffle prizes.
 
-puts "Seeding Pacific Golf database..."
+puts "Seeding Make-A-Wish Guam & CNMI..."
 
-# Create default organization
-org = Organization.find_or_create_by!(slug: 'rotary-guam') do |o|
-  o.name = 'Rotary Club of Guam'
-  o.description = 'The Rotary Club of Guam is a service organization dedicated to improving lives in the community.'
-  o.primary_color = '#1e40af'  # Rotary blue
-  o.contact_email = 'golf@rotaryguam.org'
-  o.contact_phone = '671-555-0123'
-  o.website_url = 'https://rotaryguam.org'
+# =============================================================================
+# Organization
+# =============================================================================
+org = Organization.find_or_create_by!(slug: 'make-a-wish-guam') do |o|
+  o.name = 'Make-A-Wish Guam & CNMI'
+  o.description = 'Together, we create life-changing wishes for children with critical illnesses. Make-A-Wish Guam & CNMI has been granting wishes since 1988, bringing hope and joy to families across our islands.'
+  o.primary_color = '#0057B8'
+  o.contact_email = 'guamcnmi@wish.org'
+  o.contact_phone = '671-649-9474'
+  o.website_url = 'https://wish.org/guamcnmi'
 end
-puts "  Created organization: #{org.name} (#{org.slug})"
 
-# Create a second organization for testing
-org2 = Organization.find_or_create_by!(slug: 'chamber-of-commerce') do |o|
-  o.name = 'Guam Chamber of Commerce'
-  o.description = 'The Guam Chamber of Commerce supports local businesses and economic development.'
-  o.primary_color = '#047857'  # Chamber green
-  o.contact_email = 'events@guamchamber.com'
-  o.contact_phone = '671-555-0456'
-  o.website_url = 'https://guamchamber.com'
-end
-puts "  Created organization: #{org2.name} (#{org2.slug})"
+org.update!(
+  name: 'Make-A-Wish Guam & CNMI',
+  description: 'Together, we create life-changing wishes for children with critical illnesses. Make-A-Wish Guam & CNMI has been granting wishes since 1988, bringing hope and joy to families across our islands.',
+  primary_color: '#0057B8',
+  contact_email: 'guamcnmi@wish.org',
+  contact_phone: '671-649-9474',
+  website_url: 'https://wish.org/guamcnmi'
+)
+puts "  Organization: #{org.name} (#{org.slug})"
 
-# Create default admin user
+# =============================================================================
+# Admin user
+# =============================================================================
 admin = User.find_or_create_by!(email: 'jerry.shimizutechnology@gmail.com') do |u|
   u.name = 'Jerry'
   u.role = 'super_admin'
 end
-puts "  Created super admin: #{admin.email}"
-
-# Add admin to both organizations
 org.add_admin(admin)
-org2.add_admin(admin)
-puts "  Added #{admin.email} to both organizations"
+puts "  Super admin: #{admin.email}"
 
-# Create settings (singleton)
+admin2 = User.find_or_create_by!(email: 'shimizutechnology@gmail.com') do |u|
+  u.name = 'Leon'
+  u.role = 'super_admin'
+end
+org.add_admin(admin2)
+puts "  Super admin: #{admin2.email}"
+
+# =============================================================================
+# Settings (singleton)
+# =============================================================================
 Setting.find_or_create_by!(id: 1) do |s|
   s.stripe_public_key = ENV['STRIPE_PUBLISHABLE_KEY']
   s.stripe_secret_key = ENV['STRIPE_SECRET_KEY']
   s.payment_mode = 'test'
-  s.admin_email = 'admin@pacificgolf.io'
+  s.admin_email = 'guamcnmi@wish.org'
 end
-puts "  Created settings"
+puts "  Settings created"
 
-# Create a sample tournament for Rotary
-tournament = Tournament.find_or_create_by!(organization: org, name: 'Rotary Charity Classic', year: 2026) do |t|
-  t.edition = '15th Annual'
-  t.status = 'open'
-  t.registration_open = true
-  t.event_date = 'March 15, 2026'
-  t.registration_time = '11:00 AM'
-  t.start_time = '12:30 PM'
-  t.location_name = 'Country Club of the Pacific'
-  t.location_address = 'Yona, Guam'
-  t.max_capacity = 144
-  t.reserved_slots = 12
-  t.entry_fee = 15000  # $150
-  t.format_name = 'Scramble'
-  t.fee_includes = 'Green Fee, Cart, Lunch, Drinks, and Prizes'
-  t.checks_payable_to = 'Rotary Club of Guam Foundation'
-  t.contact_name = 'Tournament Committee'
-  t.contact_phone = '671-555-0123'
-end
-puts "  Created tournament: #{tournament.display_name}"
+# =============================================================================
+# Tournament: Golf for Wishes 2026
+# =============================================================================
+tournament = Tournament.find_or_initialize_by(
+  organization: org,
+  slug: 'golf-for-wishes-2026'
+)
 
-# Create a draft tournament for Chamber
-tournament2 = Tournament.find_or_create_by!(organization: org2, name: 'Chamber Amateur Golf Tournament', year: 2026) do |t|
-  t.edition = '10th Annual'
-  t.status = 'draft'
-  t.registration_open = false
-  t.event_date = 'April 20, 2026'
-  t.registration_time = '10:30 AM'
-  t.start_time = '12:00 PM'
-  t.location_name = 'Finest Guam Golf & Resort'
-  t.location_address = 'Dededo, Guam'
-  t.max_capacity = 120
-  t.reserved_slots = 8
-  t.entry_fee = 17500  # $175
-  t.format_name = 'Best Ball'
-  t.fee_includes = 'Green Fee, Cart, Lunch, and Awards Dinner'
-  t.checks_payable_to = 'Guam Chamber of Commerce'
-  t.contact_name = 'Events Team'
-  t.contact_phone = '671-555-0456'
+tournament.assign_attributes(
+  name: 'Golf for Wishes 2026',
+  year: 2026,
+  edition: '1st Annual',
+  event_date: Date.new(2026, 5, 2),
+  check_in_time: '7:00 AM',
+  registration_time: '7:00 AM',
+  start_time: '8:00 AM Shotgun Start',
+  location_name: 'LeoPalace Resort Country Club',
+  location_address: 'Yona, Guam',
+  tournament_format: 'scramble',
+  team_size: 2,
+  entry_fee: 15000,
+  max_capacity: 144,
+  status: 'open',
+  registration_open: true,
+  raffle_enabled: true,
+  total_holes: 18,
+  total_par: 72,
+  allow_card: true,
+  allow_cash: true,
+  allow_check: true,
+  checks_payable_to: 'Make-A-Wish Foundation of Guam & CNMI',
+  fee_includes: 'Green Fee, Cart, Lunch, Awards Banquet, and Raffle Entry',
+  contact_name: 'Eric Tydingco, VP Programs',
+  contact_phone: '671-649-9474',
+  format_name: 'Two-Person Scramble'
+)
+tournament.save!
+puts "  Tournament: #{tournament.name}"
+
+# =============================================================================
+# Sponsors
+# =============================================================================
+if tournament.sponsors.none?
+  sponsors_data = [
+    { name: 'Bank of Guam', tier: 'title', website_url: 'https://bankofguam.com' },
+    { name: 'Docomo Pacific', tier: 'platinum', website_url: 'https://docomopacific.com' },
+    { name: 'Triple J Auto Group', tier: 'platinum', website_url: 'https://triplejguam.com' },
+    { name: 'IT&E', tier: 'gold', website_url: 'https://ite.net' },
+    { name: 'Matson', tier: 'gold', website_url: 'https://matson.com' },
+    { name: 'Hyatt Regency Guam', tier: 'gold', website_url: 'https://hyatt.com/hyatt-regency/guam' },
+    { name: 'Coast 360 Federal Credit Union', tier: 'silver', website_url: 'https://coast360fcu.com' },
+    { name: 'Guam Premier Outlets', tier: 'silver', website_url: 'https://gpoguam.com' },
+    { name: 'Island Insurance', tier: 'bronze' },
+    { name: 'Pacific Daily News', tier: 'bronze', website_url: 'https://guampdn.com' },
+  ]
+
+  sponsors_data.each do |s|
+    Sponsor.create!(tournament: tournament, name: s[:name], tier: s[:tier], website_url: s[:website_url])
+  end
+
+  hole_sponsors_data = [
+    { name: "Calvo's Insurance", hole_number: 1 },
+    { name: "McDonald's of Guam", hole_number: 2 },
+    { name: 'Pay-Less Supermarkets', hole_number: 3 },
+    { name: 'Guam Reef Hotel', hole_number: 9 },
+    { name: 'Ambros Inc', hole_number: 10 },
+    { name: 'Staywell Health Plan', hole_number: 14 },
+    { name: 'Hawaiian Rock Products', hole_number: 18 },
+  ]
+
+  hole_sponsors_data.each do |s|
+    Sponsor.create!(tournament: tournament, name: s[:name], tier: 'hole', hole_number: s[:hole_number])
+  end
+
+  puts "  #{sponsors_data.length + hole_sponsors_data.length} sponsors created"
+else
+  puts "  Sponsors already exist, skipping"
 end
-puts "  Created tournament: #{tournament2.display_name}"
+
+# =============================================================================
+# Demo Golfers (24 registrations — 12 two-person scramble teams)
+# =============================================================================
+if tournament.golfers.none?
+  golfers_data = [
+    ["John Santos", "Bank of Guam"], ["Maria Cruz", "Bank of Guam"],
+    ["David Tydingco", "Docomo Pacific"], ["Sarah Kim", "Docomo Pacific"],
+    ["Robert Flores", "Triple J Auto"], ["Jennifer Ada", "Triple J Auto"],
+    ["Michael Reyes", "IT&E"], ["Lisa Bautista", "IT&E"],
+    ["James Perez", nil], ["Anna Tenorio", nil],
+    ["Chris Borja", "Matson"], ["Michelle Camacho", "Matson"],
+    ["Daniel Guerrero", "Island Insurance"], ["Karen Pangelinan", nil],
+    ["Mark Manibusan", "Hyatt Regency"], ["Emily Duenas", nil],
+    ["Ryan Sablan", nil], ["Nicole Charfauros", nil],
+    ["Kevin Leon Guerrero", "Ambros Inc"], ["Amy Quitugua", nil],
+    ["Brian Taimanglo", nil], ["Christine Unpingco", "Staywell"],
+    ["Tony Shimizu", nil], ["Grace Aguon", nil],
+  ]
+
+  golfers_data.each_with_index do |(name, company), i|
+    Golfer.create!(
+      tournament: tournament,
+      name: name,
+      email: "golfer#{i + 1}@example.com",
+      phone: "671-555-#{(200 + i).to_s.rjust(4, '0')}",
+      company: company,
+      registration_status: 'confirmed',
+      payment_status: 'paid',
+      payment_type: 'stripe',
+      waiver_accepted_at: Time.current
+    )
+  end
+  puts "  #{golfers_data.length} demo golfers registered"
+else
+  puts "  Golfers already exist, skipping"
+end
+
+# =============================================================================
+# Groups & Scores (12 teams of 2, scramble format)
+# =============================================================================
+if tournament.groups.none? && tournament.golfers.confirmed.any?
+  pars = [4, 3, 5, 4, 4, 3, 4, 5, 4, 4, 3, 5, 4, 4, 3, 4, 5, 4]
+
+  team_adjustments = {
+    1  => [0, -1, -1, 0, -1, -1, 0, -1, 0, 0, -1, -1, 0, -1, 0, 0, -1, 0],
+    2  => [0, -1, 0, 0, -1, -1, 0, -1, 0, -1, 0, -1, 0, 0, -1, 0, -1, 0],
+    3  => [0, 0, -1, 0, -1, 0, 0, -1, -1, 0, -1, 0, 0, 0, -1, 0, -1, 0],
+    4  => [0, 0, -1, 1, -1, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, -1, 0],
+    5  => [-1, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, -1, 1, 0, 0, -1, 0, 0],
+    6  => [0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0],
+    7  => [0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0],
+    8  => [0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, -1, 0, 0, 0],
+    9  => [1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, -1, 0],
+    10 => [0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1, 0, 0],
+    11 => [0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0],
+    12 => [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0],
+  }
+  holes_completed = { 1 => 18, 2 => 18, 3 => 18, 4 => 18, 5 => 16, 6 => 16, 7 => 15, 8 => 14, 9 => 13, 10 => 12, 11 => 10, 12 => 8 }
+
+  golfers = tournament.golfers.confirmed.order(:id).to_a
+  start_holes = [1, 1, 4, 4, 7, 7, 10, 10, 13, 13, 16, 16]
+
+  12.times do |i|
+    group = Group.create!(
+      tournament: tournament,
+      group_number: i + 1,
+      hole_number: start_holes[i]
+    )
+
+    2.times do |j|
+      idx = (i * 2) + j
+      next if idx >= golfers.length
+      golfers[idx].update!(group: group)
+    end
+
+    completed = holes_completed[i + 1]
+    completed.times do |h|
+      hole = h + 1
+      strokes = pars[h] + team_adjustments[i + 1][h]
+
+      Score.create!(
+        tournament: tournament,
+        group: group,
+        hole: hole,
+        score_type: 'team',
+        strokes: strokes,
+        par: pars[h],
+        verified: true
+      )
+    end
+  end
+  puts "  12 teams with scores created"
+else
+  puts "  Groups/scores already exist, skipping"
+end
+
+# =============================================================================
+# Raffle Prizes
+# =============================================================================
+if tournament.raffle_prizes.none?
+  raffle_prizes = [
+    { name: 'Round Trip Airfare to Manila', description: 'United Airlines round-trip ticket', value_cents: 80000 },
+    { name: 'Weekend Stay at Hyatt Regency Guam', description: '2-night ocean view stay', value_cents: 60000 },
+    { name: 'Golf Club Set', description: 'Callaway Rogue ST Max iron set', value_cents: 90000 },
+    { name: '$500 Gift Card - GPO', description: 'Shopping spree at Guam Premier Outlets', value_cents: 50000 },
+    { name: 'Dinner for 4 at Proa', description: 'Fine dining experience', value_cents: 30000 },
+    { name: 'Island Hopper Package', description: 'Day trip to Rota with snorkeling', value_cents: 40000 },
+  ]
+
+  raffle_prizes.each do |rp|
+    RafflePrize.create!(
+      tournament: tournament,
+      name: rp[:name],
+      description: rp[:description],
+      value_cents: rp[:value_cents],
+      won: false
+    )
+  end
+  puts "  #{raffle_prizes.length} raffle prizes created"
+else
+  puts "  Raffle prizes already exist, skipping"
+end
+
+# =============================================================================
+# Raffle Tickets (one per golfer, included with registration)
+# =============================================================================
+if tournament.raffle_tickets.none? && tournament.golfers.confirmed.any?
+  tournament.golfers.confirmed.each do |golfer|
+    RaffleTicket.create!(
+      tournament: tournament,
+      golfer: golfer,
+      ticket_number: "MAW-#{golfer.id.to_s.rjust(4, '0')}",
+      purchaser_name: golfer.name,
+      purchaser_email: golfer.email,
+      purchaser_phone: golfer.phone,
+      payment_status: 'paid',
+      purchased_at: Time.current
+    )
+  end
+  puts "  Raffle tickets assigned to all golfers"
+else
+  puts "  Raffle tickets already exist, skipping"
+end
 
 puts "\nSeeding complete!"
-puts "\nOrganizations:"
-puts "  - #{org.name} (#{org.slug}) - #{org.tournaments.count} tournament(s)"
-puts "  - #{org2.name} (#{org2.slug}) - #{org2.tournaments.count} tournament(s)"
-puts "\nAdmin user: #{admin.email} (#{admin.role})"
-puts "\nOpen tournament: #{tournament.name} - #{tournament.full_url}"
+puts "  Organization: #{org.name} (#{org.slug})"
+puts "  Admin: #{admin.email} (#{admin.role})"
+puts "  Tournament: #{tournament.name} (#{tournament.status})"
+puts "  Sponsors: #{tournament.sponsors.count}"
+puts "  Golfers: #{tournament.golfers.count}"
+puts "  Raffle Prizes: #{tournament.raffle_prizes.count}"

@@ -25,7 +25,6 @@ module Authenticated
       return
     end
 
-    # Extract Clerk user ID and email from the token
     clerk_id = decoded['sub']
     email = decoded['email'] || decoded['primary_email_address']
 
@@ -34,8 +33,13 @@ module Authenticated
       return
     end
 
-    # Find user by clerk_id or email
-    @current_user = User.find_by_clerk_or_email(clerk_id: clerk_id, email: email)
+    @current_user = User.find_by(clerk_id: clerk_id)
+
+    # Safe one-time linking: only use email from the verified JWT payload,
+    # never from a client-controlled header.
+    if @current_user.nil? && email.present?
+      @current_user = User.find_by('LOWER(email) = ?', email.downcase)
+    end
 
     unless @current_user
       render_unauthorized('Access denied. You are not authorized. Please contact an administrator.')

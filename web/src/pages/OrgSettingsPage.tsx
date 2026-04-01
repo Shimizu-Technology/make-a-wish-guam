@@ -73,7 +73,7 @@ const colorPresets = [
   { name: 'Red', value: '#dc2626' },
   { name: 'Orange', value: '#ea580c' },
   { name: 'Teal', value: '#0d9488' },
-  { name: 'Navy', value: '#1e3a5f' },
+  { name: 'Navy', value: '#003D84' },
   { name: 'Pink', value: '#db2777' },
 ];
 
@@ -342,7 +342,7 @@ export const OrgSettingsPage: React.FC = () => {
   if (!organization || !formData) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       </div>
     );
   }
@@ -402,7 +402,7 @@ export const OrgSettingsPage: React.FC = () => {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 ${
                     errors.name ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
@@ -422,7 +422,7 @@ export const OrgSettingsPage: React.FC = () => {
                     name="slug"
                     value={formData.slug}
                     onChange={handleChange}
-                    className={`flex-1 px-4 py-3 border rounded-r-xl focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    className={`flex-1 px-4 py-3 border rounded-r-xl focus:outline-none focus:ring-2 focus:ring-brand-500 ${
                       errors.slug ? 'border-red-500' : 'border-gray-300'
                     }`}
                   />
@@ -440,7 +440,7 @@ export const OrgSettingsPage: React.FC = () => {
                   value={formData.description}
                   onChange={handleChange}
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
             </div>
@@ -515,7 +515,7 @@ export const OrgSettingsPage: React.FC = () => {
                   name="contact_email"
                   value={formData.contact_email}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 ${
                     errors.contact_email ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
@@ -531,7 +531,7 @@ export const OrgSettingsPage: React.FC = () => {
                   name="contact_phone"
                   value={formData.contact_phone}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
 
@@ -544,7 +544,7 @@ export const OrgSettingsPage: React.FC = () => {
                   name="website_url"
                   value={formData.website_url}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 ${
                     errors.website_url ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
@@ -570,7 +570,7 @@ export const OrgSettingsPage: React.FC = () => {
                   value={formData.walkin_fee}
                   onChange={handleChange}
                   placeholder="e.g. 35000 = $350"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
                 <p className="mt-1 text-sm text-gray-500">
                   Enter the amount in cents (e.g. 35000 = $350.00)
@@ -587,7 +587,7 @@ export const OrgSettingsPage: React.FC = () => {
                       prev ? { ...prev, walkin_registration_open: e.target.checked } : null
                     )
                   }
-                  className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                 />
                 <label htmlFor="walkin_registration_open" className="text-sm font-medium text-gray-700">
                   Walk-in Registration Open
@@ -607,7 +607,7 @@ export const OrgSettingsPage: React.FC = () => {
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white rounded-xl font-semibold transition-colors shadow-lg shadow-green-600/25"
+              className="flex items-center gap-2 px-8 py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 text-white rounded-xl font-semibold transition-colors shadow-lg shadow-brand/25"
             >
               {saving ? (
                 <>
@@ -647,7 +647,7 @@ export const OrgSettingsPage: React.FC = () => {
                     id="registration_open"
                     checked={tournamentSettings.registration_open}
                     onChange={(e) => handleTournamentChange('registration_open', e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                   />
                   <label htmlFor="registration_open" className="text-sm font-medium text-gray-700">
                     Registration Open
@@ -662,7 +662,7 @@ export const OrgSettingsPage: React.FC = () => {
                     type="datetime-local"
                     value={tournamentSettings.registration_deadline ? tournamentSettings.registration_deadline.slice(0, 16) : ''}
                     onChange={(e) => handleTournamentChange('registration_deadline', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                   <p className="mt-1 text-sm text-gray-500">After this, walk-in rate applies</p>
                 </div>
@@ -676,7 +676,7 @@ export const OrgSettingsPage: React.FC = () => {
                     value={tournamentSettings.walkin_fee}
                     onChange={(e) => handleTournamentChange('walkin_fee', e.target.value)}
                     placeholder="e.g. 350"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                   <p className="mt-1 text-sm text-gray-500">Amount charged for day-of walk-in registrations</p>
                 </div>
@@ -689,7 +689,7 @@ export const OrgSettingsPage: React.FC = () => {
                     type="number"
                     value={tournamentSettings.max_capacity}
                     onChange={(e) => handleTournamentChange('max_capacity', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 </div>
               </div>
@@ -711,7 +711,7 @@ export const OrgSettingsPage: React.FC = () => {
                     value={tournamentSettings.swipe_simple_url}
                     onChange={(e) => handleTournamentChange('swipe_simple_url', e.target.value)}
                     placeholder="https://swipesimple.com/links/..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                   <p className="mt-1 text-sm text-gray-500">Link for team registrations ($300)</p>
                 </div>
@@ -725,7 +725,7 @@ export const OrgSettingsPage: React.FC = () => {
                     value={tournamentSettings.walkin_swipe_simple_url}
                     onChange={(e) => handleTournamentChange('walkin_swipe_simple_url', e.target.value)}
                     placeholder="https://swipesimple.com/links/..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                   <p className="mt-1 text-sm text-gray-500">Separate link for walk-in registrations (higher price)</p>
                 </div>
@@ -739,7 +739,7 @@ export const OrgSettingsPage: React.FC = () => {
                     value={tournamentSettings.entry_fee_display}
                     onChange={(e) => handleTournamentChange('entry_fee_display', e.target.value)}
                     placeholder="$300/team"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                   <p className="mt-1 text-sm text-gray-500">What's shown to registrants</p>
                 </div>
@@ -848,13 +848,13 @@ export const OrgSettingsPage: React.FC = () => {
               value={newMemberEmail}
               onChange={(e) => setNewMemberEmail(e.target.value)}
               placeholder="Enter email address..."
-              className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
               onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
             />
             <button
               onClick={handleAddMember}
               disabled={addingMember || !newMemberEmail.trim()}
-              className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white rounded-xl font-medium transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 text-white rounded-xl font-medium transition-colors"
             >
               {addingMember ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
