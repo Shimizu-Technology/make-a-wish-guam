@@ -150,12 +150,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
     setCurrentTournament(nextTournament);
 
-    const destination =
-      routeTournamentSlug && routeSection
-        ? adminEventPath(nextTournament.slug, routeSection)
-        : adminEventPath(nextTournament.slug);
+    if (isEventWorkspaceRoute && routeSection) {
+      navigate(adminEventPath(nextTournament.slug, routeSection));
+    }
 
-    navigate(destination);
     setMobileMenuOpen(false);
   };
 

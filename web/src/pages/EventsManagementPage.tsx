@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Calendar,
@@ -13,69 +13,13 @@ import {
 } from 'lucide-react';
 import { useOrganization } from '../components/OrganizationProvider';
 import { useTournament } from '../contexts';
-import { useAuthToken } from '../hooks/useAuthToken';
 import { adminEventPath, adminOrgRoutes } from '../utils/adminRoutes';
-
-interface TournamentSummary {
-  id: string;
-  name: string;
-  slug: string;
-  date: string;
-  status: 'draft' | 'open' | 'closed' | 'completed' | 'archived';
-  registration_count: number;
-  capacity: number | null;
-  revenue: number;
-}
-
-interface OrgStats {
-  total_tournaments: number;
-  active_tournaments: number;
-  total_registrations: number;
-  total_revenue: number;
-}
+import type { Tournament } from '../services/api';
 
 export const EventsManagementPage: React.FC = () => {
   const navigate = useNavigate();
   const { organization } = useOrganization();
-  const { getToken } = useAuthToken();
-  const { currentTournament } = useTournament();
-  const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
-  const [stats, setStats] = useState<OrgStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!organization) return;
-
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const token = await getToken();
-        if (!token) throw new Error('Not authenticated');
-
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!response.ok) throw new Error('Failed to fetch events');
-
-        const data = await response.json();
-        setTournaments(data.tournaments || []);
-        setStats(data.stats || null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load events');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [getToken, organization]);
+  const { tournaments, currentTournament, isLoading, error } = useTournament();
 
   const activeTournaments = useMemo(
     () => tournaments.filter((tournament) => tournament.status !== 'archived'),
@@ -84,6 +28,22 @@ export const EventsManagementPage: React.FC = () => {
   const archivedTournaments = useMemo(
     () => tournaments.filter((tournament) => tournament.status === 'archived'),
     [tournaments]
+  );
+
+  const stats = useMemo(
+    () => ({
+      total_tournaments: tournaments.length,
+      active_tournaments: activeTournaments.length,
+      total_registrations: tournaments.reduce(
+        (sum, tournament) => sum + tournament.confirmed_count + tournament.waitlist_count,
+        0
+      ),
+      total_revenue: tournaments.reduce(
+        (sum, tournament) => sum + tournament.paid_count * Math.round((tournament.entry_fee_dollars || 0) * 100),
+        0
+      ),
+    }),
+    [activeTournaments.length, tournaments]
   );
 
   const formatDate = (dateString: string) =>
@@ -99,7 +59,7 @@ export const EventsManagementPage: React.FC = () => {
       currency: 'USD',
     }).format(cents / 100);
 
-  const getStatusClasses = (status: TournamentSummary['status']) => {
+  const getStatusClasses = (status: Tournament['status']) => {
     switch (status) {
       case 'open':
         return 'bg-emerald-100 text-emerald-700';
@@ -114,7 +74,7 @@ export const EventsManagementPage: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center rounded-3xl bg-white shadow-sm">
         <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
@@ -228,16 +188,16 @@ export const EventsManagementPage: React.FC = () => {
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm text-neutral-500">
                       <span className="inline-flex items-center gap-1.5">
                         <Calendar className="h-4 w-4" />
-                        {formatDate(tournament.date)}
+                        {tournament.event_date ? formatDate(tournament.event_date) : 'Date TBD'}
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <Users className="h-4 w-4" />
-                        {tournament.registration_count}
-                        {tournament.capacity ? ` / ${tournament.capacity}` : ''} registrations
+                        {tournament.confirmed_count + tournament.waitlist_count}
+                        {tournament.max_capacity ? ` / ${tournament.max_capacity}` : ''} registrations
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <CreditCard className="h-4 w-4" />
-                        {formatCurrency(tournament.revenue)}
+                        {formatCurrency(tournament.paid_count * Math.round((tournament.entry_fee_dollars || 0) * 100))}
                       </span>
                     </div>
                   </div>
@@ -294,7 +254,7 @@ export const EventsManagementPage: React.FC = () => {
               >
                 <div>
                   <p className="font-medium text-neutral-900">{tournament.name}</p>
-                  <p className="mt-1 text-sm text-neutral-500">{formatDate(tournament.date)}</p>
+                  <p className="mt-1 text-sm text-neutral-500">{tournament.event_date ? formatDate(tournament.event_date) : 'Date TBD'}</p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-neutral-400" />
               </Link>
