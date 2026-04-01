@@ -8,21 +8,7 @@ class ClerkAuth
     def verify(token)
       return nil if token.blank?
 
-      # In test/development environment, allow special test tokens
-      if (Rails.env.test? || Rails.env.development?) && token.start_with?("dev_token_")
-        user_id = token.gsub("dev_token_", "")
-        user = User.find_by(id: user_id) || User.find_by(email: user_id)
-        if user
-          return {
-            "sub" => user.clerk_id || "dev_clerk_#{user.id}",
-            "email" => user.email,
-            "name" => user.name
-          }
-        end
-        return nil
-      end
-
-      # Legacy test token support
+      # Test token support (test environment only)
       if Rails.env.test? && token.start_with?("test_token_")
         user_id = token.gsub("test_token_", "")
         user = User.find_by(id: user_id)

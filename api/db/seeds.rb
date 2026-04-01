@@ -38,6 +38,13 @@ end
 org.add_admin(admin)
 puts "  Super admin: #{admin.email}"
 
+admin2 = User.find_or_create_by!(email: 'shimizutechnology@gmail.com') do |u|
+  u.name = 'Leon'
+  u.role = 'super_admin'
+end
+org.add_admin(admin2)
+puts "  Super admin: #{admin2.email}"
+
 # =============================================================================
 # Settings (singleton)
 # =============================================================================

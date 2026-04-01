@@ -118,7 +118,7 @@ export function OrganizationLandingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#004B8D]/20 border-t-[#004B8D] mx-auto" />
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#0057B8]/20 border-t-[#0057B8] mx-auto" />
           <p className="mt-5 text-sm text-neutral-500 tracking-wide uppercase">Loading</p>
         </div>
       </div>
@@ -153,7 +153,7 @@ export function OrganizationLandingPage() {
       <header
         className="relative overflow-hidden min-h-[280px] lg:min-h-[360px] flex items-center"
         style={{
-          background: 'linear-gradient(135deg, #004B8D 0%, #003a6e 100%)',
+          background: 'linear-gradient(135deg, #0057B8 0%, #003a6e 100%)',
         }}
       >
         <div className="relative z-10 max-w-5xl mx-auto px-6 lg:px-8 py-10 lg:py-20 w-full">
@@ -164,9 +164,9 @@ export function OrganizationLandingPage() {
             className="mb-8"
           >
             <img
-              src="/images/maw-logo.png"
+              src="/images/maw-star-icon.png"
               alt="Make-A-Wish Guam & CNMI"
-              className="h-12 brightness-0 invert"
+              className="h-12 rounded-lg"
             />
           </motion.div>
 
@@ -225,8 +225,8 @@ export function OrganizationLandingPage() {
       <main className="max-w-5xl mx-auto px-6 lg:px-8 py-16 lg:py-24">
         <ScrollReveal>
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-full bg-[#004B8D]/10 flex items-center justify-center">
-              <Trophy className="w-5 h-5 text-[#004B8D]" />
+            <div className="w-10 h-10 rounded-full bg-[#0057B8]/10 flex items-center justify-center">
+              <Trophy className="w-5 h-5 text-[#0057B8]" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-neutral-900 tracking-tight">Upcoming Events</h2>
@@ -244,7 +244,7 @@ export function OrganizationLandingPage() {
         {tournaments.length === 0 ? (
           <ScrollReveal>
             <div className="text-center py-20 bg-[#F5F5F5] rounded-2xl border border-neutral-200">
-              <Flag className="w-10 h-10 text-[#004B8D] mx-auto mb-5" strokeWidth={1.5} />
+              <Flag className="w-10 h-10 text-[#0057B8] mx-auto mb-5" strokeWidth={1.5} />
               <p className="text-neutral-600 font-medium">No tournaments available at this time.</p>
               <p className="text-sm text-neutral-400 mt-2">Check back soon for upcoming events.</p>
             </div>
@@ -273,8 +273,8 @@ export function OrganizationLandingPage() {
                     href={`mailto:${organization.contact_email}`}
                     className="group flex items-start gap-4 p-5 bg-white rounded-2xl border border-neutral-200 hover:shadow-md transition-shadow duration-200"
                   >
-                    <div className="shrink-0 w-10 h-10 rounded-full bg-[#004B8D]/10 flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-[#004B8D]" strokeWidth={1.5} />
+                    <div className="shrink-0 w-10 h-10 rounded-full bg-[#0057B8]/10 flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-[#0057B8]" strokeWidth={1.5} />
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">
@@ -293,8 +293,8 @@ export function OrganizationLandingPage() {
                     href={`tel:${organization.contact_phone}`}
                     className="group flex items-start gap-4 p-5 bg-white rounded-2xl border border-neutral-200 hover:shadow-md transition-shadow duration-200"
                   >
-                    <div className="shrink-0 w-10 h-10 rounded-full bg-[#004B8D]/10 flex items-center justify-center">
-                      <Phone className="w-5 h-5 text-[#004B8D]" strokeWidth={1.5} />
+                    <div className="shrink-0 w-10 h-10 rounded-full bg-[#0057B8]/10 flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-[#0057B8]" strokeWidth={1.5} />
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">
@@ -315,8 +315,8 @@ export function OrganizationLandingPage() {
                     rel="noopener noreferrer"
                     className="group flex items-start gap-4 p-5 bg-white rounded-2xl border border-neutral-200 hover:shadow-md transition-shadow duration-200"
                   >
-                    <div className="shrink-0 w-10 h-10 rounded-full bg-[#004B8D]/10 flex items-center justify-center">
-                      <Globe className="w-5 h-5 text-[#004B8D]" strokeWidth={1.5} />
+                    <div className="shrink-0 w-10 h-10 rounded-full bg-[#0057B8]/10 flex items-center justify-center">
+                      <Globe className="w-5 h-5 text-[#0057B8]" strokeWidth={1.5} />
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">
@@ -400,7 +400,7 @@ const statusConfig: Record<string, { label: string; bg: string; text: string }> 
   closed: { label: 'Registration Closed', bg: 'bg-neutral-200', text: 'text-neutral-600' },
   in_progress: { label: 'In Progress', bg: 'bg-amber-500', text: 'text-white' },
   completed: { label: 'Completed', bg: 'bg-neutral-200', text: 'text-neutral-600' },
-  draft: { label: 'Coming Soon', bg: 'bg-[#004B8D]', text: 'text-white' },
+  draft: { label: 'Coming Soon', bg: 'bg-[#0057B8]', text: 'text-white' },
 };
 
 function TournamentCard({ tournament }: TournamentCardProps) {
@@ -417,7 +417,7 @@ function TournamentCard({ tournament }: TournamentCardProps) {
 
   return (
     <div className="rounded-2xl border border-neutral-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-[#E31837] to-[#004B8D]" />
+      <div className="h-1 bg-gradient-to-r from-[#E31837] to-[#0057B8]" />
       <div className="p-6 sm:p-7">
         {/* Top row: status badge + name */}
         <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
@@ -461,7 +461,7 @@ function TournamentCard({ tournament }: TournamentCardProps) {
             </div>
             <div className="h-1.5 rounded-full bg-neutral-100 overflow-hidden">
               <div
-                className="h-full rounded-full bg-[#004B8D] transition-all duration-700 ease-out"
+                className="h-full rounded-full bg-[#0057B8] transition-all duration-700 ease-out"
                 style={{ width: `${capacityPercent}%` }}
               />
             </div>
@@ -481,7 +481,7 @@ function TournamentCard({ tournament }: TournamentCardProps) {
               </Link>
               <Link
                 to={`/${tournament.slug}`}
-                className="inline-flex items-center justify-center gap-2 border border-[#004B8D] text-[#004B8D] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#004B8D]/5 transition-colors duration-200 w-full sm:w-auto min-h-[44px]"
+                className="inline-flex items-center justify-center gap-2 border border-[#0057B8] text-[#0057B8] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#0057B8]/5 transition-colors duration-200 w-full sm:w-auto min-h-[44px]"
               >
                 View Details
               </Link>
@@ -489,7 +489,7 @@ function TournamentCard({ tournament }: TournamentCardProps) {
           ) : (
             <Link
               to={`/${tournament.slug}`}
-              className="inline-flex items-center justify-center gap-2 border border-[#004B8D] text-[#004B8D] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#004B8D]/5 transition-colors duration-200 w-full sm:w-auto min-h-[44px]"
+              className="inline-flex items-center justify-center gap-2 border border-[#0057B8] text-[#0057B8] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#0057B8]/5 transition-colors duration-200 w-full sm:w-auto min-h-[44px]"
             >
               View Details
               <ChevronRight className="w-4 h-4" strokeWidth={2} />
@@ -516,7 +516,7 @@ function Detail({
 }) {
   return (
     <div className="flex items-start gap-2.5">
-      <Icon className="w-4 h-4 mt-0.5 shrink-0 text-[#004B8D]" strokeWidth={1.5} />
+      <Icon className="w-4 h-4 mt-0.5 shrink-0 text-[#0057B8]" strokeWidth={1.5} />
       <div>
         <p className="text-xs text-neutral-400 uppercase tracking-wider leading-none mb-1">{label}</p>
         <p className="text-neutral-700 font-medium">{value}</p>

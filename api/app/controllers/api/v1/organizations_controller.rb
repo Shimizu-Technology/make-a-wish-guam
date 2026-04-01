@@ -110,13 +110,14 @@ module Api
           }
         end
 
-        total_revenue = tournaments.sum { |t| t.read_attribute(:paid_count).to_i * (t.entry_fee || 0) }
-        total_registrations = tournaments.sum { |t| t.read_attribute(:confirmed_count).to_i }
-        active_tournaments = tournaments.count { |t| %w[open in_progress].include?(t.status) }
+        loaded = tournaments.to_a
+        total_revenue = loaded.sum { |t| t.read_attribute(:paid_count).to_i * (t.entry_fee || 0) }
+        total_registrations = loaded.sum { |t| t.read_attribute(:confirmed_count).to_i }
+        active_count = loaded.count { |t| %w[open in_progress].include?(t.status) }
 
         stats = {
-          total_tournaments: tournaments.count,
-          active_tournaments: active_tournaments,
+          total_tournaments: loaded.size,
+          active_tournaments: active_count,
           total_registrations: total_registrations,
           total_revenue: total_revenue
         }

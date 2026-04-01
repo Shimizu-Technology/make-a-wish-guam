@@ -170,15 +170,15 @@ export function OrgRegistrationSuccessPage() {
           <h3 className="font-bold mb-4">What's Next?</h3>
           <ul className="space-y-3 text-gray-600">
             <li className="flex items-start gap-3">
-              <span className="bg-brand-100 text-brand-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium flex-shrink-0">1</span>
+              <span className="bg-brand-100 text-brand-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium flex-shrink-0">1</span>
               <span>Check your email for a confirmation message</span>
             </li>
             <li className="flex items-start gap-3">
-              <span className="bg-brand-100 text-brand-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium flex-shrink-0">2</span>
+              <span className="bg-brand-100 text-brand-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium flex-shrink-0">2</span>
               <span>Mark your calendar for {formatEventDate(tournament.event_date)}</span>
             </li>
             <li className="flex items-start gap-3">
-              <span className="bg-brand-100 text-brand-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium flex-shrink-0">3</span>
+              <span className="bg-brand-100 text-brand-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium flex-shrink-0">3</span>
               <span>
                 Arrive at {tournament.location_name || 'the venue'} by {tournament.registration_time || 'the registration time'}
               </span>

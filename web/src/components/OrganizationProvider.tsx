@@ -83,7 +83,7 @@ export function OrganizationProvider({
           </p>
           <button
             onClick={() => navigate('/')}
-            className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all shadow-lg shadow-green-600/25 hover:shadow-green-600/40"
+            className="px-6 py-3 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-all shadow-lg shadow-brand/25 hover:shadow-brand/40"
           >
             Go Home
           </button>

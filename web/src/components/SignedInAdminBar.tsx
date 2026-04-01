@@ -23,7 +23,7 @@ export const SignedInAdminBar: React.FC<SignedInAdminBarProps> = ({ dashboardPat
   };
 
   return (
-    <div className="relative z-20 bg-[#1e3a5f] text-white py-2 px-3 md:px-4">
+    <div className="relative z-20 bg-brand-800 text-white py-2 px-3 md:px-4">
       <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <LayoutDashboard size={16} className="flex-shrink-0" />

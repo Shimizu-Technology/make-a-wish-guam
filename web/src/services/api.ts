@@ -354,10 +354,14 @@ export interface PaginationMeta {
 export class ApiClient {
   private getAuthToken: (() => Promise<string | null>) | null = null;
   private currentTournamentId: number | null = null;
+  private userEmail: string | null = null;
 
-  // Set the auth token getter (called from React component)
   setAuthTokenGetter(getter: () => Promise<string | null>) {
     this.getAuthToken = getter;
+  }
+
+  setUserEmail(email: string | null) {
+    this.userEmail = email;
   }
 
   async getWebSocketToken(): Promise<string | null> {
@@ -379,7 +383,7 @@ export class ApiClient {
   }
 
   private async getHeaders(authenticated = true): Promise<HeadersInit> {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
@@ -388,6 +392,10 @@ export class ApiClient {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
+    }
+
+    if (authenticated && this.userEmail) {
+      headers['X-Clerk-Email'] = this.userEmail;
     }
 
     return headers;

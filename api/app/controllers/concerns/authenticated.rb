@@ -25,16 +25,18 @@ module Authenticated
       return
     end
 
-    # Extract Clerk user ID and email from the token
     clerk_id = decoded['sub']
     email = decoded['email'] || decoded['primary_email_address']
+
+    # Fall back to the X-Clerk-Email header (sent by the frontend from Clerk's user object)
+    # when the JWT doesn't contain an email claim (e.g. default session tokens).
+    email ||= request.headers['X-Clerk-Email']
 
     unless clerk_id
       render_unauthorized('Invalid token payload')
       return
     end
 
-    # Find user by clerk_id or email
     @current_user = User.find_by_clerk_or_email(clerk_id: clerk_id, email: email)
 
     unless @current_user

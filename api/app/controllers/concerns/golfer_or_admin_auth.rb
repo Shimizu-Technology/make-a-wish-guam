@@ -62,6 +62,7 @@ module GolferOrAdminAuth
 
     clerk_id = decoded['sub']
     email = decoded['email'] || decoded['primary_email_address']
+    email ||= request.headers['X-Clerk-Email']
     return false unless clerk_id
 
     @current_user = User.find_by_clerk_or_email(clerk_id: clerk_id, email: email)

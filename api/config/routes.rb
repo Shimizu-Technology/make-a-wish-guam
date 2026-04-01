@@ -53,12 +53,6 @@ Rails.application.routes.draw do
       resources :sponsor_slots, only: [:index, :update]
 
       # ===========================================
-      # DEV-ONLY ENDPOINTS (development mode only)
-      # ===========================================
-      post 'dev/login' => 'dev_auth#login'
-      get 'dev/users' => 'dev_auth#users'
-
-      # ===========================================
       # ADMIN ENDPOINTS (auth required)
       # ===========================================
 
