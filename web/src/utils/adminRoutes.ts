@@ -43,7 +43,11 @@ export function adminEventPath(slug: string, section: AdminEventSection = 'overv
 
 export function getAdminEventSlug(pathname: string) {
   const match = pathname.match(/^\/admin\/(?:events|tournaments)\/([^/]+)/);
-  return match?.[1] ?? null;
+  const slug = match?.[1] ?? null;
+
+  if (!slug || slug === 'new') return null;
+
+  return slug;
 }
 
 export function getAdminEventSection(pathname: string): AdminEventSection | null {

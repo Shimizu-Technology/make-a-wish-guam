@@ -133,19 +133,20 @@ const WalkInModal: React.FC<{
 
         <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
           {[
-            ['Captain Name', 'captainName'],
-            ['Captain Email', 'captainEmail'],
-            ['Captain Phone', 'captainPhone'],
-            ['Partner Name', 'partnerName'],
-            ['Partner Email', 'partnerEmail'],
-            ['Partner Phone', 'partnerPhone'],
-          ].map(([label, field]) => (
+            { label: 'Captain Name', field: 'captainName', required: true },
+            { label: 'Captain Email', field: 'captainEmail', required: true },
+            { label: 'Captain Phone', field: 'captainPhone', required: true },
+            { label: 'Partner Name', field: 'partnerName', required: false },
+            { label: 'Partner Email', field: 'partnerEmail', required: false },
+            { label: 'Partner Phone', field: 'partnerPhone', required: false },
+          ].map(({ label, field, required }) => (
             <div key={field}>
               <label className="mb-1 block text-sm font-medium text-neutral-700">{label}</label>
               <input
                 type={field.toLowerCase().includes('email') ? 'email' : field.toLowerCase().includes('phone') ? 'tel' : 'text'}
                 value={form[field as keyof typeof form] as string}
                 onChange={(event) => setForm({ ...form, [field]: event.target.value })}
+                required={required}
                 className="w-full rounded-2xl border border-neutral-200 px-3 py-2.5 text-sm text-neutral-900 outline-none transition focus:border-brand-400"
               />
             </div>

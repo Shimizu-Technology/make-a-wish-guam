@@ -46,7 +46,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const activeTournament = useMemo(() => {
     if (routeTournamentSlug) {
-      return tournaments.find((tournament) => tournament.slug === routeTournamentSlug) ?? currentTournament;
+      return tournaments.find((tournament) => tournament.slug === routeTournamentSlug) ?? null;
     }
 
     return currentTournament;
@@ -78,7 +78,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       label: 'Settings',
       path: adminOrgRoutes.settings,
       icon: Settings,
-      match: (pathname) => pathname === adminOrgRoutes.settings || pathname.includes('/settings'),
+      match: (pathname) => pathname === adminOrgRoutes.settings || pathname.startsWith(`${adminOrgRoutes.settings}/`),
     },
   ];
 
