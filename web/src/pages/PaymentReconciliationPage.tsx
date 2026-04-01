@@ -17,6 +17,7 @@ import {
   Download,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import { adminEventPath } from '../utils/adminRoutes';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -421,7 +422,7 @@ export const PaymentReconciliationPage: React.FC = () => {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-2">
             <Link
-              to={`/admin/tournaments/${tournamentSlug}`}
+              to={adminEventPath(tournamentSlug || '')}
               className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition"
             >
               <ArrowLeft className="w-5 h-5" />

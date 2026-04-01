@@ -19,6 +19,7 @@ import {
   PartyPopper
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import { adminEventPath } from '../utils/adminRoutes';
 
 interface Golfer {
   id: number;
@@ -202,7 +203,7 @@ export const OrgCheckInPage: React.FC = () => {
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <Link
-              to={`/admin/tournaments/${tournamentSlug}`}
+              to={adminEventPath(tournamentSlug || '')}
               className="flex items-center gap-2 text-gray-400 hover:text-white transition"
             >
               <ArrowLeft className="w-5 h-5" />

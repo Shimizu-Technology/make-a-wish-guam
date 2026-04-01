@@ -21,6 +21,7 @@ import {
   Users,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { adminEventPath } from '../utils/adminRoutes';
 
 interface Sponsor {
   id: number;
@@ -170,7 +171,7 @@ export const SponsorManagementPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <Link
-                to={`/admin/tournaments/${tournamentSlug}`}
+                to={adminEventPath(tournamentSlug || '')}
                 className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-2"
               >
                 <ArrowLeft className="w-4 h-4" />

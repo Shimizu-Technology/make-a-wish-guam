@@ -16,6 +16,7 @@ import {
   LogOut
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { adminEventPath } from '../utils/adminRoutes';
 
 interface Golfer {
   id: number;
@@ -321,7 +322,7 @@ export const ScorecardPage: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
           <p className="text-gray-600 mb-4">{error || 'Failed to load scorecard'}</p>
           <Link
-            to={`/admin/tournaments/${tournamentSlug}`}
+            to={adminEventPath(tournamentSlug || '')}
             className="text-green-600 hover:text-green-700"
           >
             ← Back to Tournament
@@ -337,7 +338,7 @@ export const ScorecardPage: React.FC = () => {
   // Determine back link based on auth type
   const backLink = (isGolferAuth || !orgSlug)
     ? '/golfer/dashboard'
-    : `/admin/tournaments/${tournamentSlug}`;
+    : adminEventPath(tournamentSlug || '');
   const backLabel = (isGolferAuth || !orgSlug) ? 'Dashboard' : 'Back';
 
   return (

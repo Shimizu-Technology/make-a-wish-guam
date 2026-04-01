@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthToken } from '../hooks/useAuthToken';
 import { useOrganization } from '../components/OrganizationProvider';
+import { adminEventPath, adminOrgRoutes } from '../utils/adminRoutes';
 import {
   ArrowLeft,
   Calendar,
@@ -215,7 +216,7 @@ export const CreateTournamentPage: React.FC = () => {
       toast.success('Tournament created successfully!');
       
       // Navigate to the new tournament's admin page
-      navigate(`/${organization?.slug}/admin/tournaments/${data.tournament.slug}`);
+      navigate(adminEventPath(data.tournament.slug));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create tournament');
     } finally {
@@ -294,7 +295,7 @@ export const CreateTournamentPage: React.FC = () => {
       >
         <div className="max-w-4xl mx-auto">
           <button
-            onClick={() => navigate(`/${organization?.slug}/admin`)}
+            onClick={() => navigate(adminOrgRoutes.events)}
             className="flex items-center gap-2 text-white/80 hover:text-white mb-4 transition"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -670,7 +671,7 @@ export const CreateTournamentPage: React.FC = () => {
           <div className="flex justify-end gap-4">
             <button
               type="button"
-              onClick={() => navigate(`/${organization?.slug}/admin`)}
+              onClick={() => navigate(adminOrgRoutes.events)}
               className="px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition"
             >
               Cancel

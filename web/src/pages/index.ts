@@ -7,6 +7,7 @@ export { OrgTournamentPage } from './OrgTournamentPage';
 export { OrgRegistrationSuccessPage } from './OrgRegistrationSuccessPage';
 export { OrgCheckInPage } from './OrgCheckInPage';
 export { CreateTournamentPage } from './CreateTournamentPage';
+export { EventsManagementPage } from './EventsManagementPage';
 export { LeaderboardPage } from './LeaderboardPage';
 export { ScorecardPage } from './ScorecardPage';
 export { RaffleBoardPage } from './RaffleBoardPage';
@@ -16,6 +17,7 @@ export { SponsorPortalPage } from './SponsorPortalPage';
 export { OrgAdminDashboard } from './OrgAdminDashboard';
 export { OrgTournamentAdmin } from './OrgTournamentAdmin';
 export { OrgSettingsPage } from './OrgSettingsPage';
+export { SponsorsOverviewPage } from './SponsorsOverviewPage';
 
 // Golfer Scoring Access Pages
 export { GolferLoginPage } from './GolferLoginPage';

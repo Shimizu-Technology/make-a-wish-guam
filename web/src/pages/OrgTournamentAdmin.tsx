@@ -26,6 +26,7 @@ import {
 import toast from 'react-hot-toast';
 import { AddGolferModal } from '../components/AddGolferModal';
 import { EditGolferModal } from '../components/EditGolferModal';
+import { adminEventPath, adminOrgRoutes } from '../utils/adminRoutes';
 
 interface Golfer {
   id: number;
@@ -383,7 +384,7 @@ export const OrgTournamentAdmin: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <Link
-                to="/admin"
+                to={adminOrgRoutes.events}
                 className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-2"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -401,7 +402,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                 <span>Add Golfer</span>
               </button>
               <Link
-                to={`/admin/tournaments/${tournamentSlug}/checkin`}
+                to={adminEventPath(tournamentSlug || '', 'checkin')}
                 className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-500 font-semibold"
               >
                 <UserCheck className="w-5 h-5" />
