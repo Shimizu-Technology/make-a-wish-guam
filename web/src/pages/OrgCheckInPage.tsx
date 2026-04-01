@@ -188,18 +188,18 @@ export const OrgCheckInPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-[50vh] flex items-center justify-center rounded-[28px] bg-gray-900">
         <Loader2 className="w-12 h-12 animate-spin text-green-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="space-y-4 pb-20 lg:pb-0 text-white">
 
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-4 py-4">
-        <div className="max-w-4xl mx-auto">
+      <section className="overflow-hidden rounded-[28px] bg-gray-900 shadow-sm">
+        <div className="border-b border-gray-700 bg-gray-800 px-4 py-4">
+          <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <Link
               to={adminEventPath(tournamentSlug || '')}
@@ -219,8 +219,8 @@ export const OrgCheckInPage: React.FC = () => {
 
           <h1 className="text-2xl font-bold text-center mb-1">{tournamentName}</h1>
           <p className="text-gray-400 text-center">Check-In Station</p>
+          </div>
         </div>
-      </header>
 
       {/* Stats Bar */}
       {stats && (
@@ -275,9 +275,10 @@ export const OrgCheckInPage: React.FC = () => {
           </div>
         </div>
       )}
+      </section>
 
       {/* Search & Filters */}
-      <div className="sticky top-0 bg-gray-900 border-b border-gray-700 px-4 py-4 z-10">
+      <div className="sticky top-0 z-10 rounded-[28px] border border-gray-700 bg-gray-900 px-4 py-4 shadow-sm">
         <div className="max-w-4xl mx-auto">
           <div className="flex gap-4">
             <div className="flex-1 relative">

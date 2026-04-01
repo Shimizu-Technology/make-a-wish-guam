@@ -395,7 +395,7 @@ export const PaymentReconciliationPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-[50vh] flex items-center justify-center rounded-3xl bg-white">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
@@ -403,7 +403,7 @@ export const PaymentReconciliationPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-[50vh] flex items-center justify-center rounded-3xl bg-white">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
@@ -414,11 +414,10 @@ export const PaymentReconciliationPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-6 pb-20 lg:pb-0">
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-4">
-        <div className="max-w-6xl mx-auto">
+      <section className="rounded-[28px] bg-white px-6 py-5 shadow-sm sm:px-8">
+        <div className="max-w-6xl">
           <div className="flex items-center justify-between mb-2">
             <Link
               to={adminEventPath(tournamentSlug || '')}
@@ -438,7 +437,7 @@ export const PaymentReconciliationPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">{tournamentName}</h1>
           <p className="text-gray-500">Payment Reconciliation</p>
         </div>
-      </header>
+      </section>
 
       <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Stats Bar */}
