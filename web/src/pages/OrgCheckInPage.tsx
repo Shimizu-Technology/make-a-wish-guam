@@ -18,7 +18,7 @@ import {
   Loader2,
   PartyPopper
 } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
 
 interface Golfer {
@@ -196,7 +196,6 @@ export const OrgCheckInPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      <Toaster position="top-center" />
 
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700 px-4 py-4">

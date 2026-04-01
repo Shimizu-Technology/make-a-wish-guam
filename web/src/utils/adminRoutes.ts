@@ -51,17 +51,31 @@ export function getAdminEventSlug(pathname: string) {
 }
 
 export function getAdminEventSection(pathname: string): AdminEventSection | null {
-  if (!pathname.startsWith('/admin/events/') && !pathname.startsWith('/admin/tournaments/')) {
-    return null;
+  const match = pathname.match(/^\/admin\/(?:events|tournaments)\/[^/]+(?:\/(.+))?$/);
+  if (!match) return null;
+
+  const rawSection = match[1] ?? '';
+  const section = rawSection.split('/')[0];
+
+  switch (section) {
+    case '':
+      return 'overview';
+    case 'registrations':
+      return 'registrations';
+    case 'payments':
+      return 'payments';
+    case 'checkin':
+      return 'checkin';
+    case 'groups':
+    case 'scorecard':
+      return 'groups';
+    case 'raffle':
+      return 'raffle';
+    case 'sponsors':
+      return 'sponsors';
+    case 'settings':
+      return 'settings';
+    default:
+      return 'overview';
   }
-
-  if (pathname.includes('/payments')) return 'payments';
-  if (pathname.includes('/checkin')) return 'checkin';
-  if (pathname.includes('/groups') || pathname.includes('/scorecard')) return 'groups';
-  if (pathname.includes('/raffle')) return 'raffle';
-  if (pathname.includes('/sponsors')) return 'sponsors';
-  if (pathname.includes('/settings')) return 'settings';
-  if (pathname.includes('/registrations')) return 'registrations';
-
-  return 'overview';
 }

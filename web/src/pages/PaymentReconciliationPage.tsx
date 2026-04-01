@@ -16,7 +16,7 @@ import {
   FileText,
   Download,
 } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
 
 // ---------------------------------------------------------------------------
@@ -415,7 +415,6 @@ export const PaymentReconciliationPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Toaster position="top-center" />
 
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-4">
