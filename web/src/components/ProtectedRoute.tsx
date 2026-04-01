@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useAuth, useClerk, useUser } from '@clerk/clerk-react';
+import { useAuth, useClerk } from '@clerk/clerk-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { ShieldX, Home, LogOut } from 'lucide-react';
@@ -13,16 +13,9 @@ type AuthStatus = 'loading' | 'authorized' | 'unauthorized' | 'not-signed-in';
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isSignedIn, isLoaded, getToken } = useAuth();
   const { signOut } = useClerk();
-  const { user } = useUser();
   const navigate = useNavigate();
   const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
   const authSetupRef = useRef(false);
-
-  useEffect(() => {
-    if (user?.primaryEmailAddress?.emailAddress) {
-      api.setUserEmail(user.primaryEmailAddress.emailAddress);
-    }
-  }, [user]);
 
   useEffect(() => {
     api.setAuthTokenGetter(async () => {

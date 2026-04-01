@@ -28,16 +28,18 @@ module Authenticated
     clerk_id = decoded['sub']
     email = decoded['email'] || decoded['primary_email_address']
 
-    # Fall back to the X-Clerk-Email header (sent by the frontend from Clerk's user object)
-    # when the JWT doesn't contain an email claim (e.g. default session tokens).
-    email ||= request.headers['X-Clerk-Email']
-
     unless clerk_id
       render_unauthorized('Invalid token payload')
       return
     end
 
-    @current_user = User.find_by_clerk_or_email(clerk_id: clerk_id, email: email)
+    @current_user = User.find_by(clerk_id: clerk_id)
+
+    # Safe one-time linking: only use email from the verified JWT payload,
+    # never from a client-controlled header.
+    if @current_user.nil? && email.present?
+      @current_user = User.find_by('LOWER(email) = ?', email.downcase)
+    end
 
     unless @current_user
       render_unauthorized('Access denied. You are not authorized. Please contact an administrator.')
