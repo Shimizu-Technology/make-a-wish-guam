@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Target,
   Ticket,
-  Trophy,
   Users,
   X,
 } from 'lucide-react';
@@ -43,6 +42,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const routeTournamentSlug = getAdminEventSlug(location.pathname);
   const routeSection = getAdminEventSection(location.pathname) ?? 'overview';
+  const isEventWorkspaceRoute = Boolean(routeTournamentSlug);
 
   const activeTournament = useMemo(() => {
     if (routeTournamentSlug) {
@@ -66,7 +66,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       label: 'Events',
       path: adminOrgRoutes.events,
       icon: Calendar,
-      match: (pathname) => pathname === adminOrgRoutes.events || pathname.startsWith('/admin/events/'),
+      match: (pathname) => {
+        if (pathname === adminOrgRoutes.events) return true;
+        if (pathname === adminOrgRoutes.createEvent) return true;
+        return pathname.startsWith('/admin/events/') && !isEventWorkspaceRoute;
+      },
     },
     {
       label: 'Sponsors',

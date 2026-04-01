@@ -16,7 +16,7 @@ import {
   CheckCircle,
   X,
 } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { useOrganization } from '../components/OrganizationProvider';
 import { useTournament } from '../contexts';
 import { useAuthToken } from '../hooks/useAuthToken';
@@ -279,8 +279,6 @@ export const OrgAdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
-      <Toaster position="top-right" />
-
       <section className="rounded-[28px] bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
