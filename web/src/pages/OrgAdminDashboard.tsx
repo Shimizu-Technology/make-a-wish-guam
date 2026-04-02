@@ -358,7 +358,7 @@ export const OrgAdminDashboard: React.FC = () => {
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-neutral-500">
                       <span className="inline-flex items-center gap-1.5">
                         <Calendar className="h-4 w-4" />
-                        {formatDate(nextTournament.date)}
+                        {nextTournament.date ? formatDate(nextTournament.date) : 'Date TBD'}
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <Users className="h-4 w-4" />
@@ -459,7 +459,7 @@ export const OrgAdminDashboard: React.FC = () => {
                 <Link key={tournament.id} to={adminEventPath(tournament.slug)} className="flex items-center justify-between gap-4 px-6 py-4 transition hover:bg-neutral-50">
                   <div>
                     <p className="font-medium text-neutral-900">{tournament.name}</p>
-                    <p className="mt-1 text-sm text-neutral-500">{formatDate(tournament.date)}</p>
+                    <p className="mt-1 text-sm text-neutral-500">{tournament.date ? formatDate(tournament.date) : 'Date TBD'}</p>
                   </div>
                   <ArrowRight className="h-4 w-4 text-neutral-400" />
                 </Link>

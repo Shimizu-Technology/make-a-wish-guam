@@ -189,15 +189,15 @@ export const OrgCheckInPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center rounded-[28px] bg-gray-900">
-        <Loader2 className="w-12 h-12 animate-spin text-green-500" />
+        <Loader2 className="w-12 h-12 animate-spin text-brand-500" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 pb-20 lg:pb-0 text-white">
+    <div className="space-y-4 pb-20 lg:pb-0">
 
-      <section className="overflow-hidden rounded-[28px] bg-gray-900 shadow-sm">
+      <section className="overflow-hidden rounded-[28px] bg-gray-900 text-white shadow-sm">
         <div className="border-b border-gray-700 bg-gray-800 px-4 py-4">
           <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-4">
@@ -278,7 +278,7 @@ export const OrgCheckInPage: React.FC = () => {
       </section>
 
       {/* Search & Filters */}
-      <div className="sticky top-0 z-10 rounded-[28px] border border-gray-700 bg-gray-900 px-4 py-4 shadow-sm">
+      <div className="sticky top-16 z-10 rounded-[28px] border border-gray-700 bg-gray-900 px-4 py-4 text-white shadow-sm">
         <div className="max-w-4xl mx-auto">
           <div className="flex gap-4">
             <div className="flex-1 relative">
@@ -288,7 +288,7 @@ export const OrgCheckInPage: React.FC = () => {
                 placeholder="Search by name, email, or phone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-lg"
+                className="w-full pl-12 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-lg"
                 autoFocus
               />
             </div>
@@ -307,7 +307,7 @@ export const OrgCheckInPage: React.FC = () => {
       </div>
 
       {/* Golfer List */}
-      <main className="max-w-4xl mx-auto px-4 py-4">
+      <main className="max-w-4xl mx-auto rounded-[28px] bg-gray-900 px-4 py-4 text-white">
         <div className="space-y-3">
           {sortedGolfers.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
