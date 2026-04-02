@@ -21,6 +21,7 @@ import {
   Users,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { adminEventPath } from '../utils/adminRoutes';
 
 interface Sponsor {
   id: number;
@@ -153,24 +154,23 @@ export const SponsorManagementPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-[50vh] flex items-center justify-center rounded-3xl bg-white">
         <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header 
-        className="text-white py-6 px-4"
+    <div className="space-y-6 pb-20 lg:pb-0">
+      <section 
+        className="rounded-[28px] px-6 py-5 text-white shadow-sm sm:px-8"
         style={{ backgroundColor: organization?.primary_color || '#1e40af' }}
       >
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
               <Link
-                to={`/admin/tournaments/${tournamentSlug}`}
+                to={adminEventPath(tournamentSlug || '')}
                 className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-2"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -198,7 +198,7 @@ export const SponsorManagementPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </header>
+      </section>
 
       {/* Stats */}
       <div className="max-w-6xl mx-auto px-4 py-4">

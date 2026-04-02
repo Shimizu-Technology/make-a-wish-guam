@@ -26,6 +26,7 @@ import {
 import toast from 'react-hot-toast';
 import { AddGolferModal } from '../components/AddGolferModal';
 import { EditGolferModal } from '../components/EditGolferModal';
+import { adminEventPath, adminOrgRoutes } from '../utils/adminRoutes';
 
 interface Golfer {
   id: number;
@@ -354,7 +355,7 @@ export const OrgTournamentAdmin: React.FC = () => {
 
   if (orgLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-[50vh] flex items-center justify-center rounded-3xl bg-white">
         <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       </div>
     );
@@ -362,7 +363,7 @@ export const OrgTournamentAdmin: React.FC = () => {
 
   if (error || !organization || !tournament) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-[50vh] flex items-center justify-center rounded-3xl bg-white">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
@@ -373,17 +374,16 @@ export const OrgTournamentAdmin: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header 
-        className="text-white py-6 px-4"
+    <div className="space-y-6 pb-20 lg:pb-0">
+      <section 
+        className="rounded-[28px] px-6 py-5 text-white shadow-sm sm:px-8"
         style={{ backgroundColor: organization.primary_color || '#1e40af' }}
       >
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
               <Link
-                to="/admin"
+                to={adminOrgRoutes.events}
                 className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-2"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -401,7 +401,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                 <span>Add Golfer</span>
               </button>
               <Link
-                to={`/admin/tournaments/${tournamentSlug}/checkin`}
+                to={adminEventPath(tournamentSlug || '', 'checkin')}
                 className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-500 font-semibold"
               >
                 <UserCheck className="w-5 h-5" />
@@ -410,7 +410,7 @@ export const OrgTournamentAdmin: React.FC = () => {
             </div>
           </div>
         </div>
-      </header>
+      </section>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats Cards */}

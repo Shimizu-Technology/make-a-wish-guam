@@ -1,55 +1,59 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminLayout } from './components/AdminLayout';
 import { OrganizationProvider } from './components/OrganizationProvider';
 import { TournamentProvider } from './contexts';
 import { GolferAuthProvider } from './contexts';
 import {
-  PaymentSuccessPage,
-  PaymentCancelPage,
   AdminLoginPage,
-  OrgAdminDashboard,
-  OrgTournamentAdmin,
-  OrgCheckInPage,
-  OrgSettingsPage,
-  OrgRegistrationPage,
-  OrgRegistrationSuccessPage,
-  OrgTournamentPage,
-  OrganizationLandingPage,
-  RaffleBoardPage,
-  RaffleManagementPage,
-  SponsorManagementPage,
-  SponsorPortalPage,
+  CreateTournamentPage,
+  EventsManagementPage,
+  GolferDashboardPage,
   GolferLoginPage,
   GolferVerifyPage,
-  GolferDashboardPage,
   LeaderboardPage,
+  OrgAdminDashboard,
+  OrgCheckInPage,
+  OrgRegistrationPage,
+  OrgRegistrationSuccessPage,
+  OrgSettingsPage,
+  OrgTournamentAdmin,
+  OrgTournamentPage,
+  OrganizationLandingPage,
+  PaymentCancelPage,
+  PaymentSuccessPage,
+  RaffleBoardPage,
+  RaffleManagementPage,
   ScorecardPage,
-  CreateTournamentPage,
+  SponsorManagementPage,
+  SponsorPortalPage,
+  SponsorsOverviewPage,
 } from './pages';
 import { PaymentReconciliationPage } from './pages/PaymentReconciliationPage';
 
-// MAW is the only org — hardcoded slug, no tenant routing needed
 const MAW_SLUG = 'make-a-wish-guam';
 
-// Wrapper that always provides the MAW org context
 function MAWWrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <OrganizationProvider orgSlug={MAW_SLUG}>
-      {children}
-    </OrganizationProvider>
-  );
+  return <OrganizationProvider orgSlug={MAW_SLUG}>{children}</OrganizationProvider>;
 }
 
-function AdminRouteWrapper({ children }: { children: React.ReactNode }) {
+function AdminShellPage({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
       <TournamentProvider>
-        {children}
+        <MAWWrapper>
+          <AdminLayout>{children}</AdminLayout>
+        </MAWWrapper>
       </TournamentProvider>
     </ProtectedRoute>
   );
+}
+
+function LegacyTournamentRedirect({ suffix = '' }: { suffix?: string }) {
+  const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
+  return <Navigate to={tournamentSlug ? `/admin/events/${tournamentSlug}${suffix}` : '/admin/events'} replace />;
 }
 
 function App() {
@@ -59,46 +63,50 @@ function App() {
         <div className="min-h-screen flex flex-col">
           <Toaster position="top-right" />
           <Routes>
-            {/* === PUBLIC: Make-A-Wish Events Hub === */}
             <Route path="/" element={<MAWWrapper><OrganizationLandingPage /></MAWWrapper>} />
 
-            {/* Sponsor portal */}
             <Route path="/sponsor-portal" element={<MAWWrapper><SponsorPortalPage /></MAWWrapper>} />
             <Route path="/sponsor-portal/login" element={<MAWWrapper><SponsorPortalPage /></MAWWrapper>} />
 
-            {/* === ADMIN ROUTES === */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
-            <Route path="/admin" element={<AdminRouteWrapper><MAWWrapper><OrgAdminDashboard /></MAWWrapper></AdminRouteWrapper>} />
-            <Route path="/admin/settings" element={<AdminRouteWrapper><MAWWrapper><OrgSettingsPage /></MAWWrapper></AdminRouteWrapper>} />
-            <Route path="/admin/tournaments/new" element={<AdminRouteWrapper><MAWWrapper><CreateTournamentPage /></MAWWrapper></AdminRouteWrapper>} />
-            <Route path="/admin/tournaments/:tournamentSlug" element={<AdminRouteWrapper><MAWWrapper><OrgTournamentAdmin /></MAWWrapper></AdminRouteWrapper>} />
-            <Route path="/admin/tournaments/:tournamentSlug/checkin" element={<AdminRouteWrapper><MAWWrapper><OrgCheckInPage /></MAWWrapper></AdminRouteWrapper>} />
-            <Route path="/admin/tournaments/:tournamentSlug/payments" element={<AdminRouteWrapper><MAWWrapper><PaymentReconciliationPage /></MAWWrapper></AdminRouteWrapper>} />
-            <Route path="/admin/tournaments/:tournamentSlug/scorecard" element={<AdminRouteWrapper><MAWWrapper><ScorecardPage /></MAWWrapper></AdminRouteWrapper>} />
-            <Route path="/admin/tournaments/:tournamentSlug/raffle" element={<AdminRouteWrapper><MAWWrapper><RaffleManagementPage /></MAWWrapper></AdminRouteWrapper>} />
-            <Route path="/admin/tournaments/:tournamentSlug/sponsors" element={<AdminRouteWrapper><MAWWrapper><SponsorManagementPage /></MAWWrapper></AdminRouteWrapper>} />
+            <Route path="/admin" element={<AdminShellPage><OrgAdminDashboard /></AdminShellPage>} />
+            <Route path="/admin/events" element={<AdminShellPage><EventsManagementPage /></AdminShellPage>} />
+            <Route path="/admin/events/new" element={<AdminShellPage><CreateTournamentPage /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug" element={<AdminShellPage><OrgTournamentAdmin /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/registrations" element={<AdminShellPage><OrgTournamentAdmin /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/payments" element={<AdminShellPage><PaymentReconciliationPage /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/checkin" element={<AdminShellPage><OrgCheckInPage /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/groups" element={<AdminShellPage><ScorecardPage /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/raffle" element={<AdminShellPage><RaffleManagementPage /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/sponsors" element={<AdminShellPage><SponsorManagementPage /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/settings" element={<AdminShellPage><OrgSettingsPage /></AdminShellPage>} />
+            <Route path="/admin/sponsors" element={<AdminShellPage><SponsorsOverviewPage /></AdminShellPage>} />
+            <Route path="/admin/settings" element={<AdminShellPage><OrgSettingsPage /></AdminShellPage>} />
 
-            {/* Payment callbacks */}
+            <Route path="/admin/tournaments/new" element={<Navigate to="/admin/events/new" replace />} />
+            <Route path="/admin/tournaments/:tournamentSlug" element={<LegacyTournamentRedirect />} />
+            <Route path="/admin/tournaments/:tournamentSlug/checkin" element={<LegacyTournamentRedirect suffix="/checkin" />} />
+            <Route path="/admin/tournaments/:tournamentSlug/payments" element={<LegacyTournamentRedirect suffix="/payments" />} />
+            <Route path="/admin/tournaments/:tournamentSlug/scorecard" element={<LegacyTournamentRedirect suffix="/groups" />} />
+            <Route path="/admin/tournaments/:tournamentSlug/raffle" element={<LegacyTournamentRedirect suffix="/raffle" />} />
+            <Route path="/admin/tournaments/:tournamentSlug/sponsors" element={<LegacyTournamentRedirect suffix="/sponsors" />} />
+
             <Route path="/payment/success" element={<PaymentSuccessPage />} />
             <Route path="/payment/cancel" element={<PaymentCancelPage />} />
 
-            {/* Golfer scoring */}
             <Route path="/score" element={<GolferAuthProvider><GolferLoginPage /></GolferAuthProvider>} />
             <Route path="/score/verify" element={<GolferAuthProvider><GolferVerifyPage /></GolferAuthProvider>} />
             <Route path="/golfer/dashboard" element={<GolferAuthProvider><GolferDashboardPage /></GolferAuthProvider>} />
             <Route path="/golfer/scorecard" element={<GolferAuthProvider><ScorecardPage /></GolferAuthProvider>} />
 
-            {/* Tournament pages — slug only, no org prefix */}
             <Route path="/:tournamentSlug" element={<MAWWrapper><OrgTournamentPage /></MAWWrapper>} />
             <Route path="/:tournamentSlug/register" element={<MAWWrapper><OrgRegistrationPage /></MAWWrapper>} />
             <Route path="/:tournamentSlug/success" element={<MAWWrapper><OrgRegistrationSuccessPage /></MAWWrapper>} />
             <Route path="/:tournamentSlug/leaderboard" element={<MAWWrapper><LeaderboardPage /></MAWWrapper>} />
             <Route path="/:tournamentSlug/raffle" element={<MAWWrapper><RaffleBoardPage /></MAWWrapper>} />
 
-            {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-          {/* Shimizu Technology attribution */}
           <footer className="py-4 text-center border-t border-gray-100 bg-white mt-auto">
             <a
               href="https://shimizu-technology.com"
