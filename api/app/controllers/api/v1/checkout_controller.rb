@@ -315,10 +315,11 @@ module Api
           return
         end
 
+        original_payment_type = golfer.payment_type
         golfer.update!(payment_type: "swipe_simple", payment_status: "pending")
 
         tournament = golfer.tournament
-        payment_url = if golfer.payment_type == 'walk_in' || tournament.walkin_registration_open?
+        payment_url = if original_payment_type == 'walk_in' || tournament.walkin_registration_open?
                         tournament.walkin_swipe_simple_url.presence || tournament.swipe_simple_url.presence
                       else
                         tournament.swipe_simple_url.presence

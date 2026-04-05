@@ -623,15 +623,11 @@ module Api
       end
 
       def organization_params
-        permitted = params.require(:organization).permit(
+        params.require(:organization).permit(
           :name, :slug, :description, :logo_url, :primary_color,
           :banner_url, :contact_email, :contact_phone, :website_url,
           settings: {}
         )
-        if params[:organization][:settings].is_a?(ActionController::Parameters) || params[:organization][:settings].is_a?(Hash)
-          permitted[:settings] = params[:organization][:settings].to_unsafe_h
-        end
-        permitted
       end
 
       def organization_response(org)

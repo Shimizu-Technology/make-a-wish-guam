@@ -167,7 +167,6 @@ class Golfer < ApplicationRecord
     existing_emails = existing.pluck(:purchaser_email).compact.map(&:downcase)
 
     captain_email_key = email&.downcase
-    partner_email_key = (partner_email.presence || email)&.downcase
 
     unless captain_email_key && existing_emails.include?(captain_email_key)
       tournament.raffle_tickets.create!(

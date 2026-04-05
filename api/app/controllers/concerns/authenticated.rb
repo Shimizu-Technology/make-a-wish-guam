@@ -28,12 +28,6 @@ module Authenticated
     clerk_id = decoded['sub']
     email = decoded['email'] || decoded['primary_email_address']
 
-    # Default Clerk session tokens may not include email; fall back to
-    # the header set by the frontend from Clerk's useUser() hook.
-    if email.blank?
-      email = request.headers['X-Clerk-Email']
-    end
-
     unless clerk_id
       render_unauthorized('Invalid token payload')
       return

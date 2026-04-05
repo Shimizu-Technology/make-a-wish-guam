@@ -400,9 +400,6 @@ export class ApiClient {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      if (this.userEmail) {
-        headers['X-Clerk-Email'] = this.userEmail;
-      }
     }
 
     return headers;
