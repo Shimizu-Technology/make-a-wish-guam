@@ -6,7 +6,7 @@ module Api
       before_action :authorize_golfer_access!, only: [
         :show, :update, :destroy, :cancel, :refund, :mark_refunded,
         :check_in, :undo_check_in, :payment_details, :promote, :demote,
-        :send_payment_link, :update_payment_status, :mark_paid
+        :send_payment_link, :update_payment_status, :mark_paid, :verify_payment
       ]
 
       # GET /api/v1/golfers
