@@ -31,6 +31,10 @@ interface TournamentSummary {
   registration_count: number;
   capacity: number | null;
   revenue: number;
+  walkin_fee?: number;
+  walkin_swipe_simple_url?: string;
+  entry_fee_display?: string;
+  sponsor_reserved_teams?: number;
 }
 
 interface OrgStats {
@@ -48,6 +52,10 @@ const WalkInModal: React.FC<{
   onSuccess: () => void;
 }> = ({ tournament, organizationSlug, getToken, onClose, onSuccess }) => {
   const [saving, setSaving] = useState(false);
+  const defaultAmount = tournament.walkin_fee
+    ? (tournament.walkin_fee / 100).toString()
+    : '';
+
   const [form, setForm] = useState({
     captainName: '',
     captainEmail: '',
@@ -56,7 +64,7 @@ const WalkInModal: React.FC<{
     partnerEmail: '',
     partnerPhone: '',
     paymentMethod: 'cash' as 'cash' | 'check' | 'swipesimple',
-    amount: '300',
+    amount: defaultAmount,
   });
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -147,7 +155,7 @@ const WalkInModal: React.FC<{
                 value={form[field as keyof typeof form] as string}
                 onChange={(event) => setForm({ ...form, [field]: event.target.value })}
                 required={required}
-                className="w-full rounded-2xl border border-neutral-200 px-3 py-2.5 text-sm text-neutral-900 outline-none transition focus:border-brand-400"
+                className="w-full rounded-2xl border border-neutral-200 px-3 py-2.5 text-base text-neutral-900 outline-none transition focus:border-brand-400"
               />
             </div>
           ))}
@@ -160,7 +168,7 @@ const WalkInModal: React.FC<{
                 onChange={(event) =>
                   setForm({ ...form, paymentMethod: event.target.value as 'cash' | 'check' | 'swipesimple' })
                 }
-                className="w-full rounded-2xl border border-neutral-200 px-3 py-2.5 text-sm text-neutral-900 outline-none transition focus:border-brand-400"
+                className="w-full rounded-2xl border border-neutral-200 px-3 py-2.5 text-base text-neutral-900 outline-none transition focus:border-brand-400"
               >
                 <option value="cash">Cash</option>
                 <option value="check">Check</option>
@@ -174,7 +182,7 @@ const WalkInModal: React.FC<{
                 step="0.01"
                 value={form.amount}
                 onChange={(event) => setForm({ ...form, amount: event.target.value })}
-                className="w-full rounded-2xl border border-neutral-200 px-3 py-2.5 text-sm text-neutral-900 outline-none transition focus:border-brand-400"
+                className="w-full rounded-2xl border border-neutral-200 px-3 py-2.5 text-base text-neutral-900 outline-none transition focus:border-brand-400"
               />
             </div>
           </div>
@@ -279,17 +287,17 @@ export const OrgAdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
-      <section className="rounded-[28px] bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <section className="rounded-[28px] bg-white p-5 sm:p-6 lg:p-8 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-500">Organization dashboard</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">{organization.name}</h1>
-            <p className="mt-3 text-sm leading-6 text-neutral-600 sm:text-base">
+            <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.18em] text-brand-500">Organization dashboard</p>
+            <h1 className="mt-1.5 sm:mt-2 text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900">{organization.name}</h1>
+            <p className="mt-2 sm:mt-3 text-sm leading-6 text-neutral-600">
               See overall event health, jump into the current event workspace, and keep launch-day operations moving.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-3 flex-shrink-0">
             {nextTournament && (
               <button
                 onClick={() => setShowWalkIn(nextTournament)}
@@ -311,23 +319,23 @@ export const OrgAdminDashboard: React.FC = () => {
       </section>
 
       {stats && (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           {[
             { label: 'Events', value: stats.total_tournaments, icon: Trophy, tone: 'bg-brand-50 text-brand-700' },
             { label: 'Active now', value: stats.active_tournaments, icon: Calendar, tone: 'bg-emerald-50 text-emerald-700' },
-            { label: 'Registrations', value: stats.total_registrations, icon: Users, tone: 'bg-violet-50 text-violet-700' },
+            { label: 'Confirmed', value: stats.total_registrations, icon: Users, tone: 'bg-violet-50 text-violet-700' },
             { label: 'Revenue', value: formatCurrency(stats.total_revenue), icon: CreditCard, tone: 'bg-amber-50 text-amber-700' },
           ].map((item) => {
             const Icon = item.icon;
             return (
-              <div key={item.label} className="rounded-3xl bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className={`rounded-2xl p-3 ${item.tone}`}>
-                    <Icon className="h-5 w-5" />
+              <div key={item.label} className="rounded-3xl bg-white p-4 sm:p-5 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className={`rounded-2xl p-2.5 sm:p-3 flex-shrink-0 ${item.tone}`}>
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <p className="text-sm text-neutral-500">{item.label}</p>
-                    <p className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">{item.value}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm text-neutral-500">{item.label}</p>
+                    <p className="mt-0.5 sm:mt-1 text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900 truncate">{item.value}</p>
                   </div>
                 </div>
               </div>
@@ -338,40 +346,59 @@ export const OrgAdminDashboard: React.FC = () => {
 
       <section className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
         <div className="rounded-[28px] bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 px-5 sm:px-6 py-4 sm:py-5">
             <div>
-              <h2 className="text-lg font-semibold text-neutral-900">Current event workspace</h2>
-              <p className="mt-1 text-sm text-neutral-500">Operator tasks are one click away.</p>
+              <h2 className="text-base sm:text-lg font-semibold text-neutral-900">Current event workspace</h2>
+              <p className="mt-0.5 sm:mt-1 text-sm text-neutral-500">Operator tasks are one click away.</p>
             </div>
-            <Link to={adminOrgRoutes.events} className="text-sm font-medium text-brand-600 hover:text-brand-700">
+            <Link to={adminOrgRoutes.events} className="text-sm font-medium text-brand-600 hover:text-brand-700 flex-shrink-0">
               View all events
             </Link>
           </div>
 
           {nextTournament ? (
-            <div className="space-y-5 p-6">
-              <div className="rounded-3xl border border-neutral-200 bg-neutral-50 p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-neutral-400">Selected event</p>
-                    <h3 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">{nextTournament.name}</h3>
-                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-neutral-500">
+            <div className="space-y-4 sm:space-y-5 p-4 sm:p-6">
+              <div className="rounded-2xl sm:rounded-3xl border border-neutral-200 bg-neutral-50 p-4 sm:p-5">
+                <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.18em] text-neutral-400">Selected event</p>
+                    <h3 className="mt-1.5 sm:mt-2 text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900">{nextTournament.name}</h3>
+                    <div className="mt-2 sm:mt-3 flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1.5 text-xs sm:text-sm text-neutral-500">
                       <span className="inline-flex items-center gap-1.5">
-                        <Calendar className="h-4 w-4" />
+                        <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         {formatDate(nextTournament.date)}
                       </span>
                       <span className="inline-flex items-center gap-1.5">
-                        <Users className="h-4 w-4" />
+                        <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         {nextTournament.registration_count}
-                        {nextTournament.capacity ? ` / ${nextTournament.capacity}` : ''} registrations
+                        {nextTournament.capacity ? ` / ${nextTournament.capacity}` : ''} teams
+                        {(nextTournament.sponsor_reserved_teams ?? 0) > 0 && (
+                          <span className="text-brand-600">({nextTournament.sponsor_reserved_teams} sponsor)</span>
+                        )}
                       </span>
                       <span className="inline-flex items-center gap-1.5">
-                        <CreditCard className="h-4 w-4" />
+                        <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         {formatCurrency(nextTournament.revenue)}
                       </span>
                     </div>
+                    {nextTournament.capacity && nextTournament.capacity > 0 && (
+                      <div className="mt-2.5">
+                        <div className="h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              nextTournament.registration_count >= nextTournament.capacity
+                                ? 'bg-amber-500'
+                                : nextTournament.registration_count / nextTournament.capacity > 0.8
+                                  ? 'bg-yellow-500'
+                                  : 'bg-green-500'
+                            }`}
+                            style={{ width: `${Math.min(100, Math.round((nextTournament.registration_count / nextTournament.capacity) * 100))}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium capitalize text-brand-700">
+                  <span className="self-start rounded-full bg-brand-50 px-3 py-1 text-xs font-medium capitalize text-brand-700 flex-shrink-0">
                     {nextTournament.status}
                   </span>
                 </div>
@@ -379,7 +406,7 @@ export const OrgAdminDashboard: React.FC = () => {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 {[
-                  { label: 'Registrations', icon: Users, path: adminEventPath(nextTournament.slug, 'registrations') },
+                  { label: 'Registrations', icon: Users, path: adminEventPath(nextTournament.slug) },
                   { label: 'Payments', icon: CreditCard, path: adminEventPath(nextTournament.slug, 'payments') },
                   { label: 'Check-In', icon: ShieldCheck, path: adminEventPath(nextTournament.slug, 'checkin') },
                   { label: 'Raffle', icon: Ticket, path: adminEventPath(nextTournament.slug, 'raffle') },
@@ -389,13 +416,13 @@ export const OrgAdminDashboard: React.FC = () => {
                     <Link
                       key={item.label}
                       to={item.path}
-                      className="flex items-center justify-between rounded-3xl border border-neutral-200 px-4 py-4 transition hover:bg-neutral-50"
+                      className="flex items-center justify-between rounded-2xl sm:rounded-3xl border border-neutral-200 px-3.5 sm:px-4 py-3.5 sm:py-4 transition hover:bg-neutral-50"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="rounded-2xl bg-neutral-100 p-2.5 text-neutral-700">
+                        <div className="rounded-xl sm:rounded-2xl bg-neutral-100 p-2 sm:p-2.5 text-neutral-700">
                           <Icon className="h-4 w-4" />
                         </div>
-                        <span className="font-medium text-neutral-900">{item.label}</span>
+                        <span className="font-medium text-sm sm:text-base text-neutral-900">{item.label}</span>
                       </div>
                       <ArrowRight className="h-4 w-4 text-neutral-400" />
                     </Link>
@@ -421,11 +448,11 @@ export const OrgAdminDashboard: React.FC = () => {
 
         <div className="space-y-6">
           <section className="rounded-[28px] bg-white shadow-sm">
-            <div className="border-b border-neutral-200 px-6 py-5">
-              <h2 className="text-lg font-semibold text-neutral-900">Org management</h2>
-              <p className="mt-1 text-sm text-neutral-500">Tasks that stay true even as MAW adds more event types.</p>
+            <div className="border-b border-neutral-200 px-5 sm:px-6 py-4 sm:py-5">
+              <h2 className="text-base sm:text-lg font-semibold text-neutral-900">Org management</h2>
+              <p className="mt-0.5 sm:mt-1 text-sm text-neutral-500">Tasks that stay true even as MAW adds more event types.</p>
             </div>
-            <div className="space-y-3 p-6">
+            <div className="space-y-3 p-4 sm:p-6">
               {[
                 { label: 'Manage events', icon: Calendar, path: adminOrgRoutes.events, description: 'Create events and monitor active or archived ones.' },
                 { label: 'Sponsor relationships', icon: Building2, path: adminOrgRoutes.sponsors, description: 'Jump into sponsor work without hunting through event pages.' },
@@ -433,14 +460,14 @@ export const OrgAdminDashboard: React.FC = () => {
               ].map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Link key={item.label} to={item.path} className="block rounded-3xl border border-neutral-200 p-4 transition hover:bg-neutral-50">
+                  <Link key={item.label} to={item.path} className="block rounded-2xl sm:rounded-3xl border border-neutral-200 p-3.5 sm:p-4 transition hover:bg-neutral-50">
                     <div className="flex items-start gap-3">
-                      <div className="rounded-2xl bg-neutral-100 p-2.5 text-neutral-700">
+                      <div className="rounded-xl sm:rounded-2xl bg-neutral-100 p-2 sm:p-2.5 text-neutral-700 flex-shrink-0">
                         <Icon className="h-4 w-4" />
                       </div>
-                      <div>
-                        <p className="font-medium text-neutral-900">{item.label}</p>
-                        <p className="mt-1 text-sm text-neutral-500">{item.description}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm sm:text-base text-neutral-900">{item.label}</p>
+                        <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-neutral-500">{item.description}</p>
                       </div>
                     </div>
                   </Link>
@@ -450,22 +477,22 @@ export const OrgAdminDashboard: React.FC = () => {
           </section>
 
           <section className="rounded-[28px] bg-white shadow-sm">
-            <div className="border-b border-neutral-200 px-6 py-5">
-              <h2 className="text-lg font-semibold text-neutral-900">Upcoming / recent events</h2>
-              <p className="mt-1 text-sm text-neutral-500">A quick pulse check without turning this into the full events page.</p>
+            <div className="border-b border-neutral-200 px-5 sm:px-6 py-4 sm:py-5">
+              <h2 className="text-base sm:text-lg font-semibold text-neutral-900">Upcoming / recent events</h2>
+              <p className="mt-0.5 sm:mt-1 text-sm text-neutral-500">A quick pulse check without turning this into the full events page.</p>
             </div>
             <div className="divide-y divide-neutral-200">
               {activeTournaments.slice(0, 4).map((tournament) => (
-                <Link key={tournament.id} to={adminEventPath(tournament.slug)} className="flex items-center justify-between gap-4 px-6 py-4 transition hover:bg-neutral-50">
-                  <div>
-                    <p className="font-medium text-neutral-900">{tournament.name}</p>
-                    <p className="mt-1 text-sm text-neutral-500">{formatDate(tournament.date)}</p>
+                <Link key={tournament.id} to={adminEventPath(tournament.slug)} className="flex items-center justify-between gap-4 px-5 sm:px-6 py-3.5 sm:py-4 transition hover:bg-neutral-50">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm sm:text-base text-neutral-900 truncate">{tournament.name}</p>
+                    <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-neutral-500">{formatDate(tournament.date)}</p>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-neutral-400" />
+                  <ArrowRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
                 </Link>
               ))}
               {activeTournaments.length === 0 && (
-                <div className="p-6 text-sm text-neutral-500">No active events yet.</div>
+                <div className="p-5 sm:p-6 text-sm text-neutral-500">No active events yet.</div>
               )}
             </div>
           </section>

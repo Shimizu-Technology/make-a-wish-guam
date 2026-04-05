@@ -7,7 +7,7 @@ class ApplicationMailer < ActionMailer::Base
 
   def set_org_branding
     org = @golfer&.tournament&.organization
-    @primary_color = org&.primary_color.presence || '#1e40af'
+    @primary_color = org&.primary_color.presence || '#0057B8'
     @org_name = org&.name.presence || 'Make-A-Wish Guam & CNMI'
     @org_logo_url = org&.logo_url
   end

@@ -1,171 +1,176 @@
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
-    <tr>
-      <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, <%= @primary_color %> 0%, <%= darken_color(@primary_color, 20) %> 100%); padding: 30px 40px; text-align: center;">
-              <% if @org_logo_url.present? %>
-                <img src="<%= @org_logo_url %>" alt="<%= @org_name %>" style="max-height: 50px; margin-bottom: 15px;">
-              <% end %>
-              <h1 style="margin: 0 0 5px 0; color: #ffffff; font-size: 14px; font-weight: normal; letter-spacing: 2px; text-transform: uppercase;"><%= @setting.tournament_year %> <%= @setting.tournament_title %></h1>
-              <h2 style="margin: 0 0 5px 0; color: #ffffff; font-size: 11px; font-style: italic; font-weight: normal;"><%= @setting.tournament_edition %> Annual</h2>
-              <h3 style="margin: 0 0 8px 0; color: #ffffff; font-size: 24px; font-weight: bold;"><%= @setting.tournament_name.gsub(' Memorial Golf Tournament', '').upcase %></h3>
-              <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 14px; font-weight: 600; letter-spacing: 1px;">MEMORIAL GOLF TOURNAMENT</p>
-            </td>
-          </tr>
+<%
+  formatted_date = if @tournament.event_date.is_a?(Date)
+    @tournament.event_date.strftime('%B %-d, %Y')
+  elsif @tournament.event_date.present?
+    begin; Date.parse(@tournament.event_date.to_s).strftime('%B %-d, %Y'); rescue; @tournament.event_date; end
+  else
+    'TBA'
+  end
+  brand = @primary_color || '#0057B8'
+  fee_label = @tournament&.entry_fee_display.presence || "$#{sprintf('%.2f', @entry_fee)}/team"
+%>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <tr>
+    <td align="center" style="padding: 32px 16px;">
+      <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; max-width: 100%;">
 
-          <!-- Status Banner -->
-          <tr>
-            <td style="padding: 0;">
-              <% if @is_confirmed %>
-                <div style="background-color: #059669; color: white; text-align: center; padding: 15px;">
-                  <span style="font-size: 16px; font-weight: bold;">Registration Confirmed!</span>
-                </div>
-              <% else %>
-                <div style="background-color: #d97706; color: white; text-align: center; padding: 15px;">
-                  <span style="font-size: 16px; font-weight: bold;">Added to Waitlist</span>
-                </div>
-              <% end %>
-            </td>
-          </tr>
+        <!-- Header -->
+        <tr>
+          <td style="background: linear-gradient(135deg, <%= brand %> 0%, <%= darken_color(brand, 25) %> 100%); padding: 32px 32px 28px; text-align: center;">
+            <p style="margin: 0 0 6px; color: rgba(255,255,255,0.75); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-weight: 600;"><%= @org_name %></p>
+            <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; line-height: 1.3;"><%= @tournament.name %></h1>
+          </td>
+        </tr>
 
-          <!-- Content -->
-          <tr>
-            <td style="padding: 30px 40px;">
-              <h2 style="margin: 0 0 20px 0; color: <%= @primary_color %>; font-size: 22px;">Hafa Adai, <%= @golfer.name %>!</h2>
+        <!-- Status pill -->
+        <tr>
+          <td style="padding: 20px 32px 0; text-align: center;">
+            <% if @is_confirmed %>
+              <span style="display: inline-block; background-color: #ecfdf5; color: #047857; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;">Registration Confirmed</span>
+            <% else %>
+              <span style="display: inline-block; background-color: #fef3c7; color: #92400e; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;">Added to Waitlist</span>
+            <% end %>
+          </td>
+        </tr>
 
-              <% if @is_swipe_simple %>
-                <div style="background:#FEF3C7;border:1px solid #F59E0B;padding:16px;border-radius:8px;margin:16px 0;">
-                  <strong>⚠️ Action Required: Complete Your Payment</strong><br>
-                  Your registration has been submitted but is not confirmed until payment is received.<br><br>
-                  Please complete your $300 team payment via Bank of Guam SwipeSimple:<br>
-                  <a href="https://swipesimple.com/links/lnk_e1c8f45f9c401c93552781ef3d52fdfc"
-                     style="display:inline-block;background:#E31837;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:8px;">
-                    Complete Payment →
-                  </a>
-                </div>
-              <% end %>
+        <!-- Body -->
+        <tr>
+          <td style="padding: 24px 32px 0;">
+            <p style="margin: 0 0 16px; color: #1a1a1a; font-size: 17px; font-weight: 600;">Hi <%= @golfer.name %>!</p>
 
-              <% if @is_confirmed %>
-                <p style="margin: 0 0 25px 0; color: #4a5568; font-size: 15px; line-height: 1.6;">
-                  Thank you for registering for the <strong><%= @setting.tournament_edition %> Annual <%= @setting.tournament_name %></strong>. Your spot has been secured!
-                </p>
-              <% else %>
-                <p style="margin: 0 0 25px 0; color: #4a5568; font-size: 15px; line-height: 1.6;">
-                  Thank you for your interest in the tournament. We've reached capacity (<%= @setting.max_capacity %> players), but you're on our waitlist. We'll notify you immediately if a spot opens up!
-                </p>
-              <% end %>
-
-              <!-- Event Details Box -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border-radius: 8px; margin-bottom: 25px;">
-                <tr>
-                  <td style="padding: 20px;">
-                    <h3 style="margin: 0 0 15px 0; color: <%= @primary_color %>; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Event Details</h3>
-                    <table role="presentation" cellspacing="0" cellpadding="0">
-                      <tr>
-                        <td style="padding: 5px 0; color: #718096; font-size: 14px; width: 100px;">Date:</td>
-                        <td style="padding: 5px 0; color: #2d3748; font-size: 14px; font-weight: 500;"><%= @setting.event_date %></td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 5px 0; color: #718096; font-size: 14px;">Location:</td>
-                        <td style="padding: 5px 0; color: #2d3748; font-size: 14px; font-weight: 500;"><%= @setting.location_name %>, <%= @setting.location_address %></td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 5px 0; color: #718096; font-size: 14px;">Check-in:</td>
-                        <td style="padding: 5px 0; color: #2d3748; font-size: 14px; font-weight: 500;"><%= @setting.registration_time %></td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 5px 0; color: #718096; font-size: 14px;">Start:</td>
-                        <td style="padding: 5px 0; color: #2d3748; font-size: 14px; font-weight: 500;"><%= @setting.start_time %> (Shotgun)</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Registration Details Box -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border-radius: 8px; margin-bottom: 25px;">
-                <tr>
-                  <td style="padding: 20px;">
-                    <h3 style="margin: 0 0 15px 0; color: <%= @primary_color %>; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Your Registration</h3>
-                    <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
-                      <tr>
-                        <td style="padding: 8px 0; color: #718096; font-size: 14px; border-bottom: 1px solid #e2e8f0;">Name</td>
-                        <td style="padding: 8px 0; color: #2d3748; font-size: 14px; font-weight: 500; text-align: right; border-bottom: 1px solid #e2e8f0;"><%= @golfer.name %></td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 8px 0; color: #718096; font-size: 14px; border-bottom: 1px solid #e2e8f0;">Email</td>
-                        <td style="padding: 8px 0; color: #2d3748; font-size: 14px; font-weight: 500; text-align: right; border-bottom: 1px solid #e2e8f0;"><%= @golfer.email %></td>
-                      </tr>
-                      <% if @golfer.company.present? %>
-                      <tr>
-                        <td style="padding: 8px 0; color: #718096; font-size: 14px; border-bottom: 1px solid #e2e8f0;">Company</td>
-                        <td style="padding: 8px 0; color: #2d3748; font-size: 14px; font-weight: 500; text-align: right; border-bottom: 1px solid #e2e8f0;"><%= @golfer.company %></td>
-                      </tr>
-                      <% end %>
-                      <% if @is_employee %>
-                      <tr>
-                        <td style="padding: 8px 0; color: #718096; font-size: 14px; border-bottom: 1px solid #e2e8f0;">Type</td>
-                        <td style="padding: 8px 0; text-align: right; border-bottom: 1px solid #e2e8f0;">
-                          <span style="background-color: #dbeafe; color: #1e40af; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">EMPLOYEE</span>
-                        </td>
-                      </tr>
-                      <% end %>
-                      <tr>
-                        <td style="padding: 8px 0; color: #718096; font-size: 14px; border-bottom: 1px solid #e2e8f0;">Payment</td>
-                        <td style="padding: 8px 0; text-align: right; border-bottom: 1px solid #e2e8f0;">
-                          <% if @golfer.payment_status == 'paid' %>
-                            <span style="background-color: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">PAID</span>
-                          <% else %>
-                            <span style="background-color: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">Pay on Day - $<%= sprintf('%.2f', @entry_fee) %><%= ' (Employee Rate)' if @is_employee %></span>
-                          <% end %>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 8px 0; color: #718096; font-size: 14px;">Status</td>
-                        <td style="padding: 8px 0; text-align: right;">
-                          <% if @is_confirmed %>
-                            <span style="background-color: #dbeafe; color: #1e40af; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">CONFIRMED</span>
-                          <% else %>
-                            <span style="background-color: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">WAITLIST</span>
-                          <% end %>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-
-              <% if @golfer.payment_type == 'pay_on_day' && @golfer.payment_status != 'paid' %>
-                <!-- Payment Reminder -->
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef3c7; border-left: 4px solid #d97706; border-radius: 4px; margin-bottom: 25px;">
-                  <tr>
-                    <td style="padding: 15px 20px;">
-                      <p style="margin: 0; color: #92400e; font-size: 14px;">
-                        <strong>Note:</strong> Please bring $<%= sprintf('%.2f', @entry_fee) %> on the day of the tournament. Cash, check (payable to <%= @setting.checks_payable_to %>), or credit card accepted.
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-              <% end %>
-
-              <p style="margin: 0; color: #4a5568; font-size: 14px; line-height: 1.6;">
-                If you have any questions, please contact <strong><%= @setting.contact_name %></strong> at <strong><%= @setting.contact_phone %></strong>.
+            <% if @is_confirmed %>
+              <p style="margin: 0 0 20px; color: #4b5563; font-size: 14px; line-height: 1.65;">
+                Thank you for registering for <strong style="color: #1a1a1a;"><%= @tournament.name %></strong>. Your spot has been secured!
               </p>
-            </td>
-          </tr>
+            <% else %>
+              <p style="margin: 0 0 20px; color: #4b5563; font-size: 14px; line-height: 1.65;">
+                Thank you for your interest in <strong style="color: #1a1a1a;"><%= @tournament.name %></strong>. We've reached capacity, but you're on our waitlist. We'll notify you if a spot opens up.
+              </p>
+            <% end %>
 
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: <%= darken_color(@primary_color, 10) %>; padding: 25px 40px; text-align: center;">
-              <p style="margin: 0 0 5px 0; color: rgba(255,255,255,0.7); font-size: 12px;"><%= @org_name %></p>
-              <p style="margin: 0; color: rgba(255,255,255,0.5); font-size: 11px;">Powered by Shimizu Technology</p>
-            </td>
-          </tr>
+            <% if @is_confirmed && @is_swipe_simple && @golfer.payment_status != 'paid' %>
+              <!-- Payment reminder — subtle but clear -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
+                <tr>
+                  <td style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px 20px;">
+                    <p style="margin: 0 0 6px; color: #92400e; font-size: 13px; font-weight: 600;">Payment Reminder</p>
+                    <p style="margin: 0 0 12px; color: #78716c; font-size: 13px; line-height: 1.5;">
+                      Please complete your <strong style="color: #44403c;"><%= fee_label %></strong> team payment to finalize your registration.
+                    </p>
+                    <a href="<%= @swipe_simple_url %>"
+                       style="display: inline-block; background-color: <%= brand %>; color: #ffffff; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600;">
+                      Complete Payment
+                    </a>
+                    <p style="margin: 10px 0 0; color: #a8a29e; font-size: 11px;">Already paid? You can disregard this.</p>
+                  </td>
+                </tr>
+              </table>
+            <% end %>
+          </td>
+        </tr>
 
-        </table>
-      </td>
-    </tr>
-  </table>
+        <!-- Event details card -->
+        <tr>
+          <td style="padding: 0 32px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f9fafb; border-radius: 12px; margin-bottom: 20px;">
+              <tr>
+                <td style="padding: 20px;">
+                  <p style="margin: 0 0 12px; color: <%= brand %>; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Event Details</p>
+                  <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
+                    <tr>
+                      <td style="padding: 4px 0; color: #6b7280; font-size: 13px; width: 90px;">Date</td>
+                      <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;"><%= formatted_date %></td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Location</td>
+                      <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;"><%= [@tournament.location_name, @tournament.location_address].compact.join(', ') %></td>
+                    </tr>
+                    <% if @tournament.check_in_time.present? || @tournament.registration_time.present? %>
+                    <tr>
+                      <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Check-in</td>
+                      <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;"><%= @tournament.check_in_time || @tournament.registration_time %></td>
+                    </tr>
+                    <% end %>
+                    <% if @tournament.start_time.present? %>
+                    <tr>
+                      <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Start</td>
+                      <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 500;"><%= @tournament.start_time %></td>
+                    </tr>
+                    <% end %>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Registration details card -->
+        <tr>
+          <td style="padding: 0 32px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f9fafb; border-radius: 12px; margin-bottom: 20px;">
+              <tr>
+                <td style="padding: 20px;">
+                  <p style="margin: 0 0 12px; color: <%= brand %>; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Your Registration</p>
+                  <table role="presentation" cellspacing="0" cellpadding="0" width="100%">
+                    <tr>
+                      <td style="padding: 6px 0; color: #6b7280; font-size: 13px; border-bottom: 1px solid #e5e7eb;">Team Captain</td>
+                      <td style="padding: 6px 0; color: #111827; font-size: 13px; font-weight: 500; text-align: right; border-bottom: 1px solid #e5e7eb;"><%= @golfer.name %></td>
+                    </tr>
+                    <% if @golfer.partner_name.present? %>
+                    <tr>
+                      <td style="padding: 6px 0; color: #6b7280; font-size: 13px; border-bottom: 1px solid #e5e7eb;">Playing Partner</td>
+                      <td style="padding: 6px 0; color: #111827; font-size: 13px; font-weight: 500; text-align: right; border-bottom: 1px solid #e5e7eb;"><%= @golfer.partner_name %></td>
+                    </tr>
+                    <% end %>
+                    <tr>
+                      <td style="padding: 6px 0; color: #6b7280; font-size: 13px; border-bottom: 1px solid #e5e7eb;">Entry Fee</td>
+                      <td style="padding: 6px 0; color: #111827; font-size: 13px; font-weight: 500; text-align: right; border-bottom: 1px solid #e5e7eb;"><%= fee_label %></td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Payment</td>
+                      <td style="padding: 6px 0; text-align: right;">
+                        <% if @golfer.payment_status == 'paid' %>
+                          <span style="background-color: #dcfce7; color: #166534; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600;">PAID</span>
+                        <% else %>
+                          <span style="background-color: #fef9c3; color: #854d0e; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600;">PENDING</span>
+                        <% end %>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <% if @tournament.fee_includes.present? %>
+        <tr>
+          <td style="padding: 0 32px 8px;">
+            <p style="margin: 0; color: #9ca3af; font-size: 12px; line-height: 1.5;">
+              <strong style="color: #6b7280;">Includes:</strong> <%= @tournament.fee_includes %>
+            </p>
+          </td>
+        </tr>
+        <% end %>
+
+        <!-- Contact -->
+        <tr>
+          <td style="padding: 8px 32px 28px;">
+            <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.6;">
+              Questions? Contact <strong style="color: #374151;"><%= @tournament.contact_name.presence || @org_name %></strong><%= " at #{@tournament.contact_phone}".html_safe if @tournament.contact_phone.present? %><%= " or <a href=\"mailto:#{@tournament.contact_email}\" style=\"color: #{brand}; text-decoration: none;\">#{@tournament.contact_email}</a>".html_safe if @tournament.respond_to?(:contact_email) && @tournament.contact_email.present? %>.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background-color: #f9fafb; border-top: 1px solid #e5e7eb; padding: 20px 32px; text-align: center;">
+            <p style="margin: 0 0 4px; color: #6b7280; font-size: 12px; font-weight: 500;"><%= @org_name %></p>
+            <p style="margin: 0; color: #9ca3af; font-size: 11px;">Powered by Shimizu Technology</p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>

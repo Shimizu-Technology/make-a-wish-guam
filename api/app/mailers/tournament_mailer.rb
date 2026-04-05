@@ -68,7 +68,7 @@ class TournamentMailer
   private
 
   def set_branding
-    @primary_color = @organization&.primary_color || '#1e40af'
+    @primary_color = @organization&.primary_color || '#0057B8'
     @org_name = @organization&.name || 'Make-A-Wish Guam & CNMI'
     @logo_url = @organization&.logo_url
   end

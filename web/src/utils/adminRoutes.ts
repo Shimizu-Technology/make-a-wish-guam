@@ -6,6 +6,7 @@ export type AdminEventSection =
   | 'groups'
   | 'raffle'
   | 'sponsors'
+  | 'reports'
   | 'settings';
 
 export const adminOrgRoutes = {
@@ -34,6 +35,8 @@ export function adminEventPath(slug: string, section: AdminEventSection = 'overv
       return `${base}/raffle`;
     case 'sponsors':
       return `${base}/sponsors`;
+    case 'reports':
+      return `${base}/reports`;
     case 'settings':
       return `${base}/settings`;
     default:
@@ -73,6 +76,8 @@ export function getAdminEventSection(pathname: string): AdminEventSection | null
       return 'raffle';
     case 'sponsors':
       return 'sponsors';
+    case 'reports':
+      return 'reports';
     case 'settings':
       return 'settings';
     default:

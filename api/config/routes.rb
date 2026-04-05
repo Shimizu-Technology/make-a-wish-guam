@@ -50,6 +50,7 @@ Rails.application.routes.draw do
       # Sponsor Portal (public, token-authenticated)
       post 'sponsor_access/request_link' => 'sponsor_access#request_link'
       get 'sponsor_access/verify' => 'sponsor_access#verify'
+      post 'sponsor_access/confirm' => 'sponsor_access#confirm'
       resources :sponsor_slots, only: [:index, :update]
 
       # ===========================================
@@ -60,12 +61,14 @@ Rails.application.routes.draw do
       post 'admin/uploads' => 'admin/uploads#create'
       post 'admin/uploads/presigned' => 'admin/uploads#presigned'
 
-      # Admin organizations (single-org: read-only, no create/update)
+      # Admin organizations
       get 'admin/organizations' => 'organizations#index'
+      patch 'admin/organizations/:slug' => 'organizations#update'
       get 'admin/organizations/:slug/members' => 'organizations#members'
       post 'admin/organizations/:slug/members' => 'organizations#add_member'
       patch 'admin/organizations/:slug/members/:member_id' => 'organizations#update_member'
       delete 'admin/organizations/:slug/members/:member_id' => 'organizations#remove_member'
+      post 'admin/organizations/:slug/members/:member_id/resend_invite' => 'organizations#resend_invite'
       get 'admin/organizations/:slug/tournaments' => 'organizations#admin_tournaments'
       post 'admin/organizations/:slug/tournaments' => 'organizations#create_tournament'
       get 'admin/organizations/:slug/tournaments/:tournament_slug' => 'organizations#admin_tournament'
@@ -90,6 +93,7 @@ Rails.application.routes.draw do
         member do
           post :check_in
           post :undo_check_in
+          post :verify_payment
           post :payment_details
           post :promote
           post :demote
@@ -136,12 +140,17 @@ Rails.application.routes.draw do
         post 'raffle/tickets' => 'raffle#create_tickets'
         post 'raffle/tickets/:id/mark_paid' => 'raffle#mark_ticket_paid'
         delete 'raffle/tickets/:id' => 'raffle#destroy_ticket'
+        post 'raffle/sync_tickets' => 'raffle#sync_tickets'
 
         # Sponsors
         resources :sponsors, only: [:index, :show, :create, :update, :destroy] do
           collection do
             get :by_hole
             post :reorder
+          end
+          member do
+            get :slots
+            patch 'slots/:slot_id', action: :update_slot, as: :update_slot
           end
         end
       end

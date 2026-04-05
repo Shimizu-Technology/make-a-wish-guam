@@ -1,6 +1,6 @@
-# GIAA Tournament API
+# Make-A-Wish Guam API
 
-Rails API backend for the Golf Tournament Registration System.
+Rails API backend for the Make-A-Wish Guam & CNMI Events Platform.
 
 ## Prerequisites
 
@@ -12,7 +12,7 @@ Rails API backend for the Golf Tournament Registration System.
 
 ```bash
 # 1. Enter the directory
-cd giaa-tournament-api
+cd api
 
 # 2. Install dependencies
 bundle install

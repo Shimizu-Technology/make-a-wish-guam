@@ -1,6 +1,17 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export interface HomepageStat {
+  value: string;
+  label: string;
+}
+
+export interface OrganizationSettings {
+  homepage_tagline?: string;
+  homepage_mission?: string;
+  homepage_stats?: HomepageStat[];
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -12,6 +23,7 @@ export interface Organization {
   contact_email?: string;
   contact_phone?: string;
   website_url?: string;
+  settings?: OrganizationSettings;
   tournament_count?: number;
 }
 

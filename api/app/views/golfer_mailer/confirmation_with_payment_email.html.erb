@@ -52,7 +52,7 @@
                     <p style="margin: 0; color: #065f46; font-size: 28px; font-weight: bold;">$<%= sprintf('%.2f', @entry_fee) %></p>
                     <% if @is_employee %>
                       <p style="margin: 8px 0 0 0; color: #065f46; font-size: 12px;">
-                        <span style="background-color: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 8px; font-size: 11px;">Employee Rate</span>
+                        <span style="background-color: #dbeafe; color: #0057B8; padding: 2px 8px; border-radius: 8px; font-size: 11px;">Employee Rate</span>
                       </p>
                     <% end %>
                     <% if @golfer.stripe_card_brand.present? && @golfer.stripe_card_last4.present? %>
@@ -121,7 +121,7 @@
                         <td style="padding: 8px 0; color: #718096; font-size: 14px;">Status</td>
                         <td style="padding: 8px 0; text-align: right;">
                           <% if @is_confirmed %>
-                            <span style="background-color: #dbeafe; color: #1e40af; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">CONFIRMED</span>
+                            <span style="background-color: #dbeafe; color: #0057B8; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">CONFIRMED</span>
                           <% else %>
                             <span style="background-color: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">WAITLIST</span>
                           <% end %>

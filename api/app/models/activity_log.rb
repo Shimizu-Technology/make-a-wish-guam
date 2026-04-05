@@ -20,6 +20,7 @@ class ActivityLog < ApplicationRecord
     payment_marked
     payment_updated
     payment_completed
+    payment_verified
     payment_link_sent
     payment_notes_updated
     group_created

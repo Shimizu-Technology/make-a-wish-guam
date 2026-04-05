@@ -47,21 +47,21 @@ export const GolferLoginPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-brand-100 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-brand-100 flex flex-col">
       {/* Header */}
-      <header className="bg-green-700 text-white py-4 px-6 shadow-md">
+      <header className="bg-brand-600 text-white py-4 px-6 shadow-md">
         <div className="max-w-md mx-auto flex items-center gap-3">
           <Trophy className="w-8 h-8 text-yellow-400" />
           <div>
             <h1 className="text-xl font-bold">Shimizu Technology</h1>
-            <p className="text-green-200 text-sm">Live Scoring</p>
+            <p className="text-brand-200 text-sm">Live Scoring</p>
           </div>
         </div>
       </header>
@@ -74,7 +74,7 @@ export const GolferLoginPage: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-xl p-8">
               <div className="text-center mb-8">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Mail className="w-8 h-8 text-green-600" />
+                  <Mail className="w-8 h-8 text-brand-600" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   Access Scoring
@@ -96,7 +96,7 @@ export const GolferLoginPage: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your.email@example.com"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-lg"
                     disabled={isSubmitting}
                     autoComplete="email"
                     autoFocus
@@ -106,7 +106,7 @@ export const GolferLoginPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting || !email.trim()}
-                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 px-6 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition-colors"
+                  className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 px-6 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition-colors"
                 >
                   {isSubmitting ? (
                     <>
@@ -152,7 +152,7 @@ export const GolferLoginPage: React.FC = () => {
                   setLinkSent(false);
                   setEmail('');
                 }}
-                className="text-green-600 hover:text-green-700 font-medium"
+                className="text-brand-600 hover:text-brand-700 font-medium"
               >
                 ← Try a different email
               </button>

@@ -1,44 +1,110 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
-    .container { max-width: 520px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .header { background: #004B8D; padding: 32px; text-align: center; color: white; }
-    .header h1 { margin: 0 0 4px; font-size: 22px; }
-    .header p { margin: 0; opacity: 0.8; font-size: 14px; }
-    .body { padding: 32px; }
-    .body p { color: #374151; line-height: 1.6; margin: 0 0 16px; }
-    .btn { display: inline-block; padding: 14px 28px; background: #E31837; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin: 8px 0 24px; }
-    .info-box { background: #f0f4f9; border-radius: 8px; padding: 16px; margin: 16px 0; }
-    .info-box p { margin: 0; font-size: 13px; color: #6B7280; }
-    .footer { padding: 20px 32px; border-top: 1px solid #e5e7eb; text-align: center; }
-    .footer p { color: #9CA3AF; font-size: 12px; margin: 0; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Sponsor Portal Access</h1>
-      <p>Golf for Wishes 2026 — Make-A-Wish Guam & CNMI</p>
-    </div>
-    <div class="body">
-      <p>Hello <strong><%= @sponsor.name %></strong>,</p>
-      <p>Thank you for sponsoring the <strong>Golf for Wishes 2026</strong> tournament! You have <strong><%= @sponsor.slot_count %> player slot<%= @sponsor.slot_count == 1 ? '' : 's' %></strong> to fill.</p>
-      <p>Click the button below to access your sponsor portal and enter your players' information:</p>
-      <a href="<%= @access_url %>" class="btn">Access Sponsor Portal →</a>
-      <div class="info-box">
-        <p><strong>Important:</strong> Player information must be submitted by <strong>7:30 AM on May 2, 2026</strong> (tournament check-in). After that time, changes will be locked.</p>
-      </div>
-      <p>If the button above doesn't work, copy and paste this link:<br>
-      <small style="color:#6B7280; word-break:break-all;"><%= @access_url %></small></p>
-      <p>This link expires in 7 days. If you need a new link, visit:<br>
-      <small><%= ENV.fetch('FRONTEND_URL', 'http://localhost:5173') %>/sponsor-portal</small></p>
-    </div>
-    <div class="footer">
-      <p>Golf for Wishes 2026 · Make-A-Wish® Guam & CNMI · Questions? etydingco@guam.wish.org</p>
-    </div>
-  </div>
-</body>
-</html>
+<%
+  brand = @primary_color || '#0057B8'
+  tournament_name = @tournament&.name || 'the tournament'
+  team_count = (@sponsor.slot_count.to_i / 2.0).ceil
+  team_label = team_count == 1 ? '1 team' : "#{team_count} teams"
+  player_count = @sponsor.slot_count.to_i
+  contact_name = @tournament&.contact_name.presence || @org_name
+  contact_phone = @tournament&.contact_phone
+  contact_email = @tournament&.respond_to?(:contact_email) ? @tournament.contact_email : nil
+
+  deadline_text = if @tournament&.sponsor_edit_deadline.present?
+    @tournament.sponsor_edit_deadline.strftime('%B %-d, %Y at %-I:%M %p')
+  elsif @tournament&.check_in_time.present? && @tournament&.event_date.present?
+    "#{@tournament.check_in_time} on #{@tournament.event_date.is_a?(Date) ? @tournament.event_date.strftime('%B %-d, %Y') : @tournament.event_date}"
+  else
+    nil
+  end
+%>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <tr>
+    <td align="center" style="padding: 32px 16px;">
+      <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; max-width: 100%;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background: linear-gradient(135deg, <%= brand %> 0%, <%= darken_color(brand, 25) %> 100%); padding: 32px 32px 28px; text-align: center;">
+            <p style="margin: 0 0 6px; color: rgba(255,255,255,0.75); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-weight: 600;"><%= @org_name %></p>
+            <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; line-height: 1.3;"><%= tournament_name %></h1>
+          </td>
+        </tr>
+
+        <!-- Status pill -->
+        <tr>
+          <td style="padding: 20px 32px 0; text-align: center;">
+            <span style="display: inline-block; background-color: #dbeafe; color: <%= brand %>; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;">Sponsor Portal Access</span>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding: 24px 32px 0;">
+            <p style="margin: 0 0 16px; color: #1a1a1a; font-size: 17px; font-weight: 600;">Hello <%= @sponsor.name %>!</p>
+
+            <p style="margin: 0 0 20px; color: #4b5563; font-size: 14px; line-height: 1.65;">
+              Thank you for sponsoring <strong style="color: #1a1a1a;"><%= tournament_name %></strong>!
+              <% if player_count > 0 %>
+                You have <strong style="color: #1a1a1a;"><%= team_label %></strong> (<%= player_count %> player<%= player_count == 1 ? '' : 's' %>) to register.
+              <% end %>
+            </p>
+
+            <p style="margin: 0 0 20px; color: #4b5563; font-size: 14px; line-height: 1.65;">
+              Use the link below to access your sponsor portal and enter your players' information:
+            </p>
+
+            <!-- CTA Button -->
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
+              <tr>
+                <td align="center">
+                  <a href="<%= @access_url %>"
+                     style="display: inline-block; background-color: <%= brand %>; color: #ffffff; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-size: 14px; font-weight: 600;">
+                    Access Sponsor Portal
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            <% if deadline_text %>
+            <!-- Deadline notice -->
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
+              <tr>
+                <td style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 14px 18px;">
+                  <p style="margin: 0; color: #92400e; font-size: 13px; line-height: 1.5;">
+                    <strong>Deadline:</strong> Player information must be submitted by <strong><%= deadline_text %></strong>. After that, changes will be locked.
+                  </p>
+                </td>
+              </tr>
+            </table>
+            <% end %>
+
+            <p style="margin: 0 0 8px; color: #9ca3af; font-size: 12px; line-height: 1.5;">
+              If the button doesn't work, copy and paste this link:<br>
+              <span style="color: #6b7280; word-break: break-all;"><%= @access_url %></span>
+            </p>
+            <p style="margin: 0 0 0; color: #9ca3af; font-size: 12px;">
+              This link expires in 7 days. Need a new one? Visit your sponsor portal login page.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Contact -->
+        <tr>
+          <td style="padding: 20px 32px 28px;">
+            <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.6;">
+              Questions? Contact <strong style="color: #374151;"><%= contact_name %></strong><%= " at #{contact_phone}" if contact_phone.present? %><%= " or <a href=\"mailto:#{contact_email}\" style=\"color: #{brand}; text-decoration: none;\">#{contact_email}</a>".html_safe if contact_email.present? %>.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background-color: #f9fafb; border-top: 1px solid #e5e7eb; padding: 20px 32px; text-align: center;">
+            <p style="margin: 0 0 4px; color: #6b7280; font-size: 12px; font-weight: 500;"><%= @org_name %></p>
+            <p style="margin: 0; color: #9ca3af; font-size: 11px;">Powered by Shimizu Technology</p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>

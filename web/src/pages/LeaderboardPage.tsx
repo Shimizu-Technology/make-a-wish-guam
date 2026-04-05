@@ -285,7 +285,7 @@ export const LeaderboardPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [autoRefresh, fetchLeaderboard]);
 
-  const primaryColor = orgInfo.primary_color || '#16a34a';
+  const primaryColor = orgInfo.primary_color || '#0057B8';
 
   const formatTime = (date: Date) =>
     date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });

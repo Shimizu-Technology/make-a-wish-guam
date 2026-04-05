@@ -123,12 +123,36 @@ class Tournament < ApplicationRecord
   end
 
   def can_register?
-    open? && registration_open? && !registration_deadline_passed? && !at_capacity?
+    return false unless open? && registration_open? && !registration_deadline_passed?
+    return true unless public_at_capacity?
+    return false unless waitlist_enabled?
+    return true if waitlist_max.nil? || waitlist_max == 0
+    waitlist_count < waitlist_max
   end
 
   # Capacity helpers
   def confirmed_count
     golfers.confirmed.count
+  end
+
+  def public_confirmed_count
+    golfers.confirmed.where.not(payment_type: 'sponsor').count
+  end
+
+  def sponsor_confirmed_count
+    golfers.confirmed.where(payment_type: 'sponsor').count
+  end
+
+  def sponsor_reserved_teams
+    sponsors.active.sum(:slot_count).to_i / 2
+  end
+
+  def paid_count
+    golfers.confirmed.paid.count
+  end
+
+  def pending_payment_count
+    golfers.confirmed.where.not(payment_status: 'paid').count
   end
 
   def waitlist_count
@@ -143,19 +167,19 @@ class Tournament < ApplicationRecord
 
   def public_capacity
     return max_capacity if max_capacity.nil?
-    public_cap = max_capacity - (reserved_slots || 0)
+    public_cap = max_capacity - sponsor_reserved_teams
     public_cap.negative? ? 0 : public_cap
   end
 
   def public_capacity_remaining
     return public_capacity if public_capacity.nil?
-    remaining = public_capacity - confirmed_count
+    remaining = public_capacity - public_confirmed_count
     remaining.negative? ? 0 : remaining
   end
 
   def public_at_capacity?
     return false if max_capacity.nil?
-    confirmed_count >= public_capacity
+    public_confirmed_count >= public_capacity
   end
 
   def at_capacity?
@@ -166,10 +190,6 @@ class Tournament < ApplicationRecord
   # Stats
   def checked_in_count
     golfers.checked_in.count
-  end
-
-  def paid_count
-    golfers.paid.count
   end
 
   # Display helpers

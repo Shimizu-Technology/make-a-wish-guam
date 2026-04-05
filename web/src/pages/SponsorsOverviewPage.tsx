@@ -31,7 +31,7 @@ export const SponsorsOverviewPage: React.FC = () => {
             </div>
             <Link
               to={adminEventPath(currentTournament.slug, 'sponsors')}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-brand-700"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-medium text-white whitespace-nowrap flex-shrink-0 transition hover:bg-brand-700"
             >
               <HandCoins className="h-4 w-4" />
               Open sponsor management

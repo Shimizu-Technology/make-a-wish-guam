@@ -7,6 +7,7 @@ import { Trophy, AlertCircle, Loader2, Calendar, MapPin, ChevronLeft, Check, Dol
 import { api, Tournament } from '../services/api';
 import { useOrganization } from '../components/OrganizationProvider';
 import { formatEventDate } from '../utils/dates';
+import { SignedInAdminBar } from '../components/SignedInAdminBar';
 
 // ---------------------------------------------------------------------------
 // Animation helpers
@@ -187,6 +188,19 @@ export const OrgRegistrationPage: React.FC = () => {
         tournament_id: tournament.id,
       });
 
+      const isWaitlisted = result.golfer.registration_status === 'waitlist';
+
+      if (isWaitlisted) {
+        navigate(`/${tournamentSlug}/success`, {
+          state: {
+            golfer: result.golfer,
+            tournament: tournament,
+            waitlisted: true,
+          }
+        });
+        return;
+      }
+
       const checkoutResponse = await api.createSwipeSimpleCheckout(result.golfer.id);
 
       if (checkoutResponse.redirect_url) {
@@ -238,17 +252,29 @@ export const OrgRegistrationPage: React.FC = () => {
   }
 
   if (!tournament.can_register) {
+    const isAtCapacity = tournament.at_capacity || tournament.public_at_capacity;
+    const waitlistEnabled = tournament.waitlist_enabled;
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <Card className="p-8 max-w-md text-center">
           <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-neutral-900 mb-2">Registration Closed</h1>
+          <h1 className="text-xl font-bold text-neutral-900 mb-2">
+            {isAtCapacity && !waitlistEnabled ? 'Event Full' : 'Registration Closed'}
+          </h1>
           <p className="text-neutral-600 mb-4">
-            Registration for {tournament.name} is currently closed.
-            {tournament.at_capacity && ' The tournament is at capacity.'}
+            {isAtCapacity && !waitlistEnabled
+              ? `${tournament.name} has reached maximum capacity.`
+              : `Registration for ${tournament.name} is currently closed.`}
           </p>
+          {tournament.contact_name && (
+            <p className="text-sm text-neutral-500 mb-4">
+              Questions? Contact {tournament.contact_name}
+              {tournament.contact_phone && ` at ${tournament.contact_phone}`}
+              {tournament.contact_email && ` or ${tournament.contact_email}`}
+            </p>
+          )}
           <Button onClick={() => navigate('/')}>
-            View Other Tournaments
+            Back to Home
           </Button>
         </Card>
       </div>
@@ -263,6 +289,7 @@ export const OrgRegistrationPage: React.FC = () => {
     <MotionConfig reducedMotion="user">
     <PageTransition>
     <div className="min-h-screen bg-[#F5F5F5]">
+      <SignedInAdminBar />
       {/* ================================================================= */}
       {/* HERO HEADER                                                        */}
       {/* ================================================================= */}
@@ -309,6 +336,16 @@ export const OrgRegistrationPage: React.FC = () => {
           </motion.div>
         </div>
       </header>
+
+      {(tournament.at_capacity || tournament.public_at_capacity) && tournament.waitlist_enabled && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="max-w-6xl mx-auto px-6 py-3">
+            <p className="text-sm text-amber-800 font-medium text-center">
+              This event is at capacity. You will be placed on the waitlist and notified if a spot opens up.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ================================================================= */}
       {/* TWO-COLUMN LAYOUT                                                  */}
@@ -559,7 +596,7 @@ export const OrgRegistrationPage: React.FC = () => {
                         </div>
                         <div className="flex justify-between items-baseline">
                           <span className="text-sm text-neutral-500">Entry Fee</span>
-                          <span className="text-xl font-bold text-neutral-900">{(tournament as any).entry_fee_display || '$300/team'}</span>
+                          <span className="text-xl font-bold text-neutral-900">{(tournament as any).entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}</span>
                         </div>
                       </div>
 
@@ -601,13 +638,13 @@ export const OrgRegistrationPage: React.FC = () => {
                 <motion.button
                   onClick={handleSubmit}
                   disabled={submitState !== 'idle'}
-                  className={`inline-flex items-center gap-2 bg-[#E31837] hover:bg-[#c41230] text-white font-semibold text-sm rounded-full px-8 py-3 transition-colors min-h-[44px] w-full sm:w-auto justify-center ${submitState !== 'idle' ? 'opacity-75 cursor-not-allowed' : ''}`}
+                  className={`inline-flex items-center gap-2 ${(tournament.at_capacity || tournament.public_at_capacity) && tournament.waitlist_enabled ? 'bg-amber-500 hover:bg-amber-600' : 'bg-[#E31837] hover:bg-[#c41230]'} text-white font-semibold text-sm rounded-full px-8 py-3 transition-colors min-h-[44px] w-full sm:w-auto justify-center ${submitState !== 'idle' ? 'opacity-75 cursor-not-allowed' : ''}`}
                   whileHover={submitState === 'idle' ? { scale: 1.01 } : {}}
                   whileTap={submitState === 'idle' ? { scale: 0.98 } : {}}
                 >
                   {submitState === 'idle' && (
                     <>
-                      Register & Pay
+                      {(tournament.at_capacity || tournament.public_at_capacity) && tournament.waitlist_enabled ? 'Join Waitlist' : 'Register & Pay'}
                       <ChevronRight className="w-4 h-4" />
                     </>
                   )}
@@ -669,7 +706,7 @@ export const OrgRegistrationPage: React.FC = () => {
                 <div className="border-t border-neutral-100 pt-4 mb-6">
                   <div className="flex justify-between items-baseline mb-2">
                     <span className="text-neutral-500 text-sm">Entry Fee</span>
-                    <span className="text-2xl font-bold text-neutral-900">{(tournament as any).entry_fee_display || '$300/team'}</span>
+                    <span className="text-2xl font-bold text-neutral-900">{(tournament as any).entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}</span>
                   </div>
                   <p className="text-xs text-neutral-400">per team (2 players)</p>
 
@@ -681,11 +718,20 @@ export const OrgRegistrationPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="bg-[#0057B8]/5 rounded-2xl p-3">
-                  <p className="text-xs text-neutral-600">
-                    Payment processed via Bank of Guam SwipeSimple. You will be redirected after submitting.
-                  </p>
-                </div>
+                {(tournament.at_capacity || tournament.public_at_capacity) && tournament.waitlist_enabled ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                    <p className="text-xs text-amber-800 font-medium mb-1">Waitlist Registration</p>
+                    <p className="text-xs text-amber-700">
+                      This event is at capacity. Your team will be added to the waitlist and you'll be notified if a spot opens up. No payment is required until confirmed.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-[#0057B8]/5 rounded-2xl p-3">
+                    <p className="text-xs text-neutral-600">
+                      Payment processed via Bank of Guam SwipeSimple. You will be redirected after submitting.
+                    </p>
+                  </div>
+                )}
               </motion.div>
             </div>
           </div>

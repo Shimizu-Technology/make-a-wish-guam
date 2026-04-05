@@ -10,6 +10,7 @@ export { CreateTournamentPage } from './CreateTournamentPage';
 export { EventsManagementPage } from './EventsManagementPage';
 export { LeaderboardPage } from './LeaderboardPage';
 export { ScorecardPage } from './ScorecardPage';
+export { GroupManagementPage } from './GroupManagementPage';
 export { RaffleBoardPage } from './RaffleBoardPage';
 export { RaffleManagementPage } from './RaffleManagementPage';
 export { SponsorManagementPage } from './SponsorManagementPage';
@@ -18,6 +19,7 @@ export { OrgAdminDashboard } from './OrgAdminDashboard';
 export { OrgTournamentAdmin } from './OrgTournamentAdmin';
 export { OrgSettingsPage } from './OrgSettingsPage';
 export { SponsorsOverviewPage } from './SponsorsOverviewPage';
+export { ReportsPage } from './ReportsPage';
 
 // Golfer Scoring Access Pages
 export { GolferLoginPage } from './GolferLoginPage';

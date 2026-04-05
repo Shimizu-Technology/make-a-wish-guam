@@ -77,14 +77,15 @@ const formatCurrency = (cents: number) =>
 
 const getPaymentBadge = (method: string | null) => {
   const styles: Record<string, string> = {
-    swipesimple: 'bg-blue-100 text-blue-700',
+    swipesimple: 'bg-brand-100 text-brand-700',
     check: 'bg-amber-100 text-amber-700',
     cash: 'bg-green-100 text-green-700',
-    comp: 'bg-purple-100 text-purple-700',
-    stripe: 'bg-indigo-100 text-indigo-700',
+    comp: 'bg-neutral-100 text-neutral-700',
+    stripe: 'bg-brand-100 text-brand-700',
+    sponsor: 'bg-blue-100 text-blue-700',
   };
   const label = method
-    ? PAYMENT_METHOD_LABELS[method as PaymentMethod] || method
+    ? (method === 'sponsor' ? 'Sponsored' : PAYMENT_METHOD_LABELS[method as PaymentMethod] || method)
     : 'Unknown';
   return (
     <span
@@ -176,7 +177,7 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
             <select
               value={method}
               onChange={(e) => setMethod(e.target.value as PaymentMethod)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             >
               {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -197,7 +198,7 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
                   value={checkNumber}
                   onChange={(e) => setCheckNumber(e.target.value)}
                   placeholder="e.g. 1234"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
               <div>
@@ -209,7 +210,7 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
               <div>
@@ -220,7 +221,7 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
                   type="date"
                   value={dateReceived}
                   onChange={(e) => setDateReceived(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
             </>
@@ -235,7 +236,7 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Optional notes..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
             />
           </div>
         </div>
@@ -251,7 +252,7 @@ const MarkPaidModal: React.FC<MarkPaidModalProps> = ({
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition disabled:opacity-50"
           >
             {submitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -280,7 +281,7 @@ export const PaymentReconciliationPage: React.FC = () => {
   const [golfers, setGolfers] = useState<Golfer[]>([]);
   const [tournamentName, setTournamentName] = useState('');
   const [tournamentId, setTournamentId] = useState<string | null>(null);
-  const [entryFee, setEntryFee] = useState(30000);
+  const [entryFee, setEntryFee] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [markingPaid, setMarkingPaid] = useState<Golfer | null>(null);
@@ -304,7 +305,7 @@ export const PaymentReconciliationPage: React.FC = () => {
       const t = data.tournament || data;
       setTournamentName(t.name || '');
       setTournamentId(t.id || null);
-      setEntryFee(t.entry_fee || 30000);
+      setEntryFee(t.entry_fee || 0);
 
       const confirmed = (data.golfers || []).filter(
         (g: Golfer) => g.registration_status !== 'cancelled'
@@ -396,7 +397,7 @@ export const PaymentReconciliationPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center rounded-3xl bg-white">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       </div>
     );
   }
@@ -416,14 +417,14 @@ export const PaymentReconciliationPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
 
-      <section className="rounded-[28px] bg-white px-6 py-5 shadow-sm sm:px-8">
+      <section className="rounded-[28px] bg-white px-4 sm:px-6 py-4 sm:py-5 shadow-sm lg:px-8">
         <div className="max-w-6xl">
           <div className="flex items-center justify-between mb-2">
             <Link
               to={adminEventPath(tournamentSlug || '')}
-              className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition"
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition text-sm"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Back to Tournament</span>
             </Link>
             <button
@@ -431,66 +432,66 @@ export const PaymentReconciliationPage: React.FC = () => {
               className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition"
             >
               <RefreshCw className="w-4 h-4" />
-              <span>Refresh</span>
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">{tournamentName}</h1>
-          <p className="text-gray-500">Payment Reconciliation</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{tournamentName}</h1>
+          <p className="text-gray-500 text-sm">Payment Reconciliation</p>
         </div>
       </section>
 
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-4 sm:py-6">
         {/* Stats Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-sm p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-blue-50 rounded-lg">
-                <Users className="w-5 h-5 text-blue-600" />
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-5 sm:mb-6">
+          <div className="bg-white rounded-xl shadow-sm p-3.5 sm:p-5">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="p-2 sm:p-2.5 bg-brand-50 rounded-lg flex-shrink-0">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Registered</p>
-                <p className="text-2xl font-bold text-gray-900">{golfers.length}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-green-50 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Paid</p>
-                <p className="text-2xl font-bold text-gray-900">{paidGolfers.length}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-gray-500">Registered</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{golfers.length}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-amber-50 rounded-lg">
-                <Clock className="w-5 h-5 text-amber-600" />
+          <div className="bg-white rounded-xl shadow-sm p-3.5 sm:p-5">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="p-2 sm:p-2.5 bg-green-50 rounded-lg flex-shrink-0">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Pending</p>
-                <p className="text-2xl font-bold text-gray-900">{pendingGolfers.length}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-gray-500">Paid</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{paidGolfers.length}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-emerald-50 rounded-lg">
-                <DollarSign className="w-5 h-5 text-emerald-600" />
+          <div className="bg-white rounded-xl shadow-sm p-3.5 sm:p-5">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="p-2 sm:p-2.5 bg-amber-50 rounded-lg flex-shrink-0">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-gray-500">Pending</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{pendingGolfers.length}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm p-3.5 sm:p-5">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="p-2 sm:p-2.5 bg-emerald-50 rounded-lg flex-shrink-0">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-gray-500">Revenue</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{formatCurrency(totalRevenue)}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 mb-6">
-          <div className="flex gap-8">
+        <div className="border-b border-gray-200 mb-5 sm:mb-6">
+          <div className="flex gap-4 sm:gap-8 overflow-x-auto pb-px">
             {([
               { key: 'pending' as TabKey, label: 'Pending Payments', count: pendingGolfers.length, icon: Clock },
               { key: 'paid' as TabKey, label: 'Paid Teams', count: paidGolfers.length, icon: CheckCircle },
@@ -499,16 +500,16 @@ export const PaymentReconciliationPage: React.FC = () => {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`pb-3 px-1 border-b-2 font-medium flex items-center gap-2 ${
+                className={`pb-3 px-1 border-b-2 font-medium flex items-center gap-1.5 sm:gap-2 whitespace-nowrap text-sm ${
                   activeTab === tab.key
-                    ? 'border-blue-600 text-blue-600'
+                    ? 'border-brand-600 text-brand-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <tab.icon className="w-4 h-4" />
+                <tab.icon className="w-4 h-4 flex-shrink-0" />
                 {tab.label}
                 {tab.count !== undefined && (
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{tab.count}</span>
+                  <span className="text-xs bg-gray-100 text-gray-600 px-1.5 sm:px-2 py-0.5 rounded-full">{tab.count}</span>
                 )}
               </button>
             ))}
@@ -565,7 +566,7 @@ export const PaymentReconciliationPage: React.FC = () => {
                           <td className="px-6 py-4 text-right">
                             <button
                               onClick={() => setMarkingPaid(golfer)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition"
                             >
                               <DollarSign className="w-4 h-4" />
                               Mark as Paid
@@ -613,7 +614,7 @@ export const PaymentReconciliationPage: React.FC = () => {
                             <p className="text-xs text-gray-400">{golfer.email}</p>
                           </td>
                           <td className="px-6 py-4">
-                            {getPaymentBadge(golfer.payment_method)}
+                            {getPaymentBadge(golfer.payment_type === 'sponsor' ? 'sponsor' : golfer.payment_method)}
                           </td>
                           <td className="px-6 py-4 text-sm font-medium text-gray-900">
                             {golfer.payment_amount_cents
@@ -687,7 +688,7 @@ export const PaymentReconciliationPage: React.FC = () => {
               <div className="space-y-3">
                 {Object.entries(
                   paidGolfers.reduce<Record<string, number>>((acc, g) => {
-                    const method = g.payment_method || 'unknown';
+                    const method = g.payment_type === 'sponsor' ? 'sponsor' : (g.payment_method || 'unknown');
                     acc[method] = (acc[method] || 0) + 1;
                     return acc;
                   }, {})
@@ -707,7 +708,7 @@ export const PaymentReconciliationPage: React.FC = () => {
             <div className="flex justify-end">
               <button
                 onClick={handleExportCSV}
-                className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition font-medium"
+                className="flex items-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition font-medium"
               >
                 <Download className="w-5 h-5" />
                 Export CSV

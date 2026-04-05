@@ -5,12 +5,13 @@ class TournamentSerializer < ActiveModel::Serializer
              :max_capacity, :reserved_slots,
              :entry_fee, :entry_fee_dollars,
              :format_name, :fee_includes, :checks_payable_to,
-             :contact_name, :contact_phone,
+             :contact_name, :contact_phone, :contact_email,
              :registration_open, :can_register,
-             :confirmed_count, :waitlist_count,
+             :confirmed_count, :public_confirmed_count, :sponsor_confirmed_count,
+             :sponsor_reserved_teams, :waitlist_count,
              :capacity_remaining, :at_capacity,
              :public_capacity, :public_capacity_remaining, :public_at_capacity,
-             :checked_in_count, :paid_count,
+             :checked_in_count, :paid_count, :pending_payment_count,
              :display_name, :short_name,
              :organization_id, :organization_slug,
              # New configuration fields
@@ -24,8 +25,19 @@ class TournamentSerializer < ActiveModel::Serializer
              :registration_deadline, :waitlist_enabled, :waitlist_max,
              # Payment
              :payment_instructions, :allow_cash, :allow_check, :allow_card,
+             :swipe_simple_url, :walkin_swipe_simple_url,
+             :entry_fee_display,
+             # Raffle
+             :raffle_enabled, :raffle_ticket_price_cents, :raffle_draw_time,
+             :raffle_description, :raffle_auto_draw,
+             :raffle_max_tickets_per_person, :raffle_tickets_per_purchase,
+             # Walk-in
+             :walkin_fee, :walkin_registration_open,
+             # Sponsor
+             :sponsor_edit_deadline,
              # Schedule
              :check_in_time, :shotgun_start, :tee_times_enabled, :tee_time_interval_minutes,
+             :event_schedule,
              :created_at, :updated_at
 
   def organization_slug
@@ -60,6 +72,18 @@ class TournamentSerializer < ActiveModel::Serializer
     object.confirmed_count
   end
 
+  def public_confirmed_count
+    object.public_confirmed_count
+  end
+
+  def sponsor_confirmed_count
+    object.sponsor_confirmed_count
+  end
+
+  def sponsor_reserved_teams
+    object.sponsor_reserved_teams
+  end
+
   def waitlist_count
     object.waitlist_count
   end
@@ -90,6 +114,10 @@ class TournamentSerializer < ActiveModel::Serializer
 
   def paid_count
     object.paid_count
+  end
+
+  def pending_payment_count
+    object.pending_payment_count
   end
 
   def display_name

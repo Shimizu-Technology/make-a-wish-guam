@@ -5,7 +5,7 @@ import { api, Tournament, Sponsor } from '../services/api';
 import { motion, MotionConfig, useInView } from 'framer-motion';
 import {
   Calendar, MapPin, Users, DollarSign, Clock,
-  Trophy, AlertCircle, ChevronLeft, ChevronRight, Star, Building2, ExternalLink, Check, Flag
+  Trophy, AlertCircle, ChevronLeft, ChevronRight, Star, Building2, ExternalLink, Check, Flag, Gift, Ticket
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -14,6 +14,7 @@ import {
 
 import { hexToRgba } from '../utils/colors';
 import { formatEventDate } from '../utils/dates';
+import { SignedInAdminBar } from '../components/SignedInAdminBar';
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -130,19 +131,24 @@ export function OrgTournamentPage() {
     );
   }
 
-  const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
-    open: { label: 'Registration Open', bg: 'bg-[#E31837]', text: 'text-white' },
-    closed: { label: 'Registration Closed', bg: 'bg-neutral-200', text: 'text-neutral-600' },
-    in_progress: { label: 'In Progress', bg: 'bg-amber-500', text: 'text-white' },
-    completed: { label: 'Completed', bg: 'bg-neutral-200', text: 'text-neutral-600' },
-    draft: { label: 'Coming Soon', bg: 'bg-[#0057B8]', text: 'text-white' },
+  const getStatusBadge = () => {
+    if (tournament.status === 'in_progress') return { label: 'In Progress', bg: 'bg-amber-500', text: 'text-white' };
+    if (tournament.status === 'completed') return { label: 'Completed', bg: 'bg-neutral-200', text: 'text-neutral-600' };
+    if (tournament.status === 'archived') return { label: 'Archived', bg: 'bg-neutral-200', text: 'text-neutral-600' };
+    if (tournament.status === 'draft') return { label: 'Coming Soon', bg: 'bg-[#0057B8]', text: 'text-white' };
+    if (!tournament.registration_open) return { label: 'Registration Closed', bg: 'bg-neutral-200', text: 'text-neutral-600' };
+    const isFull = tournament.at_capacity || tournament.public_at_capacity;
+    if (isFull && tournament.waitlist_enabled) return { label: 'Waitlist Open', bg: 'bg-amber-500', text: 'text-white' };
+    if (isFull) return { label: 'At Capacity', bg: 'bg-neutral-200', text: 'text-neutral-600' };
+    return { label: 'Registration Open', bg: 'bg-[#E31837]', text: 'text-white' };
   };
 
-  const status = statusConfig[tournament.status] || { label: tournament.status, bg: 'bg-neutral-200', text: 'text-neutral-600' };
+  const status = getStatusBadge();
 
   return (
     <MotionConfig reducedMotion="user">
     <div className="min-h-screen bg-white text-neutral-900">
+      <SignedInAdminBar />
       {/* ================================================================= */}
       {/* HERO — MAW blue gradient (no photo)                               */}
       {/* ================================================================= */}
@@ -163,7 +169,7 @@ export function OrgTournamentPage() {
                 {tournament.name}
               </h1>
               <p className="text-white/80 text-lg mb-4">{formatEventDate(tournament.event_date)} · {tournament.location_name}</p>
-              <span className="inline-flex items-center gap-1.5 bg-[#E31837] text-white text-sm font-semibold px-3 py-1.5 rounded-full">
+              <span className={`inline-flex items-center gap-1.5 ${status.bg} ${status.text} text-sm font-semibold px-3 py-1.5 rounded-full`}>
                 {status.label}
               </span>
             </div>
@@ -197,12 +203,12 @@ export function OrgTournamentPage() {
             )}
             <div className="flex items-center gap-2 text-neutral-600">
               <DollarSign className="w-4 h-4 text-[#0057B8]" strokeWidth={1.5} />
-              <span>$300/team</span>
+              <span>{tournament.entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}</span>
             </div>
             {tournament.max_capacity && (
               <div className="flex items-center gap-2 text-neutral-600">
                 <Users className="w-4 h-4 text-[#0057B8]" strokeWidth={1.5} />
-                <span>{tournament.confirmed_count || 0} / {tournament.max_capacity} registered</span>
+                <span>{tournament.confirmed_count || 0} / {tournament.max_capacity} teams registered</span>
               </div>
             )}
           </div>
@@ -236,8 +242,8 @@ export function OrgTournamentPage() {
                   <Calendar className="w-5 h-5 mt-0.5 shrink-0 text-[#0057B8]" strokeWidth={1.5} />
                   <div>
                     <p className="font-medium text-neutral-900">{formatEventDate(tournament.event_date) || 'Date TBA'}</p>
-                    {tournament.registration_time && (
-                      <p className="text-neutral-500 text-sm">Registration: {tournament.registration_time}</p>
+                    {(tournament.check_in_time || tournament.registration_time) && (
+                      <p className="text-neutral-500 text-sm">Check-in: {tournament.check_in_time || tournament.registration_time}</p>
                     )}
                     {tournament.start_time && (
                       <p className="text-neutral-500 text-sm">Start: {tournament.start_time}</p>
@@ -267,25 +273,38 @@ export function OrgTournamentPage() {
                   </div>
                 )}
 
-                {tournament.contact_name && (
+                {(tournament.contact_name || tournament.contact_phone || tournament.contact_email) && (
                   <div className="mt-6 pt-5 border-t border-neutral-100">
-                    <p className="font-medium text-neutral-900">{tournament.contact_name}</p>
+                    {tournament.contact_name && (
+                      <p className="font-medium text-neutral-900">{tournament.contact_name}</p>
+                    )}
                     {tournament.contact_phone && (
                       <p className="text-neutral-500 text-sm">{tournament.contact_phone}</p>
+                    )}
+                    {tournament.contact_email && (
+                      <a href={`mailto:${tournament.contact_email}`} className="text-[#0057B8] hover:underline text-sm">{tournament.contact_email}</a>
                     )}
                   </div>
                 )}
 
-                {(tournament.check_in_time || tournament.start_time) && (
+                {(tournament.event_schedule || tournament.check_in_time || tournament.start_time) && (
                   <div className="mt-6 p-4 rounded-2xl bg-[#F5F5F5]">
                     <div className="flex items-center gap-2 mb-3">
                       <Clock className="w-5 h-5 text-[#0057B8]" strokeWidth={1.5} />
                       <p className="font-medium text-neutral-900">Event Schedule</p>
                     </div>
                     <ul className="space-y-1.5 text-sm text-neutral-600">
-                      <li>7:00 AM &mdash; Check-in</li>
-                      <li>8:00 AM &mdash; Shotgun Start</li>
-                      <li>1:30 PM &mdash; Banquet &amp; Awards</li>
+                      {tournament.event_schedule
+                        ? tournament.event_schedule.split('\n').filter(Boolean).map((line: string, i: number) => (
+                            <li key={i}>{line}</li>
+                          ))
+                        : (
+                          <>
+                            {tournament.check_in_time && <li>{tournament.check_in_time} — Check-in</li>}
+                            {tournament.start_time && <li>{tournament.start_time}</li>}
+                          </>
+                        )
+                      }
                     </ul>
                   </div>
                 )}
@@ -304,7 +323,7 @@ export function OrgTournamentPage() {
                   <div className="flex justify-between items-baseline">
                     <span className="text-neutral-500 text-sm">Entry Fee</span>
                     <span className="font-bold text-xl text-neutral-900">
-                      $300/team
+                      {tournament.entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}
                     </span>
                   </div>
 
@@ -321,7 +340,7 @@ export function OrgTournamentPage() {
                       Capacity
                     </span>
                     <span className="text-neutral-600">
-                      {tournament.confirmed_count || 0} / {tournament.public_capacity || tournament.max_capacity} registered
+                      {tournament.confirmed_count || 0} / {tournament.max_capacity} teams registered
                     </span>
                   </div>
 
@@ -333,20 +352,30 @@ export function OrgTournamentPage() {
                 </div>
 
                 {tournament.can_register ? (
-                  <Link
-                    to={`/${tournamentSlug}/register`}
-                    className="flex items-center justify-center gap-2 w-full text-center px-5 py-3 text-sm font-semibold text-white bg-[#E31837] hover:bg-[#c41230] rounded-full transition-colors duration-200"
-                  >
-                    Register Now
-                    <ChevronRight className="w-4 h-4" strokeWidth={2} />
-                  </Link>
-                ) : tournament.at_capacity ? (
+                  (tournament.at_capacity || tournament.public_at_capacity) && tournament.waitlist_enabled ? (
+                    <Link
+                      to={`/${tournamentSlug}/register`}
+                      className="flex items-center justify-center gap-2 w-full text-center px-5 py-3 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-full transition-colors duration-200"
+                    >
+                      Join Waitlist
+                      <ChevronRight className="w-4 h-4" strokeWidth={2} />
+                    </Link>
+                  ) : (
+                    <Link
+                      to={`/${tournamentSlug}/register`}
+                      className="flex items-center justify-center gap-2 w-full text-center px-5 py-3 text-sm font-semibold text-white bg-[#E31837] hover:bg-[#c41230] rounded-full transition-colors duration-200"
+                    >
+                      Register Now
+                      <ChevronRight className="w-4 h-4" strokeWidth={2} />
+                    </Link>
+                  )
+                ) : (tournament.at_capacity || tournament.public_at_capacity) ? (
                   <div className="w-full text-center px-5 py-3 text-sm font-semibold text-neutral-400 bg-neutral-100 rounded-full cursor-not-allowed">
                     At Capacity
                   </div>
-                ) : tournament.status === 'open' ? (
+                ) : !tournament.registration_open ? (
                   <div className="w-full text-center px-5 py-3 text-sm font-semibold text-neutral-400 bg-neutral-100 rounded-full cursor-not-allowed">
-                    Registration Opening Soon
+                    Registration Closed
                   </div>
                 ) : (
                   <div className="w-full text-center px-5 py-3 text-sm font-semibold text-neutral-400 bg-neutral-100 rounded-full cursor-not-allowed">
@@ -363,42 +392,75 @@ export function OrgTournamentPage() {
             </ScrollReveal>
 
             {/* Payment Options */}
-            <ScrollReveal delay={0.2}>
-              <div className="bg-white rounded-2xl border border-neutral-200 p-6">
-                <h3 className="font-bold tracking-tight mb-4">Payment Options</h3>
-                <ul className="space-y-2.5 text-sm text-neutral-600">
-                  {tournament.allow_card && (
-                    <li className="flex items-center gap-2.5">
-                      <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#0057B8]/10">
-                        <Check className="w-3 h-3 text-[#0057B8]" />
-                      </div>
-                      Credit/Debit Card
-                    </li>
+            {(tournament.payment_instructions || tournament.allow_card || tournament.allow_cash || tournament.allow_check) && (
+              <ScrollReveal delay={0.2}>
+                <div className="bg-white rounded-2xl border border-neutral-200 p-6">
+                  <h3 className="font-bold tracking-tight mb-4">Payment Options</h3>
+                  {tournament.payment_instructions ? (
+                    <p className="text-sm text-neutral-600 leading-relaxed">{tournament.payment_instructions}</p>
+                  ) : (
+                    <ul className="space-y-2.5 text-sm text-neutral-600">
+                      {tournament.allow_card && (
+                        <li className="flex items-center gap-2.5">
+                          <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#0057B8]/10">
+                            <Check className="w-3 h-3 text-[#0057B8]" />
+                          </div>
+                          Credit/Debit Card
+                        </li>
+                      )}
+                      {tournament.allow_cash && (
+                        <li className="flex items-center gap-2.5">
+                          <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#0057B8]/10">
+                            <Check className="w-3 h-3 text-[#0057B8]" />
+                          </div>
+                          Cash (on tournament day)
+                        </li>
+                      )}
+                      {tournament.allow_check && (
+                        <li className="flex items-center gap-2.5">
+                          <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#0057B8]/10">
+                            <Check className="w-3 h-3 text-[#0057B8]" />
+                          </div>
+                          <span>
+                            Check
+                            {tournament.checks_payable_to && (
+                              <span className="text-neutral-400"> (payable to {tournament.checks_payable_to})</span>
+                            )}
+                          </span>
+                        </li>
+                      )}
+                    </ul>
                   )}
-                  {tournament.allow_cash && (
-                    <li className="flex items-center gap-2.5">
-                      <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#0057B8]/10">
-                        <Check className="w-3 h-3 text-[#0057B8]" />
-                      </div>
-                      Cash (on tournament day)
-                    </li>
+                </div>
+              </ScrollReveal>
+            )}
+
+            {/* Raffle CTA — only when raffle is enabled */}
+            {tournament.raffle_enabled && (
+              <ScrollReveal delay={0.3}>
+                <Link
+                  to={`/${tournamentSlug}/raffle`}
+                  className="block bg-white rounded-2xl shadow-lg border border-neutral-200 p-6 transition-shadow hover:shadow-xl group"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#F5A800]/10 flex items-center justify-center">
+                      <Gift className="w-5 h-5 text-[#F5A800]" strokeWidth={1.5} />
+                    </div>
+                    <h3 className="font-bold tracking-tight text-lg text-neutral-900">Raffle Prizes</h3>
+                  </div>
+                  {tournament.raffle_description ? (
+                    <p className="text-neutral-500 text-sm mb-4 line-clamp-2">{tournament.raffle_description}</p>
+                  ) : (
+                    <p className="text-neutral-500 text-sm mb-4">View prizes and check your tickets</p>
                   )}
-                  {tournament.allow_check && (
-                    <li className="flex items-center gap-2.5">
-                      <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#0057B8]/10">
-                        <Check className="w-3 h-3 text-[#0057B8]" />
-                      </div>
-                      <span>
-                        Check
-                        {tournament.checks_payable_to && (
-                          <span className="text-neutral-400"> (payable to {tournament.checks_payable_to})</span>
-                        )}
-                      </span>
-                    </li>
-                  )}
-                </ul>
-              </div>
-            </ScrollReveal>
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0057B8] group-hover:text-[#003a6e] transition-colors">
+                    <Ticket className="w-4 h-4" strokeWidth={1.5} />
+                    View Raffle Board
+                    <ChevronRight className="w-4 h-4" />
+                  </span>
+                </Link>
+              </ScrollReveal>
+            )}
           </div>
         </div>
       </main>
@@ -425,7 +487,7 @@ export function OrgTournamentPage() {
                 <SponsorGrid
                   sponsors={tournament.sponsors.filter(s => s.tier === 'title')}
                   size="large"
-                  columns="grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                  columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
                 />
               </div>
             )}
@@ -439,7 +501,7 @@ export function OrgTournamentPage() {
                 <SponsorGrid
                   sponsors={tournament.sponsors.filter(s => s.tier === 'platinum' || s.tier === 'gold')}
                   size="large"
-                  columns="grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                  columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
                 />
               </div>
             )}
@@ -453,7 +515,7 @@ export function OrgTournamentPage() {
                 <SponsorGrid
                   sponsors={tournament.sponsors.filter(s => s.tier === 'silver' || s.tier === 'bronze')}
                   size="small"
-                  columns="grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+                  columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
                 />
               </div>
             )}
@@ -463,7 +525,7 @@ export function OrgTournamentPage() {
               <SponsorGrid
                 sponsors={tournament.sponsors.filter(s => s.major && !['title', 'platinum', 'gold', 'silver', 'bronze', 'hole'].includes(s.tier))}
                 size="large"
-                columns="grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
               />
             )}
 
@@ -486,7 +548,7 @@ export function OrgTournamentPage() {
       {/* FOOTER                                                             */}
       {/* ================================================================= */}
       <footer className="border-t border-neutral-200">
-        <div className="max-w-5xl mx-auto px-6 lg:px-8 py-8 flex items-center justify-between text-sm text-neutral-400">
+        <div className="max-w-5xl mx-auto px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-neutral-400">
           <p>
             Powered by{' '}
             <span className="font-medium text-neutral-600">Shimizu Technology</span>
@@ -559,30 +621,35 @@ function HoleSponsorGrid({
       animate={isInView ? 'visible' : 'hidden'}
       variants={staggerContainer}
     >
-      {sorted.map((sponsor) => (
-        <motion.div
-          key={sponsor.id}
-          variants={staggerItem}
-          className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-neutral-200 transition-shadow duration-200 hover:shadow-md"
-        >
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm bg-[#0057B8]/10 text-[#0057B8]">
-            {sponsor.hole_number}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-neutral-900 truncate text-sm">{sponsor.name}</p>
-            {sponsor.website_url && (
-              <a
-                href={sponsor.website_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-[#0057B8] hover:underline"
-              >
-                Visit Website
-              </a>
-            )}
-          </div>
-        </motion.div>
-      ))}
+      {sorted.map((sponsor) => {
+        const inner = (
+          <motion.div
+            key={sponsor.id}
+            variants={staggerItem}
+            className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-neutral-200 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+          >
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm bg-[#0057B8]/10 text-[#0057B8] flex-shrink-0">
+              {sponsor.hole_number}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-neutral-900 truncate text-sm">{sponsor.name}</p>
+              {sponsor.website_url && (
+                <span className="text-xs text-[#0057B8] flex items-center gap-1">
+                  <ExternalLink className="w-2.5 h-2.5" />
+                  Visit
+                </span>
+              )}
+            </div>
+          </motion.div>
+        );
+        return sponsor.website_url ? (
+          <a key={sponsor.id} href={sponsor.website_url} target="_blank" rel="noopener noreferrer" className="block">
+            {inner}
+          </a>
+        ) : (
+          <div key={sponsor.id}>{inner}</div>
+        );
+      })}
     </motion.div>
   );
 }
@@ -592,58 +659,56 @@ function HoleSponsorGrid({
 // ---------------------------------------------------------------------------
 
 function SponsorCard({ sponsor, size }: { sponsor: Sponsor; size: 'large' | 'small' }) {
-  const tierColors: Record<string, string> = {
-    title: 'from-amber-50 to-amber-100/60 border-amber-200',
-    platinum: 'from-slate-50 to-slate-100/60 border-slate-200',
-    gold: 'from-amber-50/80 to-yellow-100/60 border-amber-200',
-    silver: 'from-neutral-50 to-neutral-100/60 border-neutral-200',
-    bronze: 'from-orange-50/80 to-orange-100/60 border-orange-200',
-  };
-
-  const tierBadgeColors: Record<string, string> = {
-    title: 'bg-amber-500 text-white',
-    platinum: 'bg-slate-500 text-white',
-    gold: 'bg-amber-500 text-white',
-    silver: 'bg-neutral-400 text-white',
-    bronze: 'bg-orange-400 text-white',
-  };
+  const isLarge = size === 'large';
 
   const card = (
     <div
       className={`
-        relative p-4 rounded-2xl border bg-gradient-to-br transition-shadow duration-200
-        hover:shadow-md
-        ${tierColors[sponsor.tier] || 'from-white to-neutral-50 border-neutral-200'}
-        ${size === 'large' ? 'min-h-[120px]' : 'min-h-[80px]'}
+        group relative rounded-2xl border bg-white transition-all duration-200
+        hover:shadow-lg hover:-translate-y-0.5
+        border-neutral-200
+        flex flex-col
       `}
     >
-      <span className={`
-        absolute -top-2 -right-2 text-xs font-bold px-2 py-0.5 rounded-full shadow-sm
-        ${tierBadgeColors[sponsor.tier] || 'bg-neutral-500 text-white'}
-      `}>
-        {sponsor.tier === 'title' ? 'Title' : sponsor.tier.charAt(0).toUpperCase() + sponsor.tier.slice(1)}
-      </span>
-
-      {sponsor.logo_url ? (
-        <div className="flex items-center justify-center h-full">
+      {/* Logo / placeholder area */}
+      <div className={`flex items-center justify-center bg-neutral-50/60 rounded-t-2xl ${
+        isLarge ? 'p-5 min-h-[100px]' : 'p-4 min-h-[72px]'
+      }`}>
+        {sponsor.logo_url ? (
           <img
             src={sponsor.logo_url}
             alt={sponsor.name}
-            className={`max-w-full object-contain ${size === 'large' ? 'max-h-16' : 'max-h-8'}`}
+            className={`max-w-full object-contain ${isLarge ? 'max-h-14' : 'max-h-9'}`}
           />
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-full text-center">
-          <Building2 className={`text-neutral-400 mb-1 ${size === 'large' ? 'w-8 h-8' : 'w-5 h-5'}`} strokeWidth={1.5} />
-          <p className={`font-semibold text-neutral-700 ${size === 'large' ? 'text-sm' : 'text-xs'}`}>
-            {sponsor.name}
-          </p>
-        </div>
-      )}
+        ) : (
+          <Building2
+            className={`text-neutral-300 ${isLarge ? 'w-10 h-10' : 'w-7 h-7'}`}
+            strokeWidth={1.5}
+          />
+        )}
+      </div>
 
-      {sponsor.website_url && (
-        <ExternalLink className="absolute bottom-2 right-2 w-3 h-3 text-neutral-300" strokeWidth={1.5} />
-      )}
+      {/* Name + description */}
+      <div className={`text-center ${isLarge ? 'px-3 py-3' : 'px-2 py-2'}`}>
+        <p className={`font-semibold text-neutral-800 leading-tight ${
+          isLarge ? 'text-sm' : 'text-xs'
+        }`}>
+          {sponsor.name}
+        </p>
+        {sponsor.description && isLarge && (
+          <p className="text-[11px] text-neutral-500 mt-1 line-clamp-2 leading-relaxed">
+            {sponsor.description}
+          </p>
+        )}
+        {sponsor.website_url && (
+          <span className={`inline-flex items-center gap-1 text-[#0057B8] mt-1.5 ${
+            isLarge ? 'text-xs' : 'text-[10px]'
+          }`}>
+            <ExternalLink className="w-2.5 h-2.5" />
+            Visit
+          </span>
+        )}
+      </div>
     </div>
   );
 

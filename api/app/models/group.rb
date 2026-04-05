@@ -1,6 +1,7 @@
 class Group < ApplicationRecord
   belongs_to :tournament
   has_many :golfers, dependent: :nullify
+  has_many :scores, dependent: :destroy
 
   validates :group_number, presence: true, uniqueness: { scope: :tournament_id }
   validates :hole_number, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 18 }, allow_nil: true
@@ -9,11 +10,27 @@ class Group < ApplicationRecord
   scope :with_golfers, -> { includes(:golfers).order(:group_number) }
   scope :for_tournament, ->(tournament_id) { where(tournament_id: tournament_id) }
 
-  # Maximum golfers per group
-  MAX_GOLFERS = 4
+  MAX_GOLFERS_DEFAULT = 4
+
+  def max_golfers
+    tournament&.team_size || MAX_GOLFERS_DEFAULT
+  end
+
+  def player_count
+    if golfers.loaded?
+      golfers.sum { |g| g.partner_name.present? ? 2 : 1 }
+    else
+      golfers.count + golfers.where.not(partner_name: [nil, '']).count
+    end
+  end
 
   def full?
-    golfers.count >= MAX_GOLFERS
+    player_count >= max_golfers
+  end
+
+  def can_add?(golfer)
+    incoming = golfer.partner_name.present? ? 2 : 1
+    player_count + incoming <= max_golfers
   end
 
   # Hole-based label for the group (e.g., "7A" for first foursome at Hole 7)
@@ -44,7 +61,7 @@ class Group < ApplicationRecord
   end
 
   def add_golfer(golfer)
-    return false if full?
+    return false unless can_add?(golfer)
 
     next_position = golfers.count + 1
     golfer.update!(group: self, position: next_position)

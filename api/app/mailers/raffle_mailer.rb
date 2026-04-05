@@ -31,7 +31,7 @@ class RaffleMailer
     
     send_email(
       to: @prize.winner_email,
-      subject: "🎉 Congratulations! You Won: #{@prize.name}",
+      subject: "#{@tournament.name} — Congratulations, You Won: #{@prize.name}!",
       html: render_template('raffle_mailer/winner_email')
     )
   end
@@ -72,7 +72,7 @@ class RaffleMailer
   private
 
   def set_branding
-    @primary_color = @organization&.primary_color || '#1e40af'
+    @primary_color = @organization&.primary_color || '#0057B8'
     @org_name = @organization&.name || 'Make-A-Wish Guam & CNMI'
     @logo_url = @organization&.logo_url
   end

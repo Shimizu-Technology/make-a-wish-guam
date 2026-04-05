@@ -35,7 +35,7 @@ export const EventsManagementPage: React.FC = () => {
       total_tournaments: tournaments.length,
       active_tournaments: activeTournaments.length,
       total_registrations: tournaments.reduce(
-        (sum, tournament) => sum + tournament.confirmed_count + tournament.waitlist_count,
+        (sum, tournament) => sum + (tournament.paid_count || 0),
         0
       ),
       total_revenue: tournaments.reduce(
@@ -94,7 +94,7 @@ export const EventsManagementPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
       <section className="rounded-[28px] bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-500">Events</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">Manage your event calendar</h1>
@@ -104,7 +104,7 @@ export const EventsManagementPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 sm:flex-row flex-shrink-0">
             {currentTournament && (
               <button
                 onClick={() => navigate(adminEventPath(currentTournament.slug))}
@@ -152,12 +152,12 @@ export const EventsManagementPage: React.FC = () => {
       )}
 
       <section className="rounded-[28px] bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-5">
-          <div>
-            <h2 className="text-lg font-semibold text-neutral-900">Active and recent events</h2>
-            <p className="mt-1 text-sm text-neutral-500">Your operators should mostly live here.</p>
+        <div className="flex items-center justify-between gap-3 border-b border-neutral-200 px-4 sm:px-6 py-4 sm:py-5">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-semibold text-neutral-900">Active and recent events</h2>
+            <p className="mt-0.5 sm:mt-1 text-sm text-neutral-500">Your operators should mostly live here.</p>
           </div>
-          <Link to={adminOrgRoutes.createEvent} className="text-sm font-medium text-brand-600 hover:text-brand-700">
+          <Link to={adminOrgRoutes.createEvent} className="text-sm font-medium text-brand-600 hover:text-brand-700 flex-shrink-0">
             Create event
           </Link>
         </div>
@@ -171,7 +171,7 @@ export const EventsManagementPage: React.FC = () => {
         ) : (
           <div className="divide-y divide-neutral-200">
             {activeTournaments.map((tournament) => (
-              <div key={tournament.id} className="px-6 py-5">
+              <div key={tournament.id} className="px-4 sm:px-6 py-4 sm:py-5">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -192,8 +192,11 @@ export const EventsManagementPage: React.FC = () => {
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <Users className="h-4 w-4" />
-                        {tournament.confirmed_count + tournament.waitlist_count}
-                        {tournament.max_capacity ? ` / ${tournament.max_capacity}` : ''} registrations
+                        {tournament.confirmed_count || 0}
+                        {tournament.max_capacity ? ` / ${tournament.max_capacity}` : ''} teams
+                        {tournament.sponsor_reserved_teams > 0 && (
+                          <span className="text-brand-600">({tournament.sponsor_reserved_teams} sponsor)</span>
+                        )}
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <CreditCard className="h-4 w-4" />
@@ -208,7 +211,7 @@ export const EventsManagementPage: React.FC = () => {
                       className="inline-flex items-center gap-2 rounded-2xl border border-neutral-200 px-4 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
                     >
                       <ChevronRight className="h-4 w-4" />
-                      Overview
+                      Registrations
                     </Link>
                     <Link
                       to={adminEventPath(tournament.slug, 'checkin')}
@@ -241,22 +244,22 @@ export const EventsManagementPage: React.FC = () => {
 
       {archivedTournaments.length > 0 && (
         <section className="rounded-[28px] bg-white shadow-sm">
-          <div className="border-b border-neutral-200 px-6 py-5">
-            <h2 className="text-lg font-semibold text-neutral-900">Archived events</h2>
-            <p className="mt-1 text-sm text-neutral-500">Historical events remain available for reference.</p>
+          <div className="border-b border-neutral-200 px-4 sm:px-6 py-4 sm:py-5">
+            <h2 className="text-base sm:text-lg font-semibold text-neutral-900">Archived events</h2>
+            <p className="mt-0.5 sm:mt-1 text-sm text-neutral-500">Historical events remain available for reference.</p>
           </div>
           <div className="divide-y divide-neutral-200">
             {archivedTournaments.map((tournament) => (
               <Link
                 key={tournament.id}
                 to={adminEventPath(tournament.slug)}
-                className="flex items-center justify-between gap-4 px-6 py-4 transition hover:bg-neutral-50"
+                className="flex items-center justify-between gap-4 px-4 sm:px-6 py-3.5 sm:py-4 transition hover:bg-neutral-50"
               >
-                <div>
-                  <p className="font-medium text-neutral-900">{tournament.name}</p>
-                  <p className="mt-1 text-sm text-neutral-500">{tournament.event_date ? formatDate(tournament.event_date) : 'Date TBD'}</p>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm sm:text-base text-neutral-900 truncate">{tournament.name}</p>
+                  <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-neutral-500">{tournament.event_date ? formatDate(tournament.event_date) : 'Date TBD'}</p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-neutral-400" />
+                <ChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
               </Link>
             ))}
           </div>

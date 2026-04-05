@@ -13,14 +13,23 @@ class GolferSerializer < ActiveModel::Serializer
              :formatted_payment_timestamp,
              # Payment timing fields
              :paid_at, :payment_timing, :payment_channel,
+             # Audit trail
+             :payment_verified_by_id, :payment_verified_at, :payment_verified_by_name,
+             :checked_in_by_id, :checked_in_by_name,
              # Team fields
              :partner_name, :partner_email, :partner_phone, :partner_waiver_accepted_at,
-             :team_name, :tshirt_size, :partner_tshirt_size, :is_team_captain
+             :team_name, :tshirt_size, :partner_tshirt_size, :is_team_captain,
+             # Sponsor fields
+             :sponsor_id, :sponsor_name, :sponsor_display_name
 
   belongs_to :group, optional: true
 
   def checked_in
     object.checked_in?
+  end
+
+  def sponsor_display_name
+    object.sponsor_name.presence || object.sponsor&.name
   end
 
   # Extract last name (last word of the full name) for sorting

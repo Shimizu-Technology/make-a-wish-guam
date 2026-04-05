@@ -2,17 +2,18 @@ import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { UserButton, useUser } from '@clerk/clerk-react';
 import {
+  BarChart3,
   Building2,
   Calendar,
   ClipboardList,
   CreditCard,
+  Flag,
   HandCoins,
   Home,
   LayoutDashboard,
   Menu,
   Settings,
   ShieldCheck,
-  Target,
   Ticket,
   Users,
   X,
@@ -89,16 +90,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const eventNav: NavItem[] = activeTournament
     ? [
         {
-          label: 'Overview',
-          path: adminEventPath(activeTournament.slug),
-          icon: Target,
-          match: (pathname) => pathname === adminEventPath(activeTournament.slug),
-        },
-        {
           label: 'Registrations',
-          path: adminEventPath(activeTournament.slug, 'registrations'),
+          path: adminEventPath(activeTournament.slug),
           icon: ClipboardList,
-          match: () => routeSection === 'registrations',
+          match: (pathname) => pathname === adminEventPath(activeTournament.slug) || routeSection === 'registrations',
         },
         {
           label: 'Payments',
@@ -113,9 +108,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           match: () => routeSection === 'checkin',
         },
         {
-          label: 'Groups',
+          label: 'Hole Assignment',
           path: adminEventPath(activeTournament.slug, 'groups'),
-          icon: Users,
+          icon: Flag,
           match: () => routeSection === 'groups',
         },
         {
@@ -131,10 +126,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           match: () => routeSection === 'sponsors',
         },
         {
-          label: 'Event Settings',
-          path: adminEventPath(activeTournament.slug, 'settings'),
-          icon: Settings,
-          match: () => routeSection === 'settings' && location.pathname.startsWith('/admin/events/'),
+          label: 'Reports',
+          path: adminEventPath(activeTournament.slug, 'reports'),
+          icon: BarChart3,
+          match: () => routeSection === 'reports',
         },
       ]
     : [];
@@ -190,7 +185,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-neutral-100">
-      <header className="sticky top-0 z-40 border-b border-brand-900/10 bg-brand-800 text-white shadow-sm">
+      <header className="sticky top-0 z-40 border-b border-brand-800/10 bg-brand-600 text-white shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:px-6">
           <div className="flex items-center gap-3">
             <button
@@ -285,7 +280,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         )}
 
         <aside
-          className={`fixed inset-y-0 left-0 z-40 w-[88vw] max-w-sm transform border-r border-neutral-200 bg-white px-4 py-4 shadow-xl transition-transform duration-200 lg:static lg:w-72 lg:max-w-none lg:translate-x-0 lg:rounded-3xl lg:border lg:shadow-sm ${
+          className={`fixed inset-y-0 left-0 z-40 w-[88vw] max-w-sm transform border-r border-neutral-200 bg-white px-4 py-4 shadow-xl transition-transform duration-200 overflow-y-auto lg:static lg:z-auto lg:w-72 lg:max-w-none lg:translate-x-0 lg:rounded-3xl lg:border lg:shadow-sm lg:overflow-visible ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
         >
@@ -338,9 +333,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                   <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium capitalize text-brand-700">
                     {activeTournament.status.replace('_', ' ')}
                   </span>
-                  <span className="rounded-full bg-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600">
-                    {activeTournament.confirmed_count} confirmed
-                  </span>
+                  {activeTournament.max_capacity ? (
+                    <span className="rounded-full bg-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600">
+                      {activeTournament.confirmed_count ?? 0} / {activeTournament.max_capacity} teams
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600">
+                      {activeTournament.paid_count ?? activeTournament.confirmed_count ?? 0} confirmed
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -350,7 +351,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-hidden">{children}</main>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white/95 backdrop-blur lg:hidden">

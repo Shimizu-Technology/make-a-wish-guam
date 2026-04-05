@@ -114,3 +114,42 @@
 - Promote completed items into release notes/handoffs.
 - Link actionable items to tickets before implementation.
 
+
+
+----------
+
+
+DONE - registration closed now properly blocks registrations; waitlist is configurable in event settings (enable/disable + max size); at capacity with waitlist enabled allows waitlist registrations
+
+DONE - payment confirmation emails now sent after verify_payment and payment_details actions; modern template matching confirmation email style with dynamic event data
+
+DONE - sponsor portal session now uses localStorage with 7-day expiry; fixed React StrictMode double-mount clearing session on refresh
+
+amount reserved or available should take into account sponsor reserved slots so that those are guranteed and won't go over the set max amount
+----------
+
+allow for adding multiple sponsor emails
+
+implement full clerk logins for sponsors so they properly login
+
+what if someone on the day of or before the day of needs to change their group - we need to allow for that
+
+maybe make it so. at a certain time, no more regular registration is available and the only option is walk in only where people can sign up / register at the walk in rate?
+
+setup websockets
+
+raffle winners are texted that they won
+- implement clicksend
+
+auto-draw raffle at scheduled time
+- raffle_draw_time and raffle_auto_draw fields already exist on tournaments table
+- need a background job scheduler (Sidekiq, GoodJob, or cron) to trigger draw_all at the configured time
+- for now, admin manually clicks "Draw All Remaining" at the event
+
+CardPointe payment integration
+- replace SwipeSimple redirect with CardPointe API after BOG meeting
+- in-app payment flow instead of external redirect
+
+fix all places where numbers are input to allow for deleting that first 0 or whatever?
+
+add ability to send payment links for people to purchase raffle tickets?
