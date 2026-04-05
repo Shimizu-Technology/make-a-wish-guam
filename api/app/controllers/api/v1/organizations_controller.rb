@@ -494,7 +494,7 @@ module Api
           return render json: { error: "Email is required" }, status: :unprocessable_entity
         end
 
-        user = User.find_by('LOWER(email) = ?', email)
+        user = User.where('LOWER(email) = LOWER(?)', email).first
 
         unless user
           user = User.create!(
