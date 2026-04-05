@@ -115,7 +115,7 @@ module Api
                                 .select(
                                   "tournaments.*",
                                   "SUM(CASE WHEN golfers.registration_status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_count",
-                                  "SUM(CASE WHEN golfers.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_count"
+                                  "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_count"
                                 )
                                 .group("tournaments.id")
                                 .order(event_date: :desc)
