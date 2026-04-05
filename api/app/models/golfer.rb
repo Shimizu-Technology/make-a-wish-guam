@@ -164,11 +164,8 @@ class Golfer < ApplicationRecord
     return unless tournament&.raffle_enabled?
 
     existing = tournament.raffle_tickets.where(golfer_id: id, price_cents: [0, nil])
-    existing_emails = existing.pluck(:purchaser_email).compact.map(&:downcase)
 
-    captain_email_key = email&.downcase
-
-    unless captain_email_key && existing_emails.include?(captain_email_key)
+    unless existing.exists?
       tournament.raffle_tickets.create!(
         golfer_id: id,
         purchaser_name: name,
@@ -178,11 +175,21 @@ class Golfer < ApplicationRecord
         payment_status: 'paid',
         purchased_at: Time.current
       )
-    end
 
-    if partner_name.present?
-      partner_has_ticket = existing.where(purchaser_name: partner_name).exists?
-      unless partner_has_ticket
+      if partner_name.present?
+        tournament.raffle_tickets.create!(
+          golfer_id: id,
+          purchaser_name: partner_name,
+          purchaser_email: partner_email.presence || email,
+          purchaser_phone: partner_phone.presence || phone,
+          price_cents: 0,
+          payment_status: 'paid',
+          purchased_at: Time.current
+        )
+      end
+    else
+      # Ensure partner ticket exists if golfer already has captain ticket
+      if partner_name.present? && existing.count < 2
         tournament.raffle_tickets.create!(
           golfer_id: id,
           purchaser_name: partner_name,
