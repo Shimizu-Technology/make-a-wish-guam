@@ -27,7 +27,12 @@ module Api
           confirmed_at: Time.current
         )
 
-        SponsorSlotSyncer.new(@sponsor).sync_slot(slot)
+        begin
+          SponsorSlotSyncer.new(@sponsor).sync_slot(slot)
+        rescue ActiveRecord::RecordInvalid => e
+          render json: { error: "Slot saved but player roster sync failed: #{e.message}" }, status: :unprocessable_entity
+          return
+        end
 
         render json: { slot: slot.as_json(only: [:id, :slot_number, :player_name, :player_email, :player_phone, :confirmed_at]) }
       end

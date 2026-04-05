@@ -20,12 +20,14 @@ class SponsorSlotSyncer
     end
   end
 
+  # Returns true on success, raises on failure so callers can surface the error.
   def sync_slot(slot)
     team_number = ((slot.slot_number - 1) / 2) + 1
     pair_start = (team_number - 1) * 2 + 1
     captain_slot = @sponsor.sponsor_slots.find_by(slot_number: pair_start)
     partner_slot = @sponsor.sponsor_slots.find_by(slot_number: pair_start + 1)
     sync_team(captain_slot, partner_slot, team_number)
+    true
   end
 
   private
@@ -39,7 +41,7 @@ class SponsorSlotSyncer
 
     if captain_name.nil?
       if golfer && golfer.registration_status != 'cancelled'
-        golfer.update(registration_status: 'cancelled')
+        golfer.update!(registration_status: 'cancelled')
         append_audit(golfer, "Team cancelled — captain slot cleared via sponsor portal")
       end
       return
@@ -73,8 +75,6 @@ class SponsorSlotSyncer
       append_audit(new_golfer, "Created via sponsor portal by #{@sponsor.name}")
       new_golfer.create_raffle_tickets! rescue nil
     end
-  rescue ActiveRecord::RecordInvalid => e
-    Rails.logger.error("SponsorSlotSyncer: Failed to sync team #{team_number} for sponsor #{@sponsor.id}: #{e.message}")
   end
 
   def captain_email_for(captain_slot, team_number)

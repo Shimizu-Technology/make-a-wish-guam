@@ -35,7 +35,7 @@ export const EventsManagementPage: React.FC = () => {
       total_tournaments: tournaments.length,
       active_tournaments: activeTournaments.length,
       total_registrations: tournaments.reduce(
-        (sum, tournament) => sum + (tournament.paid_count || 0),
+        (sum, tournament) => sum + (tournament.registration_count || 0),
         0
       ),
       total_revenue: tournaments.reduce(

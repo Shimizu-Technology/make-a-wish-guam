@@ -163,42 +163,44 @@ class Golfer < ApplicationRecord
   def create_raffle_tickets!
     return unless tournament&.raffle_enabled?
 
-    existing = tournament.raffle_tickets.where(golfer_id: id, price_cents: [0, nil])
+    # Row-level lock prevents concurrent mark_paid/verify_payment races
+    with_lock do
+      existing = tournament.raffle_tickets.where(golfer_id: id, price_cents: [0, nil])
 
-    unless existing.exists?
-      tournament.raffle_tickets.create!(
-        golfer_id: id,
-        purchaser_name: name,
-        purchaser_email: email,
-        purchaser_phone: phone,
-        price_cents: 0,
-        payment_status: 'paid',
-        purchased_at: Time.current
-      )
-
-      if partner_name.present?
+      unless existing.exists?
         tournament.raffle_tickets.create!(
           golfer_id: id,
-          purchaser_name: partner_name,
-          purchaser_email: partner_email.presence || email,
-          purchaser_phone: partner_phone.presence || phone,
+          purchaser_name: name,
+          purchaser_email: email,
+          purchaser_phone: phone,
           price_cents: 0,
           payment_status: 'paid',
           purchased_at: Time.current
         )
-      end
-    else
-      # Ensure partner ticket exists if golfer already has captain ticket
-      if partner_name.present? && existing.count < 2
-        tournament.raffle_tickets.create!(
-          golfer_id: id,
-          purchaser_name: partner_name,
-          purchaser_email: partner_email.presence || email,
-          purchaser_phone: partner_phone.presence || phone,
-          price_cents: 0,
-          payment_status: 'paid',
-          purchased_at: Time.current
-        )
+
+        if partner_name.present?
+          tournament.raffle_tickets.create!(
+            golfer_id: id,
+            purchaser_name: partner_name,
+            purchaser_email: partner_email.presence || email,
+            purchaser_phone: partner_phone.presence || phone,
+            price_cents: 0,
+            payment_status: 'paid',
+            purchased_at: Time.current
+          )
+        end
+      else
+        if partner_name.present? && existing.count < 2
+          tournament.raffle_tickets.create!(
+            golfer_id: id,
+            purchaser_name: partner_name,
+            purchaser_email: partner_email.presence || email,
+            purchaser_phone: partner_phone.presence || phone,
+            price_cents: 0,
+            payment_status: 'paid',
+            purchased_at: Time.current
+          )
+        end
       end
     end
   end

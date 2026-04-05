@@ -144,7 +144,7 @@ module Api
 
         loaded = tournaments.to_a
         total_revenue = loaded.sum { |t| t.read_attribute(:paid_count).to_i * (t.entry_fee || 0) }
-        total_registrations = loaded.sum { |t| t.read_attribute(:paid_count).to_i }
+        total_registrations = loaded.sum { |t| t.read_attribute(:confirmed_count).to_i }
         active_count = loaded.count { |t| %w[open in_progress].include?(t.status) }
 
         stats = {
