@@ -166,8 +166,12 @@ class Golfer < ApplicationRecord
     # Row-level lock prevents concurrent mark_paid/verify_payment races
     with_lock do
       existing = tournament.raffle_tickets.where(golfer_id: id, price_cents: [0, nil])
+      captain_ticket = existing.find_by(purchaser_name: name)
+      partner_ticket = existing.where.not(purchaser_name: name).first if partner_name.present?
 
-      unless existing.exists?
+      if captain_ticket
+        captain_ticket.update!(purchaser_email: email, purchaser_phone: phone)
+      else
         tournament.raffle_tickets.create!(
           golfer_id: id,
           purchaser_name: name,
@@ -177,20 +181,16 @@ class Golfer < ApplicationRecord
           payment_status: 'paid',
           purchased_at: Time.current
         )
+      end
 
-        if partner_name.present?
-          tournament.raffle_tickets.create!(
-            golfer_id: id,
+      if partner_name.present?
+        if partner_ticket
+          partner_ticket.update!(
             purchaser_name: partner_name,
             purchaser_email: partner_email.presence || email,
-            purchaser_phone: partner_phone.presence || phone,
-            price_cents: 0,
-            payment_status: 'paid',
-            purchased_at: Time.current
+            purchaser_phone: partner_phone.presence || phone
           )
-        end
-      else
-        if partner_name.present? && existing.count < 2
+        elsif existing.count < 2
           tournament.raffle_tickets.create!(
             golfer_id: id,
             purchaser_name: partner_name,

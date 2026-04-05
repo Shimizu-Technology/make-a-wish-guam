@@ -66,8 +66,9 @@ class SponsorSlotSyncer
     }
 
     if golfer
-      changes = detect_changes(golfer, attrs)
-      golfer.update!(attrs)
+      update_attrs = attrs.except(:paid_at)
+      changes = detect_changes(golfer, update_attrs)
+      golfer.update!(update_attrs)
       append_audit(golfer, "Updated via sponsor portal: #{changes}") if changes.present?
       golfer.create_raffle_tickets! rescue nil
     else
