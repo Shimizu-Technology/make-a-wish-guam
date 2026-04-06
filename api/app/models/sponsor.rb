@@ -45,7 +45,7 @@ class Sponsor < ApplicationRecord
   end
 
   def hole_sponsor?
-    tier == 'hole'
+    hole_number.present?
   end
 
   # Display label

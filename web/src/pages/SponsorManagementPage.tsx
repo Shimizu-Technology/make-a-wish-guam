@@ -209,7 +209,7 @@ export const SponsorManagementPage: React.FC = () => {
             <Flag className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 flex-shrink-0" />
             <div className="min-w-0">
               <p className="text-xs sm:text-sm text-gray-500">Hole Sponsors</p>
-              <p className="text-lg sm:text-xl font-bold">{sponsors.filter(s => s.tier === 'hole').length}</p>
+              <p className="text-lg sm:text-xl font-bold">{sponsors.filter(s => s.hole_number != null).length}</p>
             </div>
           </div>
         </div>

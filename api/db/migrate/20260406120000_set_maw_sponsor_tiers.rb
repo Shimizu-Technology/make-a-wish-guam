@@ -20,7 +20,7 @@ class SetMawSponsorTiers < ActiveRecord::Migration[8.1]
       'platinum' => 'presenting',
       'gold'     => 'premiere',
       'silver'   => 'premiere',
-      'bronze'   => 'hole',
+      'bronze'   => 'premiere',
     }
 
     tournament.sponsors.find_each do |sponsor|
