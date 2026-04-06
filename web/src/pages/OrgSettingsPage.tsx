@@ -25,10 +25,25 @@ import {
   Home,
   Plus,
   X,
-  ArrowUp,
-  ArrowDown,
+  GripVertical,
   Building2,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import toast, { Toaster } from 'react-hot-toast';
 
 interface OrgMember {
@@ -105,6 +120,147 @@ function deriveRegistrationMode(registration_open: boolean, walkin_registration_
   if (walkin_registration_open) return 'walkin';
   return 'closed';
 }
+
+// ---------------------------------------------------------------------------
+// Sortable Tier Item (dnd-kit)
+// ---------------------------------------------------------------------------
+const SortableTierItem: React.FC<{
+  tier: SponsorTierDef;
+  canDelete: boolean;
+  onLabelChange: (key: string, label: string) => void;
+  onDelete: (key: string) => void;
+}> = ({ tier, canDelete, onLabelChange, onDelete }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tier.key });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 bg-gray-50 rounded-xl p-2.5 sm:p-3 ${isDragging ? 'shadow-lg ring-2 ring-brand-300' : ''}`}
+    >
+      <button
+        type="button"
+        className="touch-none p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing flex-shrink-0"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <input
+        type="text"
+        value={tier.label}
+        onChange={(e) => onLabelChange(tier.key, e.target.value)}
+        className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+      />
+      <span className="hidden sm:block text-[10px] text-gray-400 font-mono flex-shrink-0">{tier.key}</span>
+      {canDelete && (
+        <button
+          type="button"
+          onClick={() => onDelete(tier.key)}
+          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition flex-shrink-0"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Sponsor Tier Editor (with dnd-kit drag & drop)
+// ---------------------------------------------------------------------------
+const SponsorTierEditor: React.FC<{
+  tiers: SponsorTierDef[];
+  onChange: (tiers: SponsorTierDef[]) => void;
+}> = ({ tiers, onChange }) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
+  );
+
+  const sorted = [...tiers].sort((a, b) => a.sort_order - b.sort_order);
+  const tierKeys = sorted.map(t => t.key);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = sorted.findIndex(t => t.key === active.id);
+    const newIndex = sorted.findIndex(t => t.key === over.id);
+    const reordered = arrayMove(sorted, oldIndex, newIndex).map((t, i) => ({
+      ...t,
+      sort_order: i,
+    }));
+    onChange(reordered);
+  };
+
+  const handleLabelChange = (key: string, label: string) => {
+    onChange(tiers.map(t => (t.key === key ? { ...t, label } : t)));
+  };
+
+  const handleDelete = (key: string) => {
+    onChange(tiers.filter(t => t.key !== key));
+  };
+
+  const handleAdd = () => {
+    const maxOrder = Math.max(...tiers.map(t => t.sort_order), -1);
+    const existingKeys = tiers.map(t => t.key);
+    let newKey = 'custom';
+    let suffix = 1;
+    while (existingKeys.includes(newKey)) {
+      newKey = `custom_${suffix++}`;
+    }
+    onChange([...tiers, { key: newKey, label: 'New Tier', sort_order: maxOrder + 1 }]);
+  };
+
+  return (
+    <div className="pt-4 border-t border-gray-200">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Sponsor Tiers
+      </label>
+      <p className="text-xs text-gray-500 mb-3">
+        Customize the tier names and order. Drag the handle to reorder.
+      </p>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={tierKeys} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+            {sorted.map(tier => (
+              <SortableTierItem
+                key={tier.key}
+                tier={tier}
+                canDelete={tiers.length > 2}
+                onLabelChange={handleLabelChange}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+      <button
+        type="button"
+        onClick={handleAdd}
+        className="mt-3 flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-medium"
+      >
+        <Plus className="w-4 h-4" />
+        Add tier
+      </button>
+    </div>
+  );
+};
 
 export const OrgSettingsPage: React.FC = () => {
   const { organization } = useOrganization();
@@ -1176,102 +1332,10 @@ export const OrgSettingsPage: React.FC = () => {
                 </div>
 
                 {/* Sponsor Tier Configuration */}
-                <div className="pt-4 border-t border-gray-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Sponsor Tiers
-                  </label>
-                  <p className="text-xs text-gray-500 mb-3">Customize the tier names and order for your sponsors. Drag to reorder.</p>
-                  <div className="space-y-2">
-                    {[...tournamentSettings.sponsor_tiers]
-                      .sort((a, b) => a.sort_order - b.sort_order)
-                      .map((tier, idx) => (
-                      <div key={tier.key} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5 sm:p-3">
-                        <div className="flex flex-col gap-0.5 flex-shrink-0">
-                          <button
-                            type="button"
-                            disabled={idx === 0}
-                            onClick={() => {
-                              const sorted = [...tournamentSettings.sponsor_tiers].sort((a, b) => a.sort_order - b.sort_order);
-                              if (idx === 0) return;
-                              const prev = sorted[idx - 1];
-                              const curr = sorted[idx];
-                              const updated = tournamentSettings.sponsor_tiers.map(t => {
-                                if (t.key === curr.key) return { ...t, sort_order: prev.sort_order };
-                                if (t.key === prev.key) return { ...t, sort_order: curr.sort_order };
-                                return t;
-                              });
-                              setTournamentSettings(prev => prev ? { ...prev, sponsor_tiers: updated } : null);
-                            }}
-                            className="p-0.5 text-gray-400 hover:text-gray-700 disabled:opacity-30"
-                          >
-                            <ArrowUp className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={idx === tournamentSettings.sponsor_tiers.length - 1}
-                            onClick={() => {
-                              const sorted = [...tournamentSettings.sponsor_tiers].sort((a, b) => a.sort_order - b.sort_order);
-                              if (idx === sorted.length - 1) return;
-                              const next = sorted[idx + 1];
-                              const curr = sorted[idx];
-                              const updated = tournamentSettings.sponsor_tiers.map(t => {
-                                if (t.key === curr.key) return { ...t, sort_order: next.sort_order };
-                                if (t.key === next.key) return { ...t, sort_order: curr.sort_order };
-                                return t;
-                              });
-                              setTournamentSettings(prev => prev ? { ...prev, sponsor_tiers: updated } : null);
-                            }}
-                            className="p-0.5 text-gray-400 hover:text-gray-700 disabled:opacity-30"
-                          >
-                            <ArrowDown className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <input
-                          type="text"
-                          value={tier.label}
-                          onChange={(e) => {
-                            const updated = tournamentSettings.sponsor_tiers.map(t =>
-                              t.key === tier.key ? { ...t, label: e.target.value } : t
-                            );
-                            setTournamentSettings(prev => prev ? { ...prev, sponsor_tiers: updated } : null);
-                          }}
-                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                        />
-                        <span className="text-[10px] text-gray-400 font-mono w-16 text-right flex-shrink-0">{tier.key}</span>
-                        {tournamentSettings.sponsor_tiers.length > 2 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = tournamentSettings.sponsor_tiers.filter(t => t.key !== tier.key);
-                              setTournamentSettings(prev => prev ? { ...prev, sponsor_tiers: updated } : null);
-                            }}
-                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition flex-shrink-0"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const maxOrder = Math.max(...tournamentSettings.sponsor_tiers.map(t => t.sort_order), -1);
-                      const existingKeys = tournamentSettings.sponsor_tiers.map(t => t.key);
-                      let newKey = 'custom';
-                      let suffix = 1;
-                      while (existingKeys.includes(newKey)) {
-                        newKey = `custom_${suffix++}`;
-                      }
-                      const updated = [...tournamentSettings.sponsor_tiers, { key: newKey, label: 'New Tier', sort_order: maxOrder + 1 }];
-                      setTournamentSettings(prev => prev ? { ...prev, sponsor_tiers: updated } : null);
-                    }}
-                    className="mt-3 flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-medium"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add tier
-                  </button>
-                </div>
+                <SponsorTierEditor
+                  tiers={tournamentSettings.sponsor_tiers}
+                  onChange={(updated) => setTournamentSettings(prev => prev ? { ...prev, sponsor_tiers: updated } : null)}
+                />
               </div>
             </div>
 
