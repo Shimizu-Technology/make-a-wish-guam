@@ -34,7 +34,7 @@ class TournamentSerializer < ActiveModel::Serializer
              # Walk-in
              :walkin_fee, :walkin_registration_open,
              # Sponsor
-             :sponsor_edit_deadline,
+             :sponsor_edit_deadline, :sponsor_tiers,
              # Schedule
              :check_in_time, :shotgun_start, :tee_times_enabled, :tee_time_interval_minutes,
              :event_schedule,
@@ -126,6 +126,10 @@ class TournamentSerializer < ActiveModel::Serializer
 
   def short_name
     object.short_name
+  end
+
+  def sponsor_tiers
+    object.sponsor_tier_list
   end
 
   def created_at

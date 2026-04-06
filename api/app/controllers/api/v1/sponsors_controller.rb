@@ -12,9 +12,9 @@ module Api
       # Public - get all sponsors grouped by tier
       def index
         sponsors = @tournament.sponsors.active.ordered.includes(logo_attachment: :blob)
+        tier_keys = @tournament.sponsor_tier_keys
 
-        # Group by tier for display
-        grouped = Sponsor::TIERS.each_with_object({}) do |tier, hash|
+        grouped = tier_keys.each_with_object({}) do |tier, hash|
           tier_sponsors = sponsors.select { |s| s.tier == tier }
           hash[tier] = tier_sponsors.map { |s| sponsor_response(s) } if tier_sponsors.any?
         end
@@ -22,9 +22,10 @@ module Api
         render json: {
           sponsors: sponsors.map { |s| sponsor_response(s) },
           by_tier: grouped,
+          tier_definitions: @tournament.sponsor_tier_list,
           stats: {
             total: sponsors.count,
-            title: sponsors.count { |s| s.tier == 'title' },
+            title: sponsors.count { |s| s.tier_priority == 0 },
             major: sponsors.count(&:major?),
             hole: sponsors.count(&:hole_sponsor?)
           }

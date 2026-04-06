@@ -35,6 +35,26 @@ class Tournament < ApplicationRecord
   # Status constants
   STATUSES = %w[draft open closed in_progress completed archived].freeze
   
+  # Default sponsor tier definitions
+  DEFAULT_SPONSOR_TIERS = [
+    { 'key' => 'title',    'label' => 'Title Sponsor',    'sort_order' => 0 },
+    { 'key' => 'platinum', 'label' => 'Platinum',         'sort_order' => 1 },
+    { 'key' => 'gold',     'label' => 'Gold',             'sort_order' => 2 },
+    { 'key' => 'silver',   'label' => 'Silver',           'sort_order' => 3 },
+    { 'key' => 'bronze',   'label' => 'Bronze',           'sort_order' => 4 },
+    { 'key' => 'hole',     'label' => 'Hole Sponsor',     'sort_order' => 5 }
+  ].freeze
+
+  def sponsor_tier_list
+    custom = config&.dig('sponsor_tiers')
+    return DEFAULT_SPONSOR_TIERS if custom.blank?
+    custom.sort_by { |t| t['sort_order'].to_i }
+  end
+
+  def sponsor_tier_keys
+    sponsor_tier_list.map { |t| t['key'] }
+  end
+
   # Format constants
   FORMATS = %w[scramble stroke stableford best_ball match captain_choice custom].freeze
   
@@ -250,7 +270,8 @@ class Tournament < ApplicationRecord
       checks_payable_to: checks_payable_to,
       contact_name: contact_name,
       contact_phone: contact_phone,
-      registration_open: false
+      registration_open: false,
+      config: config
     )
   end
 

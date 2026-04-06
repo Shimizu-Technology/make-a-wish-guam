@@ -32,6 +32,26 @@
   }
 }
 
+@layer base {
+  /* Improve date/time inputs on mobile */
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"] {
+    min-height: 48px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* Fix iOS date input text alignment */
+  @supports (-webkit-touch-callout: none) {
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="time"] {
+      font-size: 16px;
+    }
+  }
+}
+
 @layer components {
   /* Page entrance animation class */
   .page-enter {
