@@ -41,7 +41,7 @@ class Sponsor < ApplicationRecord
   end
 
   def major?
-    tier_priority <= 2
+    tier_priority <= 1
   end
 
   def hole_sponsor?

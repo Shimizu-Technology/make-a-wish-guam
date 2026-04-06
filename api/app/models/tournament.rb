@@ -270,7 +270,8 @@ class Tournament < ApplicationRecord
       checks_payable_to: checks_payable_to,
       contact_name: contact_name,
       contact_phone: contact_phone,
-      registration_open: false
+      registration_open: false,
+      config: config
     )
   end
 
