@@ -207,7 +207,7 @@ module Api
         }
 
         render json: {
-          tournament: tournament,
+          tournament: TournamentSerializer.new(tournament).as_json,
           golfers: golfers.as_json(
             only: [:id, :name, :email, :phone, :company, :registration_status, 
                    :payment_status, :payment_method, :payment_type, :checked_in_at, :created_at,
