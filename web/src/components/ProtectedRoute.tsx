@@ -21,7 +21,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   useEffect(() => {
     api.setAuthTokenGetter(async () => {
       try {
-        const customToken = await getToken({ template: 'giaa-tournament' });
+        const template = import.meta.env.VITE_CLERK_JWT_TEMPLATE || 'giaa-tournament';
+        const customToken = await getToken({ template });
         if (customToken) return customToken;
         return await getToken();
       } catch {
