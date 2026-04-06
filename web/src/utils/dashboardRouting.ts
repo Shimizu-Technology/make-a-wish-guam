@@ -11,8 +11,7 @@ export async function resolveBestDashboardPath(
   if (explicitPath) return explicitPath;
 
   try {
-    const template = import.meta.env.VITE_CLERK_JWT_TEMPLATE || 'giaa-tournament';
-    const token = await getToken({ template });
+    const token = await getToken();
     if (!token) return DEFAULT_DASHBOARD_PATH;
 
     const organizations = await api.getMyOrganizationsWithToken(token);
