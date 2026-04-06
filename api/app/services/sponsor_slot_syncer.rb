@@ -70,11 +70,19 @@ class SponsorSlotSyncer
       changes = detect_changes(golfer, update_attrs)
       golfer.update!(update_attrs)
       append_audit(golfer, "Updated via sponsor portal: #{changes}") if changes.present?
-      golfer.create_raffle_tickets! rescue nil
+      begin
+        golfer.create_raffle_tickets!
+      rescue => e
+        Rails.logger.warn("Failed to create raffle tickets for #{golfer.name}: #{e.message}")
+      end
     else
       new_golfer = @tournament.golfers.create!(attrs)
       append_audit(new_golfer, "Created via sponsor portal by #{@sponsor.name}")
-      new_golfer.create_raffle_tickets! rescue nil
+      begin
+        new_golfer.create_raffle_tickets!
+      rescue => e
+        Rails.logger.warn("Failed to create raffle tickets for #{new_golfer.name}: #{e.message}")
+      end
     end
   end
 

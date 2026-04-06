@@ -76,9 +76,11 @@ module Api
 
         hole_label = group.hole_position_label
 
-        group.golfers.update_all(group_id: nil, position: nil)
-        group.scores.destroy_all
-        group.destroy!
+        ActiveRecord::Base.transaction do
+          group.golfers.update_all(group_id: nil, position: nil)
+          group.scores.destroy_all
+          group.destroy!
+        end
         
         ActivityLog.log(
           admin: current_admin,
