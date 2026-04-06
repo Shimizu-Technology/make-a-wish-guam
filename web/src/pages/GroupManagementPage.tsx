@@ -312,6 +312,7 @@ export const GroupManagementPage: React.FC = () => {
       fetchData(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed');
+      fetchData(false);
     } finally {
       setActionLoading(null);
     }
