@@ -201,6 +201,8 @@ class Golfer < ApplicationRecord
             purchased_at: Time.current
           )
         end
+      elsif partner_ticket
+        partner_ticket.destroy!
       end
     end
   end
