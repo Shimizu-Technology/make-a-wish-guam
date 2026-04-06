@@ -1,16 +1,18 @@
-# https://www.robotstxt.org/robotstxt.html
+# Make-A-Wish Guam & CNMI
+# https://make-a-wish-guam.netlify.app
+
 User-agent: *
 Allow: /
 
-# Disallow admin pages from being indexed
+# Disallow admin and private pages
 Disallow: /admin/
 Disallow: /admin/*
+Disallow: /api/
+Disallow: /sponsor-portal/
 
-# Allow main public pages
+# Allow public pages
 Allow: /
 Allow: /register
 
 # Sitemap
-# Update to your live domain or Netlify URL before launch.
-Sitemap: https://YOUR_NETLIFY_SUBDOMAIN.netlify.app/sitemap.xml
-
+Sitemap: https://make-a-wish-guam.netlify.app/sitemap.xml

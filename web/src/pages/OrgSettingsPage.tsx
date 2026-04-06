@@ -25,6 +25,9 @@ import {
   Home,
   Plus,
   X,
+  ArrowUp,
+  ArrowDown,
+  Building2,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -56,6 +59,12 @@ interface FormData {
 
 type RegistrationMode = 'regular' | 'walkin' | 'closed';
 
+interface SponsorTierDef {
+  key: string;
+  label: string;
+  sort_order: number;
+}
+
 interface TournamentSettings {
   id: string;
   name: string;
@@ -83,6 +92,7 @@ interface TournamentSettings {
   raffle_draw_time: string;
   raffle_ticket_price_cents: string;
   sponsor_edit_deadline: string;
+  sponsor_tiers: SponsorTierDef[];
   event_schedule: string;
   payment_instructions: string;
   check_in_time: string;
@@ -201,6 +211,14 @@ export const OrgSettingsPage: React.FC = () => {
               raffle_draw_time: t.raffle_draw_time || '',
               raffle_ticket_price_cents: t.raffle_ticket_price_cents?.toString() || '500',
               sponsor_edit_deadline: t.sponsor_edit_deadline || '',
+              sponsor_tiers: t.sponsor_tiers || [
+                { key: 'title', label: 'Title Sponsor', sort_order: 0 },
+                { key: 'platinum', label: 'Platinum', sort_order: 1 },
+                { key: 'gold', label: 'Gold', sort_order: 2 },
+                { key: 'silver', label: 'Silver', sort_order: 3 },
+                { key: 'bronze', label: 'Bronze', sort_order: 4 },
+                { key: 'hole', label: 'Hole Sponsor', sort_order: 5 },
+              ],
               event_schedule: t.event_schedule || '',
               payment_instructions: t.payment_instructions || '',
               check_in_time: t.check_in_time || '',
@@ -256,6 +274,7 @@ export const OrgSettingsPage: React.FC = () => {
       raffle_draw_time: tournamentSettings.raffle_draw_time || null,
       raffle_ticket_price_cents: tournamentSettings.raffle_ticket_price_cents ? parseInt(tournamentSettings.raffle_ticket_price_cents) : 500,
       sponsor_edit_deadline: tournamentSettings.sponsor_edit_deadline || null,
+      sponsor_tiers: tournamentSettings.sponsor_tiers,
       event_schedule: tournamentSettings.event_schedule || null,
       payment_instructions: tournamentSettings.payment_instructions || null,
       check_in_time: tournamentSettings.check_in_time || null,
@@ -1139,7 +1158,7 @@ export const OrgSettingsPage: React.FC = () => {
             {/* Sponsor Settings */}
             <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
               <h3 className="text-sm sm:text-md font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-brand-500 flex-shrink-0" />
+                <Building2 className="w-5 h-5 text-brand-500 flex-shrink-0" />
                 Sponsor Settings
               </h3>
               <div className="space-y-4">
@@ -1154,6 +1173,104 @@ export const OrgSettingsPage: React.FC = () => {
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                   <p className="mt-1 text-xs sm:text-sm text-gray-500">After this time, sponsors can no longer edit their player slots</p>
+                </div>
+
+                {/* Sponsor Tier Configuration */}
+                <div className="pt-4 border-t border-gray-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sponsor Tiers
+                  </label>
+                  <p className="text-xs text-gray-500 mb-3">Customize the tier names and order for your sponsors. Drag to reorder.</p>
+                  <div className="space-y-2">
+                    {[...tournamentSettings.sponsor_tiers]
+                      .sort((a, b) => a.sort_order - b.sort_order)
+                      .map((tier, idx) => (
+                      <div key={tier.key} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5 sm:p-3">
+                        <div className="flex flex-col gap-0.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => {
+                              const sorted = [...tournamentSettings.sponsor_tiers].sort((a, b) => a.sort_order - b.sort_order);
+                              if (idx === 0) return;
+                              const prev = sorted[idx - 1];
+                              const curr = sorted[idx];
+                              const updated = tournamentSettings.sponsor_tiers.map(t => {
+                                if (t.key === curr.key) return { ...t, sort_order: prev.sort_order };
+                                if (t.key === prev.key) return { ...t, sort_order: curr.sort_order };
+                                return t;
+                              });
+                              setTournamentSettings(prev => prev ? { ...prev, sponsor_tiers: updated } : null);
+                            }}
+                            className="p-0.5 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === tournamentSettings.sponsor_tiers.length - 1}
+                            onClick={() => {
+                              const sorted = [...tournamentSettings.sponsor_tiers].sort((a, b) => a.sort_order - b.sort_order);
+                              if (idx === sorted.length - 1) return;
+                              const next = sorted[idx + 1];
+                              const curr = sorted[idx];
+                              const updated = tournamentSettings.sponsor_tiers.map(t => {
+                                if (t.key === curr.key) return { ...t, sort_order: next.sort_order };
+                                if (t.key === next.key) return { ...t, sort_order: curr.sort_order };
+                                return t;
+                              });
+                              setTournamentSettings(prev => prev ? { ...prev, sponsor_tiers: updated } : null);
+                            }}
+                            className="p-0.5 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={tier.label}
+                          onChange={(e) => {
+                            const updated = tournamentSettings.sponsor_tiers.map(t =>
+                              t.key === tier.key ? { ...t, label: e.target.value } : t
+                            );
+                            setTournamentSettings(prev => prev ? { ...prev, sponsor_tiers: updated } : null);
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                        <span className="text-[10px] text-gray-400 font-mono w-16 text-right flex-shrink-0">{tier.key}</span>
+                        {tournamentSettings.sponsor_tiers.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = tournamentSettings.sponsor_tiers.filter(t => t.key !== tier.key);
+                              setTournamentSettings(prev => prev ? { ...prev, sponsor_tiers: updated } : null);
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition flex-shrink-0"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const maxOrder = Math.max(...tournamentSettings.sponsor_tiers.map(t => t.sort_order), -1);
+                      const existingKeys = tournamentSettings.sponsor_tiers.map(t => t.key);
+                      let newKey = 'custom';
+                      let suffix = 1;
+                      while (existingKeys.includes(newKey)) {
+                        newKey = `custom_${suffix++}`;
+                      }
+                      const updated = [...tournamentSettings.sponsor_tiers, { key: newKey, label: 'New Tier', sort_order: maxOrder + 1 }];
+                      setTournamentSettings(prev => prev ? { ...prev, sponsor_tiers: updated } : null);
+                    }}
+                    className="mt-3 flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-medium"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add tier
+                  </button>
                 </div>
               </div>
             </div>

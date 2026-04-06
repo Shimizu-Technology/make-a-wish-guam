@@ -298,6 +298,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             </button>
           </div>
 
+          {/* Public site link - mobile only */}
+          <button
+            onClick={() => handleNavigate('/')}
+            className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-brand-50 px-3 py-3 text-left text-sm text-brand-700 transition hover:bg-brand-100 lg:hidden"
+          >
+            <Home className="h-5 w-5" />
+            <span className="font-medium">Public site</span>
+          </button>
+
           <div className="mt-4 space-y-6 lg:mt-0">
             <div className="rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">Current event</p>

@@ -37,19 +37,50 @@ interface Sponsor {
   slots_filled: number;
 }
 
+interface TierDefinition {
+  key: string;
+  label: string;
+  sort_order: number;
+}
+
 interface Tournament {
   id: string;
   name: string;
+  sponsor_tiers?: TierDefinition[];
 }
 
-const TIERS = [
-  { value: 'title', label: 'Title Sponsor', icon: Star, color: 'text-yellow-500 bg-yellow-50' },
-  { value: 'platinum', label: 'Platinum', icon: Award, color: 'text-slate-500 bg-slate-50' },
-  { value: 'gold', label: 'Gold', icon: Medal, color: 'text-amber-500 bg-amber-50' },
-  { value: 'silver', label: 'Silver', icon: Medal, color: 'text-gray-400 bg-gray-50' },
-  { value: 'bronze', label: 'Bronze', icon: Medal, color: 'text-orange-600 bg-orange-50' },
-  { value: 'hole', label: 'Hole Sponsor', icon: Flag, color: 'text-green-500 bg-green-50' },
+const DEFAULT_TIERS: TierDefinition[] = [
+  { key: 'title', label: 'Title Sponsor', sort_order: 0 },
+  { key: 'platinum', label: 'Platinum', sort_order: 1 },
+  { key: 'gold', label: 'Gold', sort_order: 2 },
+  { key: 'silver', label: 'Silver', sort_order: 3 },
+  { key: 'bronze', label: 'Bronze', sort_order: 4 },
+  { key: 'hole', label: 'Hole Sponsor', sort_order: 5 },
 ];
+
+const TIER_COLORS = [
+  'text-yellow-500 bg-yellow-50',
+  'text-slate-500 bg-slate-50',
+  'text-amber-500 bg-amber-50',
+  'text-gray-400 bg-gray-50',
+  'text-orange-600 bg-orange-50',
+  'text-green-500 bg-green-50',
+  'text-blue-500 bg-blue-50',
+  'text-purple-500 bg-purple-50',
+];
+
+const TIER_ICONS = [Star, Award, Medal, Medal, Medal, Flag, Medal, Medal];
+
+function buildTiers(tierDefs: TierDefinition[]) {
+  return tierDefs
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((t, i) => ({
+      value: t.key,
+      label: t.label,
+      icon: TIER_ICONS[i % TIER_ICONS.length],
+      color: TIER_COLORS[i % TIER_COLORS.length],
+    }));
+}
 
 export const SponsorManagementPage: React.FC = () => {
   const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
@@ -72,7 +103,7 @@ export const SponsorManagementPage: React.FC = () => {
       );
       const tournamentData = await tournamentRes.json();
       const tid = tournamentData.id || tournamentData.tournament?.id;
-      setTournament({ ...tournamentData, id: tid });
+      setTournament({ ...tournamentData, id: tid, sponsor_tiers: tournamentData.sponsor_tiers });
 
       const sponsorsRes = await fetch(
         `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tid}/sponsors`,
@@ -113,6 +144,8 @@ export const SponsorManagementPage: React.FC = () => {
       fetchData();
     } catch { toast.error('Failed to delete sponsor'); }
   };
+
+  const TIERS = buildTiers(tournament?.sponsor_tiers || DEFAULT_TIERS);
 
   const sponsorsByTier = TIERS.reduce((acc, tier) => {
     acc[tier.value] = sponsors.filter(s => s.tier === tier.value);
@@ -226,6 +259,7 @@ export const SponsorManagementPage: React.FC = () => {
         <SponsorModal
           sponsor={editingSponsor}
           tournamentId={tournament?.id || ''}
+          tiers={TIERS}
           onClose={() => { setShowModal(false); setEditingSponsor(null); }}
           onSuccess={() => { setShowModal(false); setEditingSponsor(null); fetchData(); }}
         />
@@ -476,16 +510,17 @@ const SponsorCard: React.FC<{
 const SponsorModal: React.FC<{
   sponsor: Sponsor | null;
   tournamentId: string;
+  tiers: { value: string; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[];
   onClose: () => void;
   onSuccess: () => void;
-}> = ({ sponsor, tournamentId, onClose, onSuccess }) => {
+}> = ({ sponsor, tournamentId, tiers, onClose, onSuccess }) => {
   const { getToken } = useAuth();
   const [saving, setSaving] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: sponsor?.name || '',
-    tier: sponsor?.tier || 'bronze',
+    tier: sponsor?.tier || tiers[tiers.length - 1]?.value || 'bronze',
     logo_url: sponsor?.logo_url || '',
     website_url: sponsor?.website_url || '',
     description: sponsor?.description || '',
@@ -563,7 +598,7 @@ const SponsorModal: React.FC<{
           <div>
             <label className="block text-sm font-medium mb-1">Tier</label>
             <select value={form.tier} onChange={e => setForm({ ...form, tier: e.target.value })} className="w-full border rounded-lg px-3 py-2">
-              {TIERS.map(t => (<option key={t.value} value={t.value}>{t.label}</option>))}
+              {tiers.map(t => (<option key={t.value} value={t.value}>{t.label}</option>))}
             </select>
           </div>
 

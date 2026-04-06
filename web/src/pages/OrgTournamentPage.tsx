@@ -478,68 +478,46 @@ export function OrgTournamentPage() {
               </div>
             </ScrollReveal>
 
-            {/* Title Sponsors */}
-            {tournament.sponsors.filter(s => s.tier === 'title').length > 0 && (
-              <div className="mb-10">
-                <ScrollReveal>
-                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">Title Sponsors</h3>
-                </ScrollReveal>
-                <SponsorGrid
-                  sponsors={tournament.sponsors.filter(s => s.tier === 'title')}
-                  size="large"
-                  columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                />
-              </div>
-            )}
+            {/* Dynamic sponsor tiers */}
+            {(() => {
+              const tierDefs = (tournament as any).sponsor_tiers || [
+                { key: 'title', label: 'Title Sponsors', sort_order: 0 },
+                { key: 'platinum', label: 'Major Sponsors', sort_order: 1 },
+                { key: 'gold', label: 'Major Sponsors', sort_order: 2 },
+                { key: 'silver', label: 'Supporting Sponsors', sort_order: 3 },
+                { key: 'bronze', label: 'Supporting Sponsors', sort_order: 4 },
+                { key: 'hole', label: 'Hole Sponsors', sort_order: 5 },
+              ];
 
-            {/* Platinum/Gold */}
-            {tournament.sponsors.filter(s => s.tier === 'platinum' || s.tier === 'gold').length > 0 && (
-              <div className="mb-10">
-                <ScrollReveal>
-                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">Major Sponsors</h3>
-                </ScrollReveal>
-                <SponsorGrid
-                  sponsors={tournament.sponsors.filter(s => s.tier === 'platinum' || s.tier === 'gold')}
-                  size="large"
-                  columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
-                />
-              </div>
-            )}
+              const sortedTiers = [...tierDefs].sort((a: any, b: any) => a.sort_order - b.sort_order);
 
-            {/* Silver/Bronze */}
-            {tournament.sponsors.filter(s => s.tier === 'silver' || s.tier === 'bronze').length > 0 && (
-              <div className="mb-10">
-                <ScrollReveal>
-                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">Supporting Sponsors</h3>
-                </ScrollReveal>
-                <SponsorGrid
-                  sponsors={tournament.sponsors.filter(s => s.tier === 'silver' || s.tier === 'bronze')}
-                  size="small"
-                  columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
-                />
-              </div>
-            )}
+              return sortedTiers.map((tierDef: any) => {
+                const tierSponsors = (tournament.sponsors || []).filter(s => s.tier === tierDef.key);
+                if (tierSponsors.length === 0) return null;
 
-            {/* Other major sponsors */}
-            {tournament.sponsors.filter(s => s.major && !['title', 'platinum', 'gold', 'silver', 'bronze', 'hole'].includes(s.tier)).length > 0 && (
-              <SponsorGrid
-                sponsors={tournament.sponsors.filter(s => s.major && !['title', 'platinum', 'gold', 'silver', 'bronze', 'hole'].includes(s.tier))}
-                size="large"
-                columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
-              />
-            )}
+                const isHoleTier = tierDef.key === 'hole';
+                const isTopTier = tierDef.sort_order <= 1;
 
-            {/* Hole Sponsors */}
-            {tournament.sponsors.filter(s => s.tier === 'hole').length > 0 && (
-              <div className="mt-8">
-                <ScrollReveal>
-                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">Hole Sponsors</h3>
-                </ScrollReveal>
-                <HoleSponsorGrid
-                  sponsors={tournament.sponsors.filter(s => s.tier === 'hole')}
-                />
-              </div>
-            )}
+                return (
+                  <div key={tierDef.key} className="mb-10">
+                    <ScrollReveal>
+                      <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">
+                        {tierDef.label}{tierDef.label.toLowerCase().includes('sponsor') ? '' : ' Sponsors'}
+                      </h3>
+                    </ScrollReveal>
+                    {isHoleTier ? (
+                      <HoleSponsorGrid sponsors={tierSponsors} />
+                    ) : (
+                      <SponsorGrid
+                        sponsors={tierSponsors}
+                        size={isTopTier ? 'large' : 'small'}
+                        columns={isTopTier ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'}
+                      />
+                    )}
+                  </div>
+                );
+              });
+            })()}
           </div>
         </section>
       )}

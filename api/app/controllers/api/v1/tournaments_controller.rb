@@ -61,7 +61,15 @@ module Api
 
       # PATCH /api/v1/tournaments/:id
       def update
-        if @tournament.update(tournament_params.except(:organization_id))
+        attrs = tournament_params.except(:organization_id, :sponsor_tiers)
+
+        if params[:tournament][:sponsor_tiers].present?
+          tiers = params[:tournament][:sponsor_tiers]
+          tiers = tiers.map(&:to_unsafe_h) if tiers.respond_to?(:first) && tiers.first.respond_to?(:to_unsafe_h)
+          attrs[:config] = (@tournament.config || {}).merge('sponsor_tiers' => tiers)
+        end
+
+        if @tournament.update(attrs)
           ActivityLog.log(
             admin: current_admin,
             action: 'tournament_updated',
@@ -184,7 +192,9 @@ module Api
           :walkin_fee, :walkin_registration_open,
           :sponsor_edit_deadline,
           :event_schedule, :payment_instructions,
-          :check_in_time
+          :check_in_time,
+          config: {},
+          sponsor_tiers: [:key, :label, :sort_order]
         )
       end
     end
