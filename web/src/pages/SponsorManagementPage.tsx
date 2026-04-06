@@ -198,20 +198,20 @@ export const SponsorManagementPage: React.FC = () => {
               <p className="text-lg sm:text-xl font-bold">{sponsors.length}</p>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3">
-            <Star className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm text-gray-500">Major Sponsors</p>
-              <p className="text-lg sm:text-xl font-bold">{sponsors.filter(s => s.major).length}</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 col-span-2 sm:col-span-1">
-            <Flag className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm text-gray-500">Hole Sponsors</p>
-              <p className="text-lg sm:text-xl font-bold">{sponsors.filter(s => s.hole_number != null).length}</p>
-            </div>
-          </div>
+          {TIERS.map((tier, i) => {
+            const count = (sponsorsByTier[tier.value] || []).length;
+            if (count === 0) return null;
+            const TierIcon = tier.icon;
+            return (
+              <div key={tier.value} className={`bg-white rounded-xl shadow-sm p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 ${i === TIERS.length - 1 ? 'col-span-2 sm:col-span-1' : ''}`}>
+                <TierIcon className={`w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0 ${tier.color.split(' ')[0]}`} />
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-gray-500 truncate">{tier.label}</p>
+                  <p className="text-lg sm:text-xl font-bold">{count}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
