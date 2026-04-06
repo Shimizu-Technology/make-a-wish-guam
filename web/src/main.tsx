@@ -17,7 +17,15 @@ const POSTHOG_HOST = import.meta.env.VITE_PUBLIC_POSTHOG_HOST || 'https://us.i.p
 function AnalyticsProvider({ children }: { children: ReactNode }) {
   if (!POSTHOG_KEY) return <>{children}</>;
   return (
-    <PostHogProvider apiKey={POSTHOG_KEY} options={{ api_host: POSTHOG_HOST }}>
+    <PostHogProvider
+      apiKey={POSTHOG_KEY}
+      options={{
+        api_host: POSTHOG_HOST,
+        capture_pageview: true,
+        capture_pageleave: true,
+        disable_session_recording: false,
+      }}
+    >
       {children}
     </PostHogProvider>
   );
