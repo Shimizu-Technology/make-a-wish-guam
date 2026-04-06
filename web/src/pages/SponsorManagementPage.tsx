@@ -427,66 +427,75 @@ const SponsorCard: React.FC<{
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 px-1">Team {teamIdx + 1}</p>
                     <div className="space-y-1.5">
                       {teamSlots.map(slot => (
-                        <div key={slot.id} className="bg-white rounded-lg border border-gray-200 p-2.5">
+                        <div key={slot.id} className="bg-white rounded-lg border border-gray-200">
                           {editingSlotId === slot.id ? (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-gray-400 w-4 flex-shrink-0">#{slot.slot_number}</span>
+                            <div className="p-3 space-y-3">
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Player #{slot.slot_number}</p>
+                              <div>
+                                <label className="block text-[11px] font-medium text-gray-600 mb-1">Name</label>
                                 <input
                                   type="text"
                                   placeholder="Player name"
                                   value={slotForm.player_name}
                                   onChange={e => setSlotForm({ ...slotForm, player_name: e.target.value })}
-                                  className="flex-1 text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-brand-400 focus:outline-none"
+                                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none"
+                                  autoFocus
                                 />
                               </div>
-                              <div className="flex gap-2 pl-6">
-                                <input
-                                  type="email"
-                                  placeholder="Email"
-                                  value={slotForm.player_email}
-                                  onChange={e => setSlotForm({ ...slotForm, player_email: e.target.value })}
-                                  className="flex-1 text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-brand-400 focus:outline-none"
-                                />
-                                <input
-                                  type="tel"
-                                  placeholder="Phone"
-                                  value={slotForm.player_phone}
-                                  onChange={e => setSlotForm({ ...slotForm, player_phone: e.target.value })}
-                                  className="w-28 text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-brand-400 focus:outline-none"
-                                />
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Email</label>
+                                  <input
+                                    type="email"
+                                    placeholder="player@email.com"
+                                    value={slotForm.player_email}
+                                    onChange={e => setSlotForm({ ...slotForm, player_email: e.target.value })}
+                                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Phone</label>
+                                  <input
+                                    type="tel"
+                                    placeholder="(671) 555-1234"
+                                    value={slotForm.player_phone}
+                                    onChange={e => setSlotForm({ ...slotForm, player_phone: e.target.value })}
+                                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none"
+                                  />
+                                </div>
                               </div>
-                              <div className="flex justify-end gap-1.5 pl-6">
-                                <button onClick={() => setEditingSlotId(null)} className="text-[11px] px-2 py-1 rounded text-gray-500 hover:bg-gray-100">Cancel</button>
+                              <div className="flex justify-end gap-2 pt-1">
+                                <button onClick={() => setEditingSlotId(null)} className="text-xs px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">Cancel</button>
                                 <button
                                   onClick={() => saveSlot(slot.id)}
                                   disabled={savingSlot}
-                                  className="text-[11px] px-2 py-1 rounded bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 flex items-center gap-1"
+                                  className="text-xs px-3 py-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 flex items-center gap-1 font-medium"
                                 >
-                                  <Save className="w-2.5 h-2.5" /> Save
+                                  <Save className="w-3 h-3" /> Save
                                 </button>
                               </div>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-bold text-gray-400 w-4 flex-shrink-0">#{slot.slot_number}</span>
+                            <div className="flex items-center gap-2 p-2.5">
+                              <span className="text-[10px] font-bold text-gray-400 w-5 flex-shrink-0">#{slot.slot_number}</span>
                               {slot.player_name ? (
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-gray-900 truncate">{slot.player_name}</p>
-                                  <p className="text-[10px] text-gray-400 truncate">
+                                  <p className="text-sm font-medium text-gray-900 truncate">{slot.player_name}</p>
+                                  <p className="text-xs text-gray-400 truncate">
                                     {[slot.player_email, slot.player_phone].filter(Boolean).join(' · ') || 'No contact info'}
                                   </p>
                                 </div>
                               ) : (
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs text-gray-400 italic">Empty slot</p>
+                                  <p className="text-sm text-gray-400 italic">Empty slot</p>
                                 </div>
                               )}
                               <button
                                 onClick={() => startEditing(slot)}
-                                className="p-1 text-gray-400 hover:text-brand-600 hover:bg-gray-100 rounded flex-shrink-0"
+                                className="p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg flex-shrink-0"
+                                title="Edit player"
                               >
-                                <Edit className="w-3 h-3" />
+                                <Edit className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           )}
