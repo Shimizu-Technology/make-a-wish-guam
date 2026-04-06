@@ -20,7 +20,7 @@ class Group < ApplicationRecord
     if golfers.loaded?
       golfers.sum { |g| g.partner_name.present? ? 2 : 1 }
     else
-      golfers.count + golfers.where.not(partner_name: [nil, '']).count
+      golfers.pick(Arel.sql("COUNT(*) + COUNT(NULLIF(partner_name, ''))")).to_i
     end
   end
 
