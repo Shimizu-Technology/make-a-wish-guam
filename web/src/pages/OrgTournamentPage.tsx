@@ -14,6 +14,7 @@ import {
 
 import { hexToRgba } from '../utils/colors';
 import { formatEventDate } from '../utils/dates';
+import { getSponsorTierLabel } from '../utils/sponsorTiers';
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -139,6 +140,7 @@ export function OrgTournamentPage() {
   };
 
   const status = statusConfig[tournament.status] || { label: tournament.status, bg: 'bg-neutral-200', text: 'text-neutral-600' };
+  const sponsorTierLabels = tournament.sponsor_tier_labels || {};
 
   return (
     <MotionConfig reducedMotion="user">
@@ -162,7 +164,20 @@ export function OrgTournamentPage() {
               <h1 className="text-3xl lg:text-4xl font-bold tracking-tight mb-3">
                 {tournament.name}
               </h1>
-              <p className="text-white/80 text-lg mb-4">{formatEventDate(tournament.event_date)} · {tournament.location_name}</p>
+              <div className="mb-4 space-y-2 text-white/85 text-base sm:text-lg">
+                {tournament.event_date && (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 shrink-0" />
+                    <span>{formatEventDate(tournament.event_date)}</span>
+                  </div>
+                )}
+                {tournament.location_name && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 shrink-0" />
+                    <span>{tournament.location_name}</span>
+                  </div>
+                )}
+              </div>
               <span className="inline-flex items-center gap-1.5 bg-[#E31837] text-white text-sm font-semibold px-3 py-1.5 rounded-full">
                 {status.label}
               </span>
@@ -197,12 +212,12 @@ export function OrgTournamentPage() {
             )}
             <div className="flex items-center gap-2 text-neutral-600">
               <DollarSign className="w-4 h-4 text-[#0057B8]" strokeWidth={1.5} />
-              <span>$300/team</span>
+              <span>{tournament.entry_fee_display || '$300/team'}</span>
             </div>
             {tournament.max_capacity && (
               <div className="flex items-center gap-2 text-neutral-600">
                 <Users className="w-4 h-4 text-[#0057B8]" strokeWidth={1.5} />
-                <span>{tournament.confirmed_count || 0} / {tournament.max_capacity} registered</span>
+                <span>{tournament.confirmed_count || 0} / {tournament.max_capacity} teams registered</span>
               </div>
             )}
           </div>
@@ -236,12 +251,22 @@ export function OrgTournamentPage() {
                   <Calendar className="w-5 h-5 mt-0.5 shrink-0 text-[#0057B8]" strokeWidth={1.5} />
                   <div>
                     <p className="font-medium text-neutral-900">{formatEventDate(tournament.event_date) || 'Date TBA'}</p>
-                    {tournament.registration_time && (
-                      <p className="text-neutral-500 text-sm">Registration: {tournament.registration_time}</p>
-                    )}
-                    {tournament.start_time && (
-                      <p className="text-neutral-500 text-sm">Start: {tournament.start_time}</p>
-                    )}
+                    <div className="mt-2 space-y-1 text-sm text-neutral-500">
+                      {tournament.registration_time && (
+                        <p className="flex flex-wrap items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5 shrink-0 text-[#0057B8]" strokeWidth={1.5} />
+                          <span className="font-medium text-neutral-600">Registration:</span>
+                          <span>{tournament.registration_time}</span>
+                        </p>
+                      )}
+                      {tournament.start_time && (
+                        <p className="flex flex-wrap items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5 shrink-0 text-[#0057B8]" strokeWidth={1.5} />
+                          <span className="font-medium text-neutral-600">Start:</span>
+                          <span>{tournament.start_time}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -304,7 +329,7 @@ export function OrgTournamentPage() {
                   <div className="flex justify-between items-baseline">
                     <span className="text-neutral-500 text-sm">Entry Fee</span>
                     <span className="font-bold text-xl text-neutral-900">
-                      $300/team
+                      {tournament.entry_fee_display || '$300/team'}
                     </span>
                   </div>
 
@@ -321,7 +346,7 @@ export function OrgTournamentPage() {
                       Capacity
                     </span>
                     <span className="text-neutral-600">
-                      {tournament.confirmed_count || 0} / {tournament.public_capacity || tournament.max_capacity} registered
+                      {tournament.confirmed_count || 0} / {tournament.public_capacity || tournament.max_capacity} teams registered
                     </span>
                   </div>
 
@@ -420,12 +445,13 @@ export function OrgTournamentPage() {
             {tournament.sponsors.filter(s => s.tier === 'title').length > 0 && (
               <div className="mb-10">
                 <ScrollReveal>
-                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">Title Sponsors</h3>
+                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">{getSponsorTierLabel('title', sponsorTierLabels)} Sponsors</h3>
                 </ScrollReveal>
                 <SponsorGrid
                   sponsors={tournament.sponsors.filter(s => s.tier === 'title')}
                   size="large"
                   columns="grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                  tierLabels={sponsorTierLabels}
                 />
               </div>
             )}
@@ -434,12 +460,15 @@ export function OrgTournamentPage() {
             {tournament.sponsors.filter(s => s.tier === 'platinum' || s.tier === 'gold').length > 0 && (
               <div className="mb-10">
                 <ScrollReveal>
-                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">Major Sponsors</h3>
+                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">
+                    {`${getSponsorTierLabel('platinum', sponsorTierLabels)} & ${getSponsorTierLabel('gold', sponsorTierLabels)} Sponsors`}
+                  </h3>
                 </ScrollReveal>
                 <SponsorGrid
                   sponsors={tournament.sponsors.filter(s => s.tier === 'platinum' || s.tier === 'gold')}
                   size="large"
                   columns="grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                  tierLabels={sponsorTierLabels}
                 />
               </div>
             )}
@@ -448,12 +477,15 @@ export function OrgTournamentPage() {
             {tournament.sponsors.filter(s => s.tier === 'silver' || s.tier === 'bronze').length > 0 && (
               <div className="mb-10">
                 <ScrollReveal>
-                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">Supporting Sponsors</h3>
+                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">
+                    {`${getSponsorTierLabel('silver', sponsorTierLabels)} & ${getSponsorTierLabel('bronze', sponsorTierLabels)} Sponsors`}
+                  </h3>
                 </ScrollReveal>
                 <SponsorGrid
                   sponsors={tournament.sponsors.filter(s => s.tier === 'silver' || s.tier === 'bronze')}
                   size="small"
                   columns="grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+                  tierLabels={sponsorTierLabels}
                 />
               </div>
             )}
@@ -464,6 +496,7 @@ export function OrgTournamentPage() {
                 sponsors={tournament.sponsors.filter(s => s.major && !['title', 'platinum', 'gold', 'silver', 'bronze', 'hole'].includes(s.tier))}
                 size="large"
                 columns="grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                tierLabels={sponsorTierLabels}
               />
             )}
 
@@ -471,7 +504,7 @@ export function OrgTournamentPage() {
             {tournament.sponsors.filter(s => s.tier === 'hole').length > 0 && (
               <div className="mt-8">
                 <ScrollReveal>
-                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">Hole Sponsors</h3>
+                  <h3 className="text-lg font-semibold text-neutral-700 tracking-tight mb-4">{getSponsorTierLabel('hole', sponsorTierLabels)} Sponsors</h3>
                 </ScrollReveal>
                 <HoleSponsorGrid
                   sponsors={tournament.sponsors.filter(s => s.tier === 'hole')}
@@ -512,10 +545,12 @@ function SponsorGrid({
   sponsors,
   size,
   columns,
+  tierLabels,
 }: {
   sponsors: Sponsor[];
   size: 'large' | 'small';
   columns: string;
+  tierLabels: Record<string, string>;
 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '0px' });
@@ -530,7 +565,7 @@ function SponsorGrid({
     >
       {sponsors.map((sponsor) => (
         <motion.div key={sponsor.id} variants={staggerItem}>
-          <SponsorCard sponsor={sponsor} size={size} />
+          <SponsorCard sponsor={sponsor} size={size} tierLabels={tierLabels} />
         </motion.div>
       ))}
     </motion.div>
@@ -591,7 +626,7 @@ function HoleSponsorGrid({
 // Sponsor card
 // ---------------------------------------------------------------------------
 
-function SponsorCard({ sponsor, size }: { sponsor: Sponsor; size: 'large' | 'small' }) {
+function SponsorCard({ sponsor, size, tierLabels }: { sponsor: Sponsor; size: 'large' | 'small'; tierLabels: Record<string, string> }) {
   const tierColors: Record<string, string> = {
     title: 'from-amber-50 to-amber-100/60 border-amber-200',
     platinum: 'from-slate-50 to-slate-100/60 border-slate-200',
@@ -621,7 +656,7 @@ function SponsorCard({ sponsor, size }: { sponsor: Sponsor; size: 'large' | 'sma
         absolute -top-2 -right-2 text-xs font-bold px-2 py-0.5 rounded-full shadow-sm
         ${tierBadgeColors[sponsor.tier] || 'bg-neutral-500 text-white'}
       `}>
-        {sponsor.tier === 'title' ? 'Title' : sponsor.tier.charAt(0).toUpperCase() + sponsor.tier.slice(1)}
+        {sponsor.tier_label || getSponsorTierLabel(sponsor.tier, tierLabels)}
       </span>
 
       {sponsor.logo_url ? (

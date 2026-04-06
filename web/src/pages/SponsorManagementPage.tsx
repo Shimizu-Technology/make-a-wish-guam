@@ -22,11 +22,13 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
+import { DEFAULT_SPONSOR_TIER_LABELS, getSponsorTierLabel } from '../utils/sponsorTiers';
 
 interface Sponsor {
   id: number;
   name: string;
   tier: string;
+  tier_label?: string;
   tier_display: string;
   logo_url: string | null;
   website_url: string | null;
@@ -44,6 +46,7 @@ interface Sponsor {
 interface Tournament {
   id: string;
   name: string;
+  sponsor_tier_labels?: Record<string, string>;
 }
 
 const TIERS = [
@@ -63,7 +66,9 @@ export const SponsorManagementPage: React.FC = () => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [tierLabels, setTierLabels] = useState<Record<string, string>>(DEFAULT_SPONSOR_TIER_LABELS);
+  const [savingTierLabels, setSavingTierLabels] = useState(false);
+
   // Modal
   const [showModal, setShowModal] = useState(false);
   const [editingSponsor, setEditingSponsor] = useState<Sponsor | null>(null);
@@ -80,7 +85,12 @@ export const SponsorManagementPage: React.FC = () => {
       );
       const tournamentData = await tournamentRes.json();
       const tid = tournamentData.id || tournamentData.tournament?.id;
-      setTournament({ ...tournamentData, id: tid });
+      const nextTierLabels = {
+        ...DEFAULT_SPONSOR_TIER_LABELS,
+        ...(tournamentData.sponsor_tier_labels || {}),
+      };
+      setTournament({ ...tournamentData, id: tid, sponsor_tier_labels: nextTierLabels });
+      setTierLabels(nextTierLabels);
 
       // Get sponsors
       const sponsorsRes = await fetch(
@@ -144,6 +154,46 @@ export const SponsorManagementPage: React.FC = () => {
 
   const getTierInfo = (tier: string) => {
     return TIERS.find(t => t.value === tier) || TIERS[4]; // Default to bronze
+  };
+
+  const handleTierLabelChange = (tier: string, value: string) => {
+    setTierLabels((current) => ({ ...current, [tier]: value }));
+  };
+
+  const handleSaveTierLabels = async () => {
+    if (!tournament?.id) return;
+
+    try {
+      setSavingTierLabels(true);
+      const token = await getToken();
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tournament: {
+            config: {
+              sponsor_tier_labels: tierLabels,
+            },
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.errors?.join(', ') || data.error || 'Failed to save tier labels');
+      }
+
+      setTournament((current) => current ? { ...current, sponsor_tier_labels: tierLabels } : current);
+      toast.success('Sponsor tier labels updated');
+      fetchData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save tier labels');
+    } finally {
+      setSavingTierLabels(false);
+    }
   };
 
   // Group sponsors by tier
@@ -227,6 +277,41 @@ export const SponsorManagementPage: React.FC = () => {
         </div>
       </div>
 
+      <section className="max-w-6xl mx-auto px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Sponsor tier labels</h2>
+              <p className="text-sm text-gray-500">
+                Keep the internal tier structure stable, but customize the public-facing tier names for this event.
+              </p>
+            </div>
+            <button
+              onClick={handleSaveTierLabels}
+              disabled={savingTierLabels}
+              className="inline-flex items-center justify-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+            >
+              {savingTierLabels ? 'Saving…' : 'Save tier labels'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {TIERS.map((tier) => (
+              <label key={tier.value} className="block">
+                <span className="mb-1.5 block text-sm font-medium text-gray-700">{tier.label}</span>
+                <input
+                  type="text"
+                  value={tierLabels[tier.value] || ''}
+                  onChange={(e) => handleTierLabelChange(tier.value, e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder={getSponsorTierLabel(tier.value, DEFAULT_SPONSOR_TIER_LABELS)}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Sponsors by Tier */}
       <main className="max-w-6xl mx-auto px-4 pb-8">
         {TIERS.map(tier => {
@@ -241,7 +326,7 @@ export const SponsorManagementPage: React.FC = () => {
                 <span className={`p-2 rounded-lg ${tier.color}`}>
                   <TierIcon className="w-5 h-5" />
                 </span>
-                {tier.label} ({tierSponsors.length})
+                {getSponsorTierLabel(tier.value, tierLabels)} ({tierSponsors.length})
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {tierSponsors.map(sponsor => (
@@ -330,6 +415,7 @@ export const SponsorManagementPage: React.FC = () => {
         <SponsorModal
           sponsor={editingSponsor}
           tournamentId={tournament?.id || ''}
+          tierLabels={tierLabels}
           onClose={() => { setShowModal(false); setEditingSponsor(null); }}
           onSuccess={() => { setShowModal(false); setEditingSponsor(null); fetchData(); }}
         />
@@ -342,9 +428,10 @@ export const SponsorManagementPage: React.FC = () => {
 const SponsorModal: React.FC<{
   sponsor: Sponsor | null;
   tournamentId: string;
+  tierLabels: Record<string, string>;
   onClose: () => void;
   onSuccess: () => void;
-}> = ({ sponsor, tournamentId, onClose, onSuccess }) => {
+}> = ({ sponsor, tournamentId, tierLabels, onClose, onSuccess }) => {
   const { getToken } = useAuth();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -427,7 +514,7 @@ const SponsorModal: React.FC<{
               className="w-full border rounded-lg px-3 py-2"
             >
               {TIERS.map(t => (
-                <option key={t.value} value={t.value}>{t.label}</option>
+                <option key={t.value} value={t.value}>{getSponsorTierLabel(t.value, tierLabels)}</option>
               ))}
             </select>
           </div>

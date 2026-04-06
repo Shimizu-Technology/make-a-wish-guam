@@ -26,6 +26,7 @@ class TournamentSerializer < ActiveModel::Serializer
              :payment_instructions, :allow_cash, :allow_check, :allow_card,
              # Schedule
              :check_in_time, :shotgun_start, :tee_times_enabled, :tee_time_interval_minutes,
+             :sponsor_tier_labels,
              :created_at, :updated_at
 
   def organization_slug

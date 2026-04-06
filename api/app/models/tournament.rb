@@ -1,6 +1,14 @@
 # frozen_string_literal: true
 
 class Tournament < ApplicationRecord
+  DEFAULT_SPONSOR_TIER_LABELS = {
+    'title' => 'Title',
+    'platinum' => 'Platinum',
+    'gold' => 'Gold',
+    'silver' => 'Silver',
+    'bronze' => 'Bronze',
+    'hole' => 'Hole'
+  }.freeze
   # Associations
   belongs_to :organization
   has_many :golfers, dependent: :restrict_with_error
@@ -185,6 +193,19 @@ class Tournament < ApplicationRecord
     return nil unless organization
     base = base_url || ENV.fetch('FRONTEND_URL', 'http://localhost:5173')
     "#{base}/#{organization.slug}/tournaments/#{slug}"
+  end
+
+  def sponsor_tier_labels
+    raw_labels = config.is_a?(Hash) ? (config['sponsor_tier_labels'] || config[:sponsor_tier_labels]) : nil
+    normalized = raw_labels.is_a?(Hash) ? raw_labels.to_h.transform_keys(&:to_s) : {}
+
+    DEFAULT_SPONSOR_TIER_LABELS.merge(
+      normalized.transform_values { |value| value.to_s.strip.presence }.compact
+    )
+  end
+
+  def sponsor_tier_label_for(tier)
+    sponsor_tier_labels[tier.to_s] || tier.to_s.titleize
   end
 
   # Actions

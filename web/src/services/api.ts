@@ -25,6 +25,7 @@ export interface Sponsor {
   id: number;
   name: string;
   tier: 'title' | 'platinum' | 'gold' | 'silver' | 'bronze' | 'hole';
+  tier_label?: string;
   tier_display: string;
   logo_url?: string;
   website_url?: string;
@@ -112,6 +113,7 @@ export interface Tournament {
   
   // Sponsors (public display)
   sponsors?: Sponsor[];
+  sponsor_tier_labels?: Record<string, string>;
 
   // SwipeSimple / walk-in settings
   swipe_simple_url?: string;
@@ -143,6 +145,8 @@ export interface Golfer {
   phone: string;
   mobile: string | null;
   email: string;
+  partner_name?: string | null;
+  team_name?: string | null;
   payment_type: 'stripe' | 'pay_on_day' | 'swipe_simple';
   payment_status: 'paid' | 'unpaid' | 'refunded';
   waiver_accepted_at: string | null;

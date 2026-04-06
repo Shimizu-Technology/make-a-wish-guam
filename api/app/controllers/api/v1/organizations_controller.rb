@@ -52,6 +52,7 @@ module Api
             id: s.id,
             name: s.name,
             tier: s.tier,
+            tier_label: s.tier_label,
             tier_display: s.tier_display,
             logo_url: s.logo_url,
             website_url: s.website_url,

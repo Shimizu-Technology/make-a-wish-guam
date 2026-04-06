@@ -26,15 +26,15 @@ class Sponsor < ApplicationRecord
   scope :hole_sponsors, -> { where(tier: 'hole').order(:hole_number) }
 
   # Tier display name
+  def tier_label
+    tournament&.sponsor_tier_label_for(tier) || tier.titleize
+  end
+
   def tier_display
-    case tier
-    when 'title' then 'Title Sponsor'
-    when 'platinum' then 'Platinum Sponsor'
-    when 'gold' then 'Gold Sponsor'
-    when 'silver' then 'Silver Sponsor'
-    when 'bronze' then 'Bronze Sponsor'
-    when 'hole' then "Hole #{hole_number} Sponsor"
-    else tier.titleize
+    if hole_sponsor?
+      hole_number.present? ? "#{tier_label} #{hole_number}" : tier_label
+    else
+      tier_label
     end
   end
 
@@ -55,7 +55,7 @@ class Sponsor < ApplicationRecord
 
   # Display label
   def display_label
-    hole_sponsor? ? "Hole #{hole_number}" : tier_display
+    tier_display
   end
 
   # Auto-sync SponsorSlot records when slot_count changes

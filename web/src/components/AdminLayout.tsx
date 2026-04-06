@@ -343,6 +343,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                   </span>
                 </div>
               )}
+
+              <button
+                onClick={() => handleNavigate('/')}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-100 lg:hidden"
+              >
+                <Home className="h-4 w-4" />
+                Go to public site
+              </button>
             </div>
 
             {renderNavSection('Organization', organizationNav)}

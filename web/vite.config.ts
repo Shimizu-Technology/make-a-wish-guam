@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icon-512.png', 'icon-192.png', 'robots.txt', 'sitemap.xml'],
       manifest: {
-        name: 'Make-A-Wish Guam Events',
-        short_name: 'MAW Guam',
-        description: 'Event registration and management for Make-A-Wish Guam & CNMI charity events.',
+        name: 'Golf for Wishes',
+        short_name: 'Golf for Wishes',
+        description: 'Register, sponsor, and follow Make-A-Wish Guam & CNMI golf tournament events online.',
         theme_color: '#0057B8',
         background_color: '#003D84',
         display: 'standalone',

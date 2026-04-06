@@ -11,6 +11,5 @@ Allow: /
 Allow: /register
 
 # Sitemap
-# Update to your live domain or Netlify URL before launch.
-Sitemap: https://YOUR_NETLIFY_SUBDOMAIN.netlify.app/sitemap.xml
+Sitemap: https://golfforwishes.com/sitemap.xml
 

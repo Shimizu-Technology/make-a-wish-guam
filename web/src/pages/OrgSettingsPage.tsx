@@ -640,7 +640,7 @@ export const OrgSettingsPage: React.FC = () => {
             {/* Registration Settings */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h3 className="text-md font-semibold text-gray-900 mb-4">Registration Settings</h3>
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -654,42 +654,44 @@ export const OrgSettingsPage: React.FC = () => {
                   </label>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Registration Deadline
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={tournamentSettings.registration_deadline ? tournamentSettings.registration_deadline.slice(0, 16) : ''}
-                    onChange={(e) => handleTournamentChange('registration_deadline', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                  <p className="mt-1 text-sm text-gray-500">After this, walk-in rate applies</p>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Registration Deadline
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={tournamentSettings.registration_deadline ? tournamentSettings.registration_deadline.slice(0, 16) : ''}
+                      onChange={(e) => handleTournamentChange('registration_deadline', e.target.value)}
+                      className="w-full min-h-[52px] px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    <p className="mt-1.5 text-sm text-gray-500">After this, walk-in rate applies.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Walk-in Fee ($)
+                    </label>
+                    <input
+                      type="number"
+                      value={tournamentSettings.walkin_fee}
+                      onChange={(e) => handleTournamentChange('walkin_fee', e.target.value)}
+                      placeholder="e.g. 350"
+                      className="w-full min-h-[52px] px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    <p className="mt-1.5 text-sm text-gray-500">Amount charged for day-of walk-in registrations.</p>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Walk-in Fee ($)
-                  </label>
-                  <input
-                    type="number"
-                    value={tournamentSettings.walkin_fee}
-                    onChange={(e) => handleTournamentChange('walkin_fee', e.target.value)}
-                    placeholder="e.g. 350"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                  <p className="mt-1 text-sm text-gray-500">Amount charged for day-of walk-in registrations</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Max Capacity
                   </label>
                   <input
                     type="number"
                     value={tournamentSettings.max_capacity}
                     onChange={(e) => handleTournamentChange('max_capacity', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full min-h-[52px] px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 </div>
               </div>
@@ -780,15 +782,16 @@ export const OrgSettingsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Draw Time
                   </label>
                   <input
                     type="datetime-local"
                     value={tournamentSettings.raffle_draw_time ? tournamentSettings.raffle_draw_time.slice(0, 16) : ''}
                     onChange={(e) => handleTournamentChange('raffle_draw_time', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full min-h-[52px] px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
+                  <p className="mt-1.5 text-sm text-gray-500">Use the exact local draw time you want shown in the admin and raffle views.</p>
                 </div>
 
                 <div className="flex items-center gap-3">

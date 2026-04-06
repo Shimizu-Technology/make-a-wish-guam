@@ -175,7 +175,8 @@ module Api
           :contact_name, :contact_phone,
           :registration_open,
           :raffle_enabled, :raffle_ticket_price_cents, :raffle_draw_time,
-          :walkin_fee, :walkin_registration_open
+          :walkin_fee, :walkin_registration_open,
+          config: {}
         )
       end
     end

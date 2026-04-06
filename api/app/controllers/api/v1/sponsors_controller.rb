@@ -121,6 +121,7 @@ module Api
           id: sponsor.id,
           name: sponsor.name,
           tier: sponsor.tier,
+          tier_label: sponsor.tier_label,
           tier_display: sponsor.tier_display,
           logo_url: sponsor.logo_url,
           website_url: sponsor.website_url,
