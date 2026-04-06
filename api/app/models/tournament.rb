@@ -167,7 +167,8 @@ class Tournament < ApplicationRecord
 
   def public_capacity
     return max_capacity if max_capacity.nil?
-    public_cap = max_capacity - sponsor_reserved_teams
+    reserved = [reserved_slots || 0, sponsor_reserved_teams].max
+    public_cap = max_capacity - reserved
     public_cap.negative? ? 0 : public_cap
   end
 
