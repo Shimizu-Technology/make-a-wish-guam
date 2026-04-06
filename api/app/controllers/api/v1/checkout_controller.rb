@@ -315,11 +315,16 @@ module Api
           return
         end
 
-        # Mark as pending swipe_simple payment
+        original_payment_type = golfer.payment_type
         golfer.update!(payment_type: "swipe_simple", payment_status: "pending")
 
-        payment_url = golfer.tournament.swipe_simple_url.presence ||
-                      ENV.fetch('SWIPE_SIMPLE_PAYMENT_URL', 'https://swipesimple.com/links/lnk_e1c8f45f9c401c93552781ef3d52fdfc')
+        tournament = golfer.tournament
+        payment_url = if original_payment_type == 'walk_in'
+                        tournament.walkin_swipe_simple_url.presence || tournament.swipe_simple_url.presence
+                      else
+                        tournament.swipe_simple_url.presence
+                      end
+        payment_url ||= ENV.fetch('SWIPE_SIMPLE_PAYMENT_URL', 'https://swipesimple.com/links/lnk_e1c8f45f9c401c93552781ef3d52fdfc')
 
         render json: {
           redirect_url: payment_url,

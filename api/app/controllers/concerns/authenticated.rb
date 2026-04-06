@@ -35,8 +35,8 @@ module Authenticated
 
     @current_user = User.find_by(clerk_id: clerk_id)
 
-    # Safe one-time linking: only use email from the verified JWT payload,
-    # never from a client-controlled header.
+    # One-time linking: match by email for invited users whose clerk_id
+    # is still a placeholder.
     if @current_user.nil? && email.present?
       @current_user = User.find_by('LOWER(email) = ?', email.downcase)
     end
@@ -53,9 +53,11 @@ module Authenticated
     clerk_name = decoded['name'] || decoded['first_name'] ||
                  [decoded['first_name'], decoded['last_name']].compact.join(' ').presence
 
-    # Update user record if needed
+    # Link real Clerk ID and sync name on first successful auth
     updates = {}
-    updates[:clerk_id] = clerk_id if @current_user.clerk_id.nil?
+    if @current_user.clerk_id.nil? || @current_user.clerk_id.start_with?('pending_')
+      updates[:clerk_id] = clerk_id
+    end
     updates[:name] = clerk_name if @current_user.name.blank? && clerk_name.present?
 
     if updates.any?

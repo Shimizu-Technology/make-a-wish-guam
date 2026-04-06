@@ -1,19 +1,23 @@
 class Golfer < ApplicationRecord
   belongs_to :tournament
   belongs_to :group, optional: true
+  belongs_to :sponsor, optional: true
   belongs_to :refunded_by, class_name: "User", optional: true
+  belongs_to :payment_verified_by, class_name: "User", foreign_key: :payment_verified_by_id, optional: true
+  belongs_to :checked_in_by, class_name: "User", foreign_key: :checked_in_by_id, optional: true
   has_many :scores, dependent: :destroy
+  has_many :raffle_tickets, dependent: :nullify
 
   # Validations
   validates :name, presence: true
   validates :email, presence: true, 
                     uniqueness: { scope: :tournament_id, message: "has already registered for this tournament" },
                     format: { with: URI::MailTo::EMAIL_REGEXP }
-  validates :phone, presence: true
-  validates :payment_type, presence: true, inclusion: { in: %w[stripe pay_on_day swipe_simple walk_in] }
+  validates :phone, presence: true, unless: :sponsored?
+  validates :payment_type, presence: true, inclusion: { in: %w[stripe pay_on_day swipe_simple walk_in sponsor] }
   validates :payment_status, inclusion: { in: %w[paid unpaid pending refunded], allow_nil: true }
   validates :registration_status, inclusion: { in: %w[confirmed waitlist cancelled], allow_nil: true }
-  validates :waiver_accepted_at, presence: true
+  validates :waiver_accepted_at, presence: true, unless: :sponsored?
   validates :tournament_id, presence: true
 
   # Scopes - Active golfers (not cancelled)
@@ -128,24 +132,90 @@ class Golfer < ApplicationRecord
       .order("tournaments.event_date DESC")
   end
 
-  # Action methods
-  def check_in!
-    # Toggle check-in status
+  def check_in!(admin: nil)
     if checked_in?
-      update!(checked_in_at: nil)
+      assign_attributes(checked_in_at: nil, checked_in_by_id: nil, checked_in_by_name: nil)
     else
-      update!(checked_in_at: Time.current)
+      assign_attributes(
+        checked_in_at: Time.current,
+        checked_in_by_id: admin&.id,
+        checked_in_by_name: admin&.name || admin&.email
+      )
+    end
+    save!(validate: false)
+  end
+
+  def verify_payment!(admin:, method: nil, notes: nil)
+    attrs = {
+      payment_status: 'paid',
+      paid_at: Time.current,
+      payment_method: method,
+      payment_notes: notes,
+      payment_verified_by_id: admin.id,
+      payment_verified_by_name: admin.name || admin.email,
+      payment_verified_at: Time.current
+    }
+    attrs[:payment_amount_cents] = tournament&.entry_fee if payment_amount_cents.blank?
+    assign_attributes(attrs)
+    save!(validate: false)
+  end
+
+  def create_raffle_tickets!
+    return unless tournament&.raffle_enabled?
+
+    # Row-level lock prevents concurrent mark_paid/verify_payment races
+    with_lock do
+      existing = tournament.raffle_tickets.where(golfer_id: id, price_cents: [0, nil]).order(:id)
+      captain_ticket = existing.first
+      partner_ticket = existing.second
+
+      if captain_ticket
+        captain_ticket.update!(purchaser_name: name, purchaser_email: email, purchaser_phone: phone)
+      else
+        tournament.raffle_tickets.create!(
+          golfer_id: id,
+          purchaser_name: name,
+          purchaser_email: email,
+          purchaser_phone: phone,
+          price_cents: 0,
+          payment_status: 'paid',
+          purchased_at: Time.current
+        )
+      end
+
+      if partner_name.present?
+        if partner_ticket
+          partner_ticket.update!(
+            purchaser_name: partner_name,
+            purchaser_email: partner_email.presence || email,
+            purchaser_phone: partner_phone.presence || phone
+          )
+        elsif existing.count < 2
+          tournament.raffle_tickets.create!(
+            golfer_id: id,
+            purchaser_name: partner_name,
+            purchaser_email: partner_email.presence || email,
+            purchaser_phone: partner_phone.presence || phone,
+            price_cents: 0,
+            payment_status: 'paid',
+            purchased_at: Time.current
+          )
+        end
+      elsif partner_ticket
+        partner_ticket.destroy!
+      end
     end
   end
 
   # Cancel a golfer's registration (without refund - for unpaid or non-Stripe payments)
   def cancel!(admin: nil, reason: nil)
-    update!(
+    assign_attributes(
       registration_status: "cancelled",
       refund_reason: reason,
       refunded_at: Time.current,
       refunded_by: admin
     )
+    save!(validate: false)
   end
 
   # Process a refund through Stripe and cancel the registration
@@ -294,9 +364,11 @@ class Golfer < ApplicationRecord
 
   # For Stripe payments, don't send emails until payment is confirmed
   # For pay_on_day, send emails immediately
+  def sponsored?
+    payment_type == 'sponsor'
+  end
+
   def should_send_immediate_emails?
-    # Send immediately for swipe_simple (external payment link) and pay_on_day
-    # Don't send for stripe — wait for webhook confirmation
     %w[pay_on_day swipe_simple walk_in].include?(payment_type)
   end
 

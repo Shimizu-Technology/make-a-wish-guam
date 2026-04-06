@@ -291,7 +291,7 @@ export const CreateTournamentPage: React.FC = () => {
       {/* Header */}
       <header
         className="text-white py-6 px-4"
-        style={{ backgroundColor: organization?.primary_color || '#1e40af' }}
+        style={{ backgroundColor: organization?.primary_color || '#0057B8' }}
       >
         <div className="max-w-4xl mx-auto">
           <button

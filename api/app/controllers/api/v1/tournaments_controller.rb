@@ -170,12 +170,21 @@ module Api
           :name, :year, :edition, :status,
           :event_date, :registration_time, :start_time,
           :location_name, :location_address,
+          :tournament_format, :team_size,
           :max_capacity, :reserved_slots, :entry_fee, :employee_entry_fee,
           :format_name, :fee_includes, :checks_payable_to,
-          :contact_name, :contact_phone,
-          :registration_open,
+          :contact_name, :contact_phone, :contact_email,
+          :registration_open, :registration_deadline,
+          :waitlist_enabled, :waitlist_max,
+          :swipe_simple_url, :walkin_swipe_simple_url,
+          :entry_fee_display,
           :raffle_enabled, :raffle_ticket_price_cents, :raffle_draw_time,
-          :walkin_fee, :walkin_registration_open
+          :raffle_description, :raffle_auto_draw,
+          :raffle_max_tickets_per_person, :raffle_tickets_per_purchase,
+          :walkin_fee, :walkin_registration_open,
+          :sponsor_edit_deadline,
+          :event_schedule, :payment_instructions,
+          :check_in_time
         )
       end
     end

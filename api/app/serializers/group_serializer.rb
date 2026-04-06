@@ -1,6 +1,6 @@
 class GroupSerializer < ActiveModel::Serializer
   attributes :id, :tournament_id, :group_number, :hole_number, :created_at, :updated_at,
-             :golfer_count, :is_full, :hole_position_label
+             :golfer_count, :is_full, :hole_position_label, :max_golfers, :player_count
 
   has_many :golfers
 
@@ -8,8 +8,16 @@ class GroupSerializer < ActiveModel::Serializer
     object.golfers.count
   end
 
+  def player_count
+    object.player_count
+  end
+
   def is_full
     object.full?
+  end
+
+  def max_golfers
+    object.max_golfers
   end
 
   # Hole-based label for the group (e.g., "7A" for first foursome at Hole 7)

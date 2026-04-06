@@ -6,7 +6,7 @@ module Api
       before_action :authorize_golfer_access!, only: [
         :show, :update, :destroy, :cancel, :refund, :mark_refunded,
         :check_in, :undo_check_in, :payment_details, :promote, :demote,
-        :send_payment_link, :update_payment_status, :mark_paid
+        :send_payment_link, :update_payment_status, :mark_paid, :verify_payment
       ]
 
       # GET /api/v1/golfers
@@ -398,7 +398,7 @@ module Api
       def check_in
         golfer = Golfer.find(params[:id])
         was_checked_in = golfer.checked_in_at.present?
-        golfer.check_in!
+        golfer.check_in!(admin: current_admin)
 
         ActivityLog.log(
           admin: current_admin,
@@ -408,6 +408,44 @@ module Api
         )
 
         broadcast_golfer_update(golfer)
+        render json: golfer
+      end
+
+      # POST /api/v1/golfers/:id/verify_payment
+      def verify_payment
+        golfer = Golfer.find(params[:id])
+
+        unless golfer.payment_status == 'paid'
+          golfer.verify_payment!(
+            admin: current_admin,
+            method: params[:payment_method] || 'swipe_simple_confirmed',
+            notes: params[:notes]
+          )
+
+          begin
+            ActivityLog.log(
+              admin: current_admin,
+              action: 'payment_verified',
+              target: golfer,
+              details: "Verified payment for #{golfer.name} (#{params[:payment_method] || 'SwipeSimple'})"
+            )
+          rescue => e
+            Rails.logger.warn("Failed to log payment_verified activity: #{e.message}")
+          end
+
+          if golfer.email.present?
+            GolferMailer.payment_confirmation_email(golfer).deliver_later rescue nil
+          end
+
+          begin
+            golfer.create_raffle_tickets!
+          rescue => e
+            Rails.logger.warn("Failed to create raffle tickets for #{golfer.name}: #{e.message}")
+          end
+
+          broadcast_golfer_update(golfer)
+        end
+
         render json: golfer
       end
 
@@ -483,15 +521,21 @@ module Api
           return
         end
 
-        golfer.update!(registration_status: "confirmed")
-        GolferMailer.promotion_email(golfer).deliver_later
+        golfer.assign_attributes(registration_status: "confirmed")
+        golfer.save!(validate: false)
 
-        ActivityLog.log(
-          admin: current_admin,
-          action: 'golfer_promoted',
-          target: golfer,
-          details: "Promoted #{golfer.name} from waitlist to confirmed"
-        )
+        GolferMailer.promotion_email(golfer).deliver_later rescue nil
+
+        begin
+          ActivityLog.log(
+            admin: current_admin,
+            action: 'golfer_promoted',
+            target: golfer,
+            details: "Promoted #{golfer.name} from waitlist to confirmed"
+          )
+        rescue => e
+          Rails.logger.warn("Failed to log golfer_promoted activity: #{e.message}")
+        end
 
         broadcast_golfer_update(golfer)
         render json: golfer
@@ -509,26 +553,35 @@ module Api
 
         old_group = golfer.group
         
-        # Remove from group (waitlist golfers shouldn't hold group spots)
         if old_group.present?
-          golfer.update!(group_id: nil)
-          ActivityLog.log(
-            admin: current_admin,
-            action: 'golfer_removed_from_group',
-            target: golfer,
-            details: "Removed #{golfer.name} from Hole #{old_group.hole_position_label} (demoted to waitlist)"
-          )
+          golfer.assign_attributes(group_id: nil)
+          golfer.save!(validate: false)
+          begin
+            ActivityLog.log(
+              admin: current_admin,
+              action: 'golfer_removed_from_group',
+              target: golfer,
+              details: "Removed #{golfer.name} from Hole #{old_group.hole_position_label} (demoted to waitlist)"
+            )
+          rescue => e
+            Rails.logger.warn("Failed to log activity: #{e.message}")
+          end
         end
 
-        golfer.update!(registration_status: "waitlist")
+        golfer.assign_attributes(registration_status: "waitlist")
+        golfer.save!(validate: false)
 
-        ActivityLog.log(
-          admin: current_admin,
-          action: 'golfer_demoted',
-          target: golfer,
-          details: "Moved #{golfer.name} to waitlist",
-          metadata: { previous_status: 'confirmed', new_status: 'waitlist' }
-        )
+        begin
+          ActivityLog.log(
+            admin: current_admin,
+            action: 'golfer_demoted',
+            target: golfer,
+            details: "Moved #{golfer.name} to waitlist",
+            metadata: { previous_status: 'confirmed', new_status: 'waitlist' }
+          )
+        rescue => e
+          Rails.logger.warn("Failed to log activity: #{e.message}")
+        end
 
         broadcast_golfer_update(golfer)
         render json: golfer
@@ -577,25 +630,39 @@ module Api
       def mark_paid
         golfer = Golfer.find(params[:id])
 
+        admin_name = current_admin&.name || current_admin&.email
         golfer.update!(
           payment_status: "paid",
           paid_at: Time.current,
           payment_method: params[:payment_method],
           payment_notes: params[:payment_notes],
           receipt_number: params[:receipt_number],
-          payment_amount_cents: params[:payment_amount_cents] || golfer.tournament&.entry_fee || 30000
+          payment_amount_cents: params[:payment_amount_cents] || golfer.tournament&.entry_fee || 0,
+          payment_verified_by_id: current_admin&.id,
+          payment_verified_by_name: admin_name,
+          payment_verified_at: Time.current
         )
 
-        ActivityLog.log(
-          admin: current_admin,
-          action: 'payment_marked',
-          target: golfer,
-          details: "Marked #{golfer.name} as paid (#{params[:payment_method]})",
-          metadata: {
-            payment_method: params[:payment_method],
-            receipt_number: params[:receipt_number]
-          }
-        )
+        begin
+          ActivityLog.log(
+            admin: current_admin,
+            action: 'payment_marked',
+            target: golfer,
+            details: "Marked #{golfer.name} as paid (#{params[:payment_method]})",
+            metadata: {
+              payment_method: params[:payment_method],
+              receipt_number: params[:receipt_number]
+            }
+          )
+        rescue => e
+          Rails.logger.warn("Failed to log payment_marked activity: #{e.message}")
+        end
+
+        begin
+          golfer.create_raffle_tickets!
+        rescue => e
+          Rails.logger.warn("Failed to create raffle tickets for #{golfer.name}: #{e.message}")
+        end
 
         broadcast_golfer_update(golfer)
         render json: golfer
@@ -841,7 +908,7 @@ module Api
       def golfer_params
         params.require(:golfer).permit(
           :name, :company, :address, :phone, :mobile, :email,
-          :payment_type, :payment_status, :notes,
+          :payment_type, :payment_status, :notes, :is_team_captain,
           :partner_name, :partner_email, :partner_phone, :partner_waiver_accepted_at,
           :team_name, :tshirt_size, :partner_tshirt_size
         )
@@ -852,7 +919,9 @@ module Api
           :name, :company, :address, :phone, :mobile, :email,
           :payment_type, :payment_status, :registration_status,
           :group_id, :hole_number, :position, :notes,
-          :payment_method, :receipt_number, :payment_notes
+          :payment_method, :receipt_number, :payment_notes,
+          :partner_name, :partner_email, :partner_phone,
+          :sponsor_id, :sponsor_name
         )
       end
 

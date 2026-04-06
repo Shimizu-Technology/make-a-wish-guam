@@ -4,6 +4,8 @@ class Sponsor < ApplicationRecord
   # Associations
   belongs_to :tournament
   has_many :sponsor_slots, dependent: :destroy
+  has_many :golfers, dependent: :nullify
+  has_one_attached :logo
 
   # Tiers (ordered by importance)
   TIERS = %w[title platinum gold silver bronze hole].freeze

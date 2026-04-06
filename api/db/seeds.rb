@@ -13,7 +13,7 @@ org = Organization.find_or_create_by!(slug: 'make-a-wish-guam') do |o|
   o.name = 'Make-A-Wish Guam & CNMI'
   o.description = 'Together, we create life-changing wishes for children with critical illnesses. Make-A-Wish Guam & CNMI has been granting wishes since 1988, bringing hope and joy to families across our islands.'
   o.primary_color = '#0057B8'
-  o.contact_email = 'guamcnmi@wish.org'
+  o.contact_email = 'etydingco@guam.wish.org'
   o.contact_phone = '671-649-9474'
   o.website_url = 'https://wish.org/guamcnmi'
 end
@@ -22,9 +22,18 @@ org.update!(
   name: 'Make-A-Wish Guam & CNMI',
   description: 'Together, we create life-changing wishes for children with critical illnesses. Make-A-Wish Guam & CNMI has been granting wishes since 1988, bringing hope and joy to families across our islands.',
   primary_color: '#0057B8',
-  contact_email: 'guamcnmi@wish.org',
+  contact_email: 'etydingco@guam.wish.org',
   contact_phone: '671-649-9474',
-  website_url: 'https://wish.org/guamcnmi'
+  website_url: 'https://wish.org/guamcnmi',
+  settings: {
+    'homepage_tagline' => 'Granting wishes since 1988',
+    'homepage_mission' => 'Together we create life-changing wishes for children with critical illnesses',
+    'homepage_stats' => [
+      { 'value' => '38+', 'label' => 'Years granting wishes' },
+      { 'value' => '100s', 'label' => 'Wishes granted in Guam' },
+      { 'value' => 'May 2', 'label' => 'Golf for Wishes' }
+    ]
+  }
 )
 puts "  Organization: #{org.name} (#{org.slug})"
 
@@ -76,7 +85,7 @@ tournament.assign_attributes(
   location_address: 'Yona, Guam',
   tournament_format: 'scramble',
   team_size: 2,
-  entry_fee: 15000,
+  entry_fee: 30000,
   max_capacity: 144,
   status: 'open',
   registration_open: true,
@@ -88,9 +97,12 @@ tournament.assign_attributes(
   allow_check: true,
   checks_payable_to: 'Make-A-Wish Foundation of Guam & CNMI',
   fee_includes: 'Green Fee, Cart, Lunch, Awards Banquet, and Raffle Entry',
-  contact_name: 'Eric Tydingco, VP Programs',
+  contact_name: 'Eric Tydingco',
   contact_phone: '671-649-9474',
-  format_name: 'Two-Person Scramble'
+  contact_email: 'etydingco@guam.wish.org',
+  format_name: 'Two-Person Scramble',
+  event_schedule: "7:00 AM — Check-in\n8:00 AM — Shotgun Start\n1:30 PM — Banquet & Awards",
+  payment_instructions: 'Payment will be processed securely online after registration.'
 )
 tournament.save!
 puts "  Tournament: #{tournament.name}"
@@ -136,44 +148,55 @@ else
 end
 
 # =============================================================================
-# Demo Golfers (24 registrations — 12 two-person scramble teams)
+# Demo Golfers (15 teams — each team is 1 registration with a partner)
 # =============================================================================
 if tournament.golfers.none?
-  golfers_data = [
-    ["John Santos", "Bank of Guam"], ["Maria Cruz", "Bank of Guam"],
-    ["David Tydingco", "Docomo Pacific"], ["Sarah Kim", "Docomo Pacific"],
-    ["Robert Flores", "Triple J Auto"], ["Jennifer Ada", "Triple J Auto"],
-    ["Michael Reyes", "IT&E"], ["Lisa Bautista", "IT&E"],
-    ["James Perez", nil], ["Anna Tenorio", nil],
-    ["Chris Borja", "Matson"], ["Michelle Camacho", "Matson"],
-    ["Daniel Guerrero", "Island Insurance"], ["Karen Pangelinan", nil],
-    ["Mark Manibusan", "Hyatt Regency"], ["Emily Duenas", nil],
-    ["Ryan Sablan", nil], ["Nicole Charfauros", nil],
-    ["Kevin Leon Guerrero", "Ambros Inc"], ["Amy Quitugua", nil],
-    ["Brian Taimanglo", nil], ["Christine Unpingco", "Staywell"],
-    ["Tony Shimizu", nil], ["Grace Aguon", nil],
+  teams_data = [
+    { name: "John Santos", partner: "Maria Cruz", company: "Bank of Guam" },
+    { name: "David Tydingco", partner: "Sarah Kim", company: "Docomo Pacific" },
+    { name: "Robert Flores", partner: "Jennifer Ada", company: "Triple J Auto" },
+    { name: "Michael Reyes", partner: "Lisa Bautista", company: "IT&E" },
+    { name: "James Perez", partner: "Anna Tenorio", company: nil },
+    { name: "Chris Borja", partner: "Michelle Camacho", company: "Matson" },
+    { name: "Daniel Guerrero", partner: "Karen Pangelinan", company: "Island Insurance" },
+    { name: "Mark Manibusan", partner: "Emily Duenas", company: "Hyatt Regency" },
+    { name: "Ryan Sablan", partner: "Nicole Charfauros", company: nil },
+    { name: "Kevin Leon Guerrero", partner: "Amy Quitugua", company: "Ambros Inc" },
+    { name: "Brian Taimanglo", partner: "Christine Unpingco", company: "Staywell" },
+    { name: "Tony Shimizu", partner: "Grace Aguon", company: nil },
+    { name: "Leon Test1", partner: "Leon Partner1", company: nil },
+    { name: "Leon Test2", partner: "Leon Partner2", company: nil },
+    { name: "Leon Test3", partner: "Leon Partner3", company: nil },
   ]
 
-  golfers_data.each_with_index do |(name, company), i|
+  teams_data.each_with_index do |team, i|
+    is_paid = i < 13
     Golfer.create!(
       tournament: tournament,
-      name: name,
+      name: team[:name],
+      partner_name: team[:partner],
+      partner_email: "partner#{i + 1}@example.com",
+      partner_phone: "671-555-#{(300 + i).to_s.rjust(4, '0')}",
+      team_name: "#{team[:name]} & #{team[:partner]}",
       email: "golfer#{i + 1}@example.com",
       phone: "671-555-#{(200 + i).to_s.rjust(4, '0')}",
-      company: company,
+      company: team[:company],
       registration_status: 'confirmed',
-      payment_status: 'paid',
-      payment_type: 'stripe',
+      payment_status: is_paid ? 'paid' : 'unpaid',
+      payment_type: 'swipe_simple',
+      paid_at: is_paid ? Time.current : nil,
+      payment_verified_at: is_paid ? Time.current : nil,
+      payment_verified_by_name: is_paid ? 'System (Seed)' : nil,
       waiver_accepted_at: Time.current
     )
   end
-  puts "  #{golfers_data.length} demo golfers registered"
+  puts "  #{teams_data.length} demo teams registered (#{teams_data.count { |_, i| true }} teams)"
 else
   puts "  Golfers already exist, skipping"
 end
 
 # =============================================================================
-# Groups & Scores (12 teams of 2, scramble format)
+# Groups & Scores (1 team per group, scramble format)
 # =============================================================================
 if tournament.groups.none? && tournament.golfers.confirmed.any?
   pars = [4, 3, 5, 4, 4, 3, 4, 5, 4, 4, 3, 5, 4, 4, 3, 4, 5, 4]
@@ -189,28 +212,23 @@ if tournament.groups.none? && tournament.golfers.confirmed.any?
     8  => [0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, -1, 0, 0, 0],
     9  => [1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, -1, 0],
     10 => [0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1, 0, 0],
-    11 => [0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0],
-    12 => [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0],
   }
-  holes_completed = { 1 => 18, 2 => 18, 3 => 18, 4 => 18, 5 => 16, 6 => 16, 7 => 15, 8 => 14, 9 => 13, 10 => 12, 11 => 10, 12 => 8 }
+  holes_completed = { 1 => 18, 2 => 18, 3 => 18, 4 => 18, 5 => 16, 6 => 16, 7 => 15, 8 => 14, 9 => 13, 10 => 12 }
 
-  golfers = tournament.golfers.confirmed.order(:id).to_a
-  start_holes = [1, 1, 4, 4, 7, 7, 10, 10, 13, 13, 16, 16]
+  paid_teams = tournament.golfers.confirmed.where(payment_status: 'paid').order(:id).to_a
+  start_holes = [1, 1, 4, 4, 7, 7, 10, 10, 13, 13]
 
-  12.times do |i|
+  paid_teams.first(10).each_with_index do |golfer, i|
     group = Group.create!(
       tournament: tournament,
       group_number: i + 1,
       hole_number: start_holes[i]
     )
 
-    2.times do |j|
-      idx = (i * 2) + j
-      next if idx >= golfers.length
-      golfers[idx].update!(group: group)
-    end
+    golfer.update!(group: group)
 
     completed = holes_completed[i + 1]
+    next unless completed
     completed.times do |h|
       hole = h + 1
       strokes = pars[h] + team_adjustments[i + 1][h]
@@ -226,7 +244,7 @@ if tournament.groups.none? && tournament.golfers.confirmed.any?
       )
     end
   end
-  puts "  12 teams with scores created"
+  puts "  #{paid_teams.first(10).length} teams with groups & scores created"
 else
   puts "  Groups/scores already exist, skipping"
 end

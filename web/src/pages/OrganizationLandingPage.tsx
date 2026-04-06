@@ -179,43 +179,43 @@ export function OrganizationLandingPage() {
             {organization.name}
           </motion.h1>
 
-          <motion.p
-            className="text-base sm:text-lg text-white/90 mb-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.25, ease }}
-          >
-            Granting wishes since 1988
-          </motion.p>
+          {(organization.settings?.homepage_tagline || organization.description) && (
+            <motion.p
+              className="text-base sm:text-lg text-white/90 mb-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.25, ease }}
+            >
+              {organization.settings?.homepage_tagline || ''}
+            </motion.p>
+          )}
 
-          <motion.p
-            className="text-base sm:text-lg text-white/75 max-w-2xl leading-relaxed"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.35, ease }}
-          >
-            Together we create life-changing wishes for children with critical illnesses
-          </motion.p>
+          {organization.settings?.homepage_mission && (
+            <motion.p
+              className="text-base sm:text-lg text-white/75 max-w-2xl leading-relaxed"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.35, ease }}
+            >
+              {organization.settings.homepage_mission}
+            </motion.p>
+          )}
 
-          <motion.div
-            className="flex gap-8 mt-8 pt-8 border-t border-white/20"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.45, ease }}
-          >
-            <div>
-              <div className="text-2xl font-bold text-white">38+</div>
-              <div className="text-sm text-white/70">Years granting wishes</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-white">100s</div>
-              <div className="text-sm text-white/70">Wishes granted in Guam</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-white">May 2</div>
-              <div className="text-sm text-white/70">Golf for Wishes</div>
-            </div>
-          </motion.div>
+          {organization.settings?.homepage_stats && organization.settings.homepage_stats.length > 0 && (
+            <motion.div
+              className="flex gap-8 mt-8 pt-8 border-t border-white/20"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.45, ease }}
+            >
+              {organization.settings.homepage_stats.map((stat: { value: string; label: string }, i: number) => (
+                <div key={i}>
+                  <div className="text-2xl font-bold text-white">{stat.value}</div>
+                  <div className="text-sm text-white/70">{stat.label}</div>
+                </div>
+              ))}
+            </motion.div>
+          )}
         </div>
       </header>
 
@@ -395,24 +395,24 @@ interface TournamentCardProps {
   tournament: Tournament;
 }
 
-const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
-  open: { label: 'Registration Open', bg: 'bg-[#E31837]', text: 'text-white' },
-  closed: { label: 'Registration Closed', bg: 'bg-neutral-200', text: 'text-neutral-600' },
-  in_progress: { label: 'In Progress', bg: 'bg-amber-500', text: 'text-white' },
-  completed: { label: 'Completed', bg: 'bg-neutral-200', text: 'text-neutral-600' },
-  draft: { label: 'Coming Soon', bg: 'bg-[#0057B8]', text: 'text-white' },
-};
+function getSmartStatus(tournament: TournamentCardProps['tournament']) {
+  if (tournament.status === 'in_progress') return { label: 'In Progress', bg: 'bg-amber-500', text: 'text-white' };
+  if (tournament.status === 'completed') return { label: 'Completed', bg: 'bg-neutral-200', text: 'text-neutral-600' };
+  if (tournament.status === 'archived') return { label: 'Archived', bg: 'bg-neutral-200', text: 'text-neutral-600' };
+  if (tournament.status === 'draft') return { label: 'Coming Soon', bg: 'bg-[#0057B8]', text: 'text-white' };
+  if (!tournament.registration_open) return { label: 'Registration Closed', bg: 'bg-neutral-200', text: 'text-neutral-600' };
+  const isFull = tournament.at_capacity || tournament.public_at_capacity;
+  if (isFull && tournament.waitlist_enabled) return { label: 'Waitlist Open', bg: 'bg-amber-500', text: 'text-white' };
+  if (isFull) return { label: 'At Capacity', bg: 'bg-neutral-200', text: 'text-neutral-600' };
+  return { label: 'Registration Open', bg: 'bg-[#E31837]', text: 'text-white' };
+}
 
 function TournamentCard({ tournament }: TournamentCardProps) {
-  const status = statusConfig[tournament.status] || {
-    label: tournament.status,
-    bg: 'bg-neutral-200',
-    text: 'text-neutral-600',
-  };
+  const status = getSmartStatus(tournament);
 
   const capacityPercent =
-    tournament.max_capacity && tournament.confirmed_count != null
-      ? Math.min(100, Math.round((tournament.confirmed_count / tournament.max_capacity) * 100))
+    tournament.max_capacity && tournament.paid_count != null
+      ? Math.min(100, Math.round((tournament.paid_count / tournament.max_capacity) * 100))
       : null;
 
   return (
@@ -445,7 +445,7 @@ function TournamentCard({ tournament }: TournamentCardProps) {
           <Detail
               icon={DollarSign}
               label="Entry Fee"
-              value="$300/team"
+              value={tournament.entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}
             />
         </div>
 
@@ -455,7 +455,7 @@ function TournamentCard({ tournament }: TournamentCardProps) {
             <div className="flex items-center justify-between text-xs text-neutral-500 mb-1.5">
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" strokeWidth={1.5} />
-                {tournament.confirmed_count ?? 0} / {tournament.max_capacity} registered
+                {tournament.paid_count ?? 0} / {tournament.max_capacity} teams registered
               </span>
               <span>{capacityPercent}%</span>
             </div>
@@ -472,13 +472,23 @@ function TournamentCard({ tournament }: TournamentCardProps) {
         <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {tournament.can_register ? (
             <>
-              <Link
-                to={`/${tournament.slug}/register`}
-                className="inline-flex items-center justify-center gap-2 bg-[#E31837] hover:bg-[#c41230] text-white font-semibold text-sm rounded-full px-6 py-2.5 transition-colors duration-200 w-full sm:w-auto min-h-[44px]"
-              >
-                Register Now
-                <ChevronRight className="w-4 h-4" strokeWidth={2} />
-              </Link>
+              {(tournament.at_capacity || tournament.public_at_capacity) && tournament.waitlist_enabled ? (
+                <Link
+                  to={`/${tournament.slug}/register`}
+                  className="inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-full px-6 py-2.5 transition-colors duration-200 w-full sm:w-auto min-h-[44px]"
+                >
+                  Join Waitlist
+                  <ChevronRight className="w-4 h-4" strokeWidth={2} />
+                </Link>
+              ) : (
+                <Link
+                  to={`/${tournament.slug}/register`}
+                  className="inline-flex items-center justify-center gap-2 bg-[#E31837] hover:bg-[#c41230] text-white font-semibold text-sm rounded-full px-6 py-2.5 transition-colors duration-200 w-full sm:w-auto min-h-[44px]"
+                >
+                  Register Now
+                  <ChevronRight className="w-4 h-4" strokeWidth={2} />
+                </Link>
+              )}
               <Link
                 to={`/${tournament.slug}`}
                 className="inline-flex items-center justify-center gap-2 border border-[#0057B8] text-[#0057B8] font-medium text-sm rounded-full px-6 py-2.5 hover:bg-[#0057B8]/5 transition-colors duration-200 w-full sm:w-auto min-h-[44px]"

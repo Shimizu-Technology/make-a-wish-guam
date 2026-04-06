@@ -21,6 +21,7 @@ module Api
           contact_email: organization.contact_email,
           contact_phone: organization.contact_phone,
           website_url: organization.website_url,
+          settings: organization.settings || {},
           tournament_count: organization.tournament_count
         }
       rescue ActiveRecord::RecordNotFound
@@ -47,13 +48,22 @@ module Api
         tournament = organization.tournaments.find_by!(slug: params[:tournament_slug])
         
         # Get active sponsors grouped by tier
-        sponsors = tournament.sponsors.active.ordered.map do |s|
+        sponsors = tournament.sponsors.active.ordered.includes(logo_attachment: :blob).map do |s|
+          logo = if s.logo.attached?
+                   Rails.application.routes.url_helpers.rails_blob_url(
+                     s.logo,
+                     host: ENV.fetch('API_URL', request.base_url)
+                   )
+                 else
+                   s.logo_url
+                 end
+
           {
             id: s.id,
             name: s.name,
             tier: s.tier,
             tier_display: s.tier_display,
-            logo_url: s.logo_url,
+            logo_url: logo,
             website_url: s.website_url,
             description: s.description,
             hole_number: s.hole_number,
@@ -77,6 +87,22 @@ module Api
         render json: organizations.map { |org| organization_response(org) }
       end
 
+      # PATCH /api/v1/admin/organizations/:slug
+      # Admin endpoint - update organization settings
+      def update
+        organization = Organization.find_by_slug!(params[:slug])
+        require_org_admin!(organization)
+        return if performed?
+
+        if organization.update(organization_params)
+          render json: organization_response(organization)
+        else
+          render json: { errors: organization.errors.full_messages }, status: :unprocessable_entity
+        end
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: 'Organization not found' }, status: :not_found
+      end
+
       # GET /api/v1/admin/organizations/:slug/tournaments
       # Admin endpoint - returns all tournaments with stats
       def admin_tournaments
@@ -89,7 +115,9 @@ module Api
                                 .select(
                                   "tournaments.*",
                                   "SUM(CASE WHEN golfers.registration_status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_count",
-                                  "SUM(CASE WHEN golfers.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_count"
+                                  "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_count",
+                                  "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' AND COALESCE(golfers.payment_type, '') != 'sponsor' THEN 1 ELSE 0 END) AS paying_count",
+                                  "(SELECT COALESCE(SUM(sponsors.slot_count), 0) / 2 FROM sponsors WHERE sponsors.tournament_id = tournaments.id AND sponsors.active = true) AS sponsor_teams_count"
                                 )
                                 .group("tournaments.id")
                                 .order(event_date: :desc)
@@ -97,6 +125,8 @@ module Api
         tournament_data = tournaments.map do |t|
           confirmed_count = t.read_attribute(:confirmed_count).to_i
           paid_count = t.read_attribute(:paid_count).to_i
+          paying_count = t.read_attribute(:paying_count).to_i
+          sponsor_teams = t.read_attribute(:sponsor_teams_count).to_i
 
           {
             id: t.id,
@@ -105,13 +135,18 @@ module Api
             date: t.event_date,
             status: t.status,
             registration_count: confirmed_count,
+            pending_count: confirmed_count - paid_count,
             capacity: t.max_capacity,
-            revenue: paid_count * (t.entry_fee || 0)
+            revenue: paying_count * (t.entry_fee || 0),
+            sponsor_reserved_teams: sponsor_teams,
+            walkin_fee: t.walkin_fee,
+            walkin_swipe_simple_url: t.walkin_swipe_simple_url,
+            entry_fee_display: t.entry_fee_display
           }
         end
 
         loaded = tournaments.to_a
-        total_revenue = loaded.sum { |t| t.read_attribute(:paid_count).to_i * (t.entry_fee || 0) }
+        total_revenue = loaded.sum { |t| t.read_attribute(:paying_count).to_i * (t.entry_fee || 0) }
         total_registrations = loaded.sum { |t| t.read_attribute(:confirmed_count).to_i }
         active_count = loaded.count { |t| %w[open in_progress].include?(t.status) }
 
@@ -140,22 +175,47 @@ module Api
         counts_by_payment = golfers.group_by(&:payment_status).transform_values(&:count)
         paid_count = counts_by_payment.fetch('paid', 0)
 
+        active_golfers = golfers.reject { |g| g.registration_status == 'cancelled' }
+        confirmed_golfers = active_golfers.select { |g| g.registration_status == 'confirmed' }
+        confirmed_and_paid = confirmed_golfers.count { |g| g.payment_status == 'paid' || g.payment_type == 'sponsor' }
+        confirmed_pending = confirmed_golfers.count { |g| g.payment_status != 'paid' && g.payment_type != 'sponsor' }
+
+        confirmed_count = counts_by_registration.fetch('confirmed', 0)
+        sponsor_teams = tournament.sponsor_reserved_teams
+        sponsor_confirmed = tournament.sponsor_confirmed_count
+        public_confirmed = tournament.public_confirmed_count
+
         stats = {
-          total_registrations: golfers.count,
-          confirmed: counts_by_registration.fetch('confirmed', 0),
+          total_registrations: active_golfers.count,
+          registered: confirmed_count,
+          confirmed: confirmed_and_paid,
+          pending_payment: confirmed_pending,
+          public_confirmed: public_confirmed,
+          sponsor_confirmed: sponsor_confirmed,
           waitlisted: counts_by_registration.fetch('waitlist', 0),
           cancelled: counts_by_registration.fetch('cancelled', 0),
           paid: paid_count,
-          unpaid: counts_by_payment.fetch('unpaid', 0),
           checked_in: golfers.count { |g| g.checked_in_at.present? },
-          revenue: paid_count * (tournament.entry_fee || 0)
+          revenue: golfers.count { |g| g.payment_status == 'paid' && g.payment_type != 'sponsor' } * (tournament.entry_fee || 0),
+          max_capacity: tournament.max_capacity,
+          sponsor_reserved_teams: sponsor_teams,
+          public_capacity: tournament.public_capacity,
+          capacity_remaining: tournament.capacity_remaining,
+          public_capacity_remaining: tournament.public_capacity_remaining,
+          at_capacity: tournament.at_capacity?,
+          public_at_capacity: tournament.public_at_capacity?
         }
 
         render json: {
           tournament: tournament,
           golfers: golfers.as_json(
             only: [:id, :name, :email, :phone, :company, :registration_status, 
-                   :payment_status, :payment_method, :checked_in_at, :created_at]
+                   :payment_status, :payment_method, :payment_type, :checked_in_at, :created_at,
+                   :paid_at, :payment_verified_by_name, :payment_verified_at,
+                   :checked_in_by_name, :payment_notes,
+                   :partner_name, :partner_email, :partner_phone,
+                   :team_name, :group_id],
+            methods: [:hole_position_label]
           ),
           stats: stats
         }
@@ -437,9 +497,14 @@ module Api
           return render json: { error: "Email is required" }, status: :unprocessable_entity
         end
 
-        user = User.find_by(email: email)
+        user = User.where('LOWER(email) = LOWER(?)', email).first
+
         unless user
-          return render json: { error: "No user found with that email. They must create an account first." }, status: :not_found
+          user = User.create!(
+            email: email,
+            clerk_id: "pending_#{Digest::SHA256.hexdigest(email)[0..23]}",
+            role: 'org_admin'
+          )
         end
 
         existing = org.organization_memberships.find_by(user: user)
@@ -450,7 +515,30 @@ module Api
         role = params[:role] || 'admin'
         membership = org.organization_memberships.create!(user: user, role: role)
 
-        render json: { member: member_response(membership) }, status: :created
+        SendUserInviteEmailJob.perform_later(user.id, current_user&.id)
+
+        render json: {
+          member: member_response(membership),
+          invitation_sent: true
+        }, status: :created
+      end
+
+      # POST /api/v1/admin/organizations/:slug/members/:member_id/resend_invite
+      def resend_invite
+        org = Organization.find_by!(slug: params[:slug])
+        require_org_admin!(org)
+        return if performed?
+
+        membership = org.organization_memberships.find(params[:member_id])
+        user = membership.user
+
+        unless user.clerk_id&.start_with?('pending_')
+          return render json: { error: "This user has already accepted their invitation." }, status: :unprocessable_entity
+        end
+
+        SendUserInviteEmailJob.perform_later(user.id, current_user&.id)
+
+        render json: { message: "Invitation email queued for #{user.email}" }
       end
 
       # PATCH /api/v1/admin/organizations/:slug/members/:member_id
@@ -494,12 +582,14 @@ module Api
       private
 
       def member_response(membership)
+        user = membership.user
         {
           id: membership.id,
-          user_id: membership.user_id,
-          name: membership.user.name || membership.user.email,
-          email: membership.user.email,
+          user_id: user.id,
+          name: user.name || user.email,
+          email: user.email,
           role: membership.role,
+          invitation_pending: user.clerk_id&.start_with?('pending_') || false,
           created_at: membership.created_at
         }
       end
@@ -538,7 +628,8 @@ module Api
       def organization_params
         params.require(:organization).permit(
           :name, :slug, :description, :logo_url, :primary_color,
-          :banner_url, :contact_email, :contact_phone, :website_url
+          :banner_url, :contact_email, :contact_phone, :website_url,
+          settings: {}
         )
       end
 
@@ -554,6 +645,7 @@ module Api
           contact_email: org.contact_email,
           contact_phone: org.contact_phone,
           website_url: org.website_url,
+          settings: org.settings || {},
           subscription_status: org.subscription_status,
           tournament_count: org.tournament_count,
           admin_count: org.admin_count,

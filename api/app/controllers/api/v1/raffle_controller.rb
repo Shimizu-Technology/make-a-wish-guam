@@ -8,7 +8,8 @@ module Api
       before_action :authorize_tournament_admin!, only: [
         :create_prize, :update_prize, :destroy_prize,
         :draw, :draw_all, :reset_prize, :claim_prize,
-        :admin_tickets, :create_tickets, :mark_ticket_paid, :destroy_ticket
+        :admin_tickets, :create_tickets, :mark_ticket_paid, :destroy_ticket,
+        :sync_tickets
       ]
 
       # ===========================================
@@ -28,7 +29,7 @@ module Api
             raffle_ticket_price_cents: @tournament.raffle_ticket_price_cents,
             raffle_draw_time: @tournament.raffle_draw_time
           },
-          prizes: prizes.map { |p| prize_response(p) }
+          prizes: prizes.map { |p| prize_response(p, include_winner: p.won?) }
         }
       end
 
@@ -159,7 +160,7 @@ module Api
 
         render json: {
           results: results,
-          message: "Drew #{results.count(&:success)} winners"
+          message: "Drew #{results.count { |r| r[:success] }} winners"
         }
       end
 
@@ -199,13 +200,20 @@ module Api
         # Filter by status
         tickets = tickets.where(payment_status: params[:status]) if params[:status].present?
 
+        all_tickets = @tournament.raffle_tickets
+        complimentary = all_tickets.where(price_cents: 0).or(all_tickets.where(price_cents: nil))
+        purchased = all_tickets.where('price_cents > 0')
+
         render json: {
           tickets: tickets.map { |t| ticket_response(t, admin: true) },
           stats: {
-            total: @tournament.raffle_tickets.count,
-            paid: @tournament.raffle_tickets.paid.count,
-            pending: @tournament.raffle_tickets.pending.count,
-            winners: @tournament.raffle_tickets.winners.count
+            total: all_tickets.count,
+            paid: all_tickets.paid.count,
+            pending: all_tickets.pending.count,
+            winners: all_tickets.winners.count,
+            complimentary: complimentary.count,
+            purchased: purchased.paid.count,
+            additional_revenue_cents: purchased.paid.sum(:price_cents)
           }
         }
       end
@@ -261,6 +269,36 @@ module Api
           ticket.destroy
           render json: { message: 'Ticket deleted' }
         end
+      end
+
+      # POST /api/v1/tournaments/:tournament_id/raffle/sync_tickets
+      # Admin - create missing raffle tickets for all paid/sponsored golfers
+      def sync_tickets
+        paid_golfers = @tournament.golfers.confirmed.where(payment_status: 'paid')
+                        .or(@tournament.golfers.confirmed.where(payment_type: 'sponsor'))
+
+        before_count = @tournament.raffle_tickets.count
+        errors = []
+
+        paid_golfers.find_each do |golfer|
+          begin
+            golfer.create_raffle_tickets!
+          rescue => e
+            errors << "#{golfer.name}: #{e.message}"
+            Rails.logger.warn("sync_tickets: failed for golfer #{golfer.id}: #{e.message}")
+          end
+        end
+
+        after_count = @tournament.raffle_tickets.count
+        created_count = [after_count - before_count, 0].max
+
+        render json: {
+          message: "Synced: #{created_count} ticket#{'s' unless created_count == 1} created (#{after_count} total for #{paid_golfers.count} teams)",
+          created: created_count,
+          total_tickets: after_count,
+          total_teams: paid_golfers.count,
+          errors: errors.presence
+        }
       end
 
       private

@@ -43,7 +43,7 @@ export const GolferDashboardPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       </div>
     );
   }
@@ -58,19 +58,19 @@ export const GolferDashboardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <header className="bg-green-700 text-white sticky top-0 z-10">
+      <header className="bg-brand-600 text-white sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Trophy className="w-8 h-8 text-yellow-400" />
               <div>
                 <h1 className="text-lg font-bold">{tournament.name}</h1>
-                <p className="text-green-200 text-sm">{tournament.year}</p>
+                <p className="text-brand-200 text-sm">{tournament.year}</p>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="p-2 hover:bg-green-600 rounded-lg transition-colors"
+              className="p-2 hover:bg-brand-600 rounded-lg transition-colors"
               title="Sign out"
             >
               <LogOut className="w-5 h-5" />
@@ -109,7 +109,7 @@ export const GolferDashboardPage: React.FC = () => {
               )}
             </span>
             {golfer.checked_in && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-brand-100 text-brand-700">
                 <CheckCircle className="w-3 h-3" /> Checked In
               </span>
             )}
@@ -118,10 +118,10 @@ export const GolferDashboardPage: React.FC = () => {
 
         {/* Group Assignment Card */}
         {group ? (
-          <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl shadow-lg p-6 text-white">
+          <div className="bg-gradient-to-br from-brand-600 to-brand-700 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-green-100">Your Starting Position</h3>
-              <Flag className="w-6 h-6 text-green-200" />
+              <h3 className="text-lg font-semibold text-brand-100">Your Starting Position</h3>
+              <Flag className="w-6 h-6 text-brand-200" />
             </div>
             
             <div className="text-center py-4">
@@ -129,7 +129,7 @@ export const GolferDashboardPage: React.FC = () => {
                 {golfer.hole_position || `Group ${group.group_number}`}
               </div>
               {group.hole_number && (
-                <p className="text-green-200">
+                <p className="text-brand-200">
                   Starting at Hole {group.hole_number}
                 </p>
               )}
@@ -137,8 +137,8 @@ export const GolferDashboardPage: React.FC = () => {
 
             {/* Teammates */}
             {group.golfers && group.golfers.length > 1 && (
-              <div className="mt-4 pt-4 border-t border-green-500">
-                <h4 className="text-sm font-medium text-green-200 mb-2 flex items-center gap-2">
+              <div className="mt-4 pt-4 border-t border-brand-500">
+                <h4 className="text-sm font-medium text-brand-200 mb-2 flex items-center gap-2">
                   <Users className="w-4 h-4" />
                   Your Group ({group.golfers.length})
                 </h4>
@@ -147,7 +147,7 @@ export const GolferDashboardPage: React.FC = () => {
                     <li 
                       key={teammate.id} 
                       className={`text-sm flex items-center gap-2 ${
-                        teammate.id === golfer.id ? 'text-white font-medium' : 'text-green-100'
+                        teammate.id === golfer.id ? 'text-white font-medium' : 'text-brand-100'
                       }`}
                     >
                       {teammate.checked_in && (
@@ -181,7 +181,7 @@ export const GolferDashboardPage: React.FC = () => {
           {group && (tournament.status === 'open' || tournament.status === 'in_progress') && (
             <Link
               to={`/golfer/scorecard?group=${group.id}&tournament=${tournament.id}`}
-              className="flex items-center justify-between w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-semibold transition-colors"
+              className="flex items-center justify-between w-full bg-brand-600 hover:bg-brand-700 text-white p-4 rounded-xl font-semibold transition-colors"
             >
               <span className="flex items-center gap-3">
                 <Flag className="w-5 h-5" />
@@ -197,7 +197,7 @@ export const GolferDashboardPage: React.FC = () => {
             className="flex items-center justify-between w-full bg-white hover:bg-gray-50 text-gray-900 p-4 rounded-xl font-semibold border border-gray-200 transition-colors"
           >
             <span className="flex items-center gap-3">
-              <BarChart3 className="w-5 h-5 text-green-600" />
+              <BarChart3 className="w-5 h-5 text-brand-600" />
               View Leaderboard
             </span>
             <ChevronRight className="w-5 h-5 text-gray-400" />

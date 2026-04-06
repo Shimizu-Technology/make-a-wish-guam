@@ -5,13 +5,13 @@ module Api
     class SponsorsController < BaseController
       skip_before_action :authenticate_user!, only: [:index, :show, :by_hole]
       before_action :set_tournament
-      before_action :set_sponsor, only: [:show, :update, :destroy]
-      before_action :authorize_tournament_admin!, only: [:create, :update, :destroy, :reorder]
+      before_action :set_sponsor, only: [:show, :update, :destroy, :slots, :update_slot]
+      before_action :authorize_tournament_admin!, only: [:create, :update, :destroy, :reorder, :slots, :update_slot]
 
       # GET /api/v1/tournaments/:tournament_id/sponsors
       # Public - get all sponsors grouped by tier
       def index
-        sponsors = @tournament.sponsors.active.ordered
+        sponsors = @tournament.sponsors.active.ordered.includes(logo_attachment: :blob)
 
         # Group by tier for display
         grouped = Sponsor::TIERS.each_with_object({}) do |tier, hash|
@@ -56,6 +56,7 @@ module Api
         sponsor = @tournament.sponsors.build(sponsor_params)
 
         if sponsor.save
+          sponsor.reload
           render json: { sponsor: sponsor_response(sponsor), message: 'Sponsor created' }, status: :created
         else
           render json: { error: sponsor.errors.full_messages.join(', ') }, status: :unprocessable_entity
@@ -66,6 +67,7 @@ module Api
       # Admin - update sponsor
       def update
         if @sponsor.update(sponsor_params)
+          @sponsor.reload
           render json: { sponsor: sponsor_response(@sponsor), message: 'Sponsor updated' }
         else
           render json: { error: @sponsor.errors.full_messages.join(', ') }, status: :unprocessable_entity
@@ -77,6 +79,55 @@ module Api
       def destroy
         @sponsor.destroy
         render json: { message: 'Sponsor deleted' }
+      end
+
+      # GET /api/v1/tournaments/:tournament_id/sponsors/:id/slots
+      # Admin - get sponsor slots with player details
+      def slots
+        slots = @sponsor.sponsor_slots.order(:slot_number)
+        render json: {
+          slots: slots.map { |s|
+            {
+              id: s.id,
+              slot_number: s.slot_number,
+              player_name: s.player_name,
+              player_email: s.player_email,
+              player_phone: s.player_phone,
+              confirmed_at: s.confirmed_at
+            }
+          }
+        }
+      end
+
+      # PATCH /api/v1/tournaments/:tournament_id/sponsors/:id/slots/:slot_id
+      # Admin - update a sponsor slot (admins bypass deadline)
+      def update_slot
+        slot = @sponsor.sponsor_slots.find(params[:slot_id])
+
+        slot.update!(
+          player_name: params[:player_name],
+          player_email: params[:player_email],
+          player_phone: params[:player_phone],
+          confirmed_at: Time.current
+        )
+
+        begin
+          SponsorSlotSyncer.new(@sponsor).sync_slot(slot)
+        rescue ActiveRecord::RecordInvalid => e
+          render json: { error: "Slot saved but player roster sync failed: #{e.message}" }, status: :unprocessable_entity
+          return
+        end
+
+        render json: {
+          slot: {
+            id: slot.id,
+            slot_number: slot.slot_number,
+            player_name: slot.player_name,
+            player_email: slot.player_email,
+            player_phone: slot.player_phone,
+            confirmed_at: slot.confirmed_at
+          }
+        }
       end
 
       # POST /api/v1/tournaments/:tournament_id/sponsors/reorder
@@ -112,17 +163,26 @@ module Api
       def sponsor_params
         params.require(:sponsor).permit(
           :name, :tier, :logo_url, :website_url, :description,
-          :hole_number, :position, :active, :login_email, :slot_count
+          :hole_number, :position, :active, :login_email, :slot_count, :logo
         )
       end
 
       def sponsor_response(sponsor)
+        logo = if sponsor.logo.attached?
+                 Rails.application.routes.url_helpers.rails_blob_url(
+                   sponsor.logo,
+                   host: ENV.fetch('API_URL', request.base_url)
+                 )
+               else
+                 sponsor.logo_url
+               end
+
         {
           id: sponsor.id,
           name: sponsor.name,
           tier: sponsor.tier,
           tier_display: sponsor.tier_display,
-          logo_url: sponsor.logo_url,
+          logo_url: logo,
           website_url: sponsor.website_url,
           description: sponsor.description,
           hole_number: sponsor.hole_number,

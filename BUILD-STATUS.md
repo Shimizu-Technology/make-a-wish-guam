@@ -2,35 +2,38 @@
 
 ## Golf for Wishes (May 2, 2026)
 
-### Inherited from Pacific Golf (working)
+### Core Features (working)
 - Single-org model (MAW is the organization)
-- Tournament management
-- Admin dashboard
+- Tournament management with configurable settings
+- Admin dashboard with registration/payment stats
 - Check-in system (WebSocket, real-time)
 - Group/hole assignment (drag-and-drop)
-- Raffle system (prizes, tickets, auto-draw, WebSocket)
-- Sponsor management (tiers, logos)
-- Clerk auth
-- Resend email
+- Raffle system (prizes, tickets, draw/claim, public board, admin quick-sell)
+- Sponsor management (tiers, logos, slot counts)
+- Sponsor self-service portal (magic-link login, slot editing, deadline enforcement)
+- Clerk auth (admin), magic-link auth (golfers, sponsors)
+- Resend email notifications
+- SMS notifications via ClickSend
+- SwipeSimple payment redirect (team registration + walk-in)
+- Team of 2 registration with partner fields
+- Manual payment reconciliation (pending/paid/summary, mark-as-paid, CSV export)
+- Walk-in registration (admin quick-add, configurable walk-in fee)
+- MAW branding (blue palette, star logo, landing page, admin/public pages)
+- Configurable tournament settings (payment URLs, deadlines, fees, raffle, sponsor deadline)
 
-### Modified
-- SwipeSimple payment redirect endpoint
-- Team of 2 registration (partner fields added)
-- Stripped SaaS super-admin flows
+### Recently Completed
+- [x] Fixed tournament settings strong params (all fields now persist correctly)
+- [x] Serializer updated to expose all tournament config fields in API responses
+- [x] Sponsor edit deadline enforcement (backend lockout + frontend locked state)
+- [x] Raffle quick-sell presets for day-of sales (1/5/10/20 ticket buttons)
+- [x] Public raffle board "Check My Tickets" (email lookup for digital ticket ownership)
+- [x] Raffle ticket price configurable from admin settings
+- [x] Branding polish pass (green → brand-blue across golfer/admin pages)
 
-### Completed
-- [x] SMS notifications via ClickSend (registration confirmation to both players, E.164 format)
-- [x] Manual payment reconciliation flow in admin (3-tab: pending/paid/summary, mark-as-paid modal, CSV export)
-- [x] Walk-in registration (admin quick-add modal, walk_in payment type, day-of flow)
-- [x] Configurable tournament settings (SwipeSimple URLs, walk-in fee, registration deadline, entry fee display, raffle settings)
-- [x] Raffle prize image upload (Active Storage S3, file upload + URL input, preview)
-- [x] Sponsor self-service portal (sponsors manage their own player slots)
-- [x] Codebase cleanup: fixed admin routing, removed dead code, updated branding, dropped unused DB tables
-
-### Still Needs Building
-- [ ] Day-of raffle purchase via SwipeSimple or cash
-- [ ] Push notifications for raffle
-- [ ] MAW branding (colors, logo, landing page)
+### Nice-to-Have / Post-Launch
+- [ ] Configurable raffle bundles (deeper model beyond quantity presets)
+- [ ] Push notifications for raffle ("closing soon", "last chance")
+- [ ] Self-service raffle ticket purchase (public-facing, via SwipeSimple or similar)
 
 ### Future (Gala Aug 22+)
 - Table/seating management

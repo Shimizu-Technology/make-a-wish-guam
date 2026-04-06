@@ -74,11 +74,13 @@ module Api
         group_number = group.group_number
         golfer_names = group.golfers.pluck(:name)
 
-        # Remove all golfers from the group first
-        group.golfers.update_all(group_id: nil, position: nil)
-
         hole_label = group.hole_position_label
-        group.destroy
+
+        ActiveRecord::Base.transaction do
+          group.golfers.update_all(group_id: nil, position: nil)
+          group.scores.destroy_all
+          group.destroy!
+        end
         
         ActivityLog.log(
           admin: current_admin,
@@ -128,8 +130,8 @@ module Api
           return
         end
 
-        if group.full?
-          render json: { error: "Group is full (max #{Group::MAX_GOLFERS} golfers)" }, status: :unprocessable_entity
+        unless group.can_add?(golfer)
+          render json: { error: "Group is full (#{group.player_count}/#{group.max_golfers} players)" }, status: :unprocessable_entity
           return
         end
         
@@ -249,9 +251,8 @@ module Api
         assigned_count = 0
 
         unassigned.each do |golfer|
-          # Find or create a group with space
           group = tournament.groups.includes(:golfers)
-                       .select { |g| g.golfers.count < Group::MAX_GOLFERS }
+                       .select { |g| g.can_add?(golfer) }
                        .first
 
           unless group

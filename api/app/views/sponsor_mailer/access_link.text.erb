@@ -1,16 +1,29 @@
-Sponsor Portal Access — Golf for Wishes 2026
+<%
+  tournament_name = @tournament&.name || 'the tournament'
+  team_count = (@sponsor.slot_count.to_i / 2.0).ceil
+  player_count = @sponsor.slot_count.to_i
+  contact_name = @tournament&.contact_name.presence || @org_name
+  contact_phone = @tournament&.contact_phone
+  contact_email = @tournament&.respond_to?(:contact_email) ? @tournament.contact_email : nil
+%>
+Sponsor Portal Access — <%= tournament_name %>
 
 Hello <%= @sponsor.name %>,
 
-Thank you for sponsoring Golf for Wishes 2026! You have <%= @sponsor.slot_count %> player slot(s) to fill.
+Thank you for sponsoring <%= tournament_name %>!
+<% if player_count > 0 %>You have <%= team_count %> team<%= team_count == 1 ? '' : 's' %> (<%= player_count %> player<%= player_count == 1 ? '' : 's' %>) to register.<% end %>
 
 Access your sponsor portal here:
 <%= @access_url %>
 
-DEADLINE: Player information must be submitted by 7:30 AM on May 2, 2026.
-
 This link expires in 7 days.
 
-Questions? Contact Eric Tydingco at etydingco@guam.wish.org or 671-649-9474.
+<% if @tournament&.sponsor_edit_deadline.present? %>
+DEADLINE: Player information must be submitted by <%= @tournament.sponsor_edit_deadline.strftime('%B %-d, %Y at %-I:%M %p') %>.
+<% elsif @tournament&.check_in_time.present? && @tournament&.event_date.present? %>
+DEADLINE: Player information must be submitted by <%= @tournament.check_in_time %> on <%= @tournament.event_date.is_a?(Date) ? @tournament.event_date.strftime('%B %-d, %Y') : @tournament.event_date %>.
+<% end %>
 
-Make-A-Wish® Guam & CNMI
+Questions? Contact <%= contact_name %><%= " at #{contact_phone}" if contact_phone.present? %><%= " or #{contact_email}" if contact_email.present? %>.
+
+<%= @org_name %>

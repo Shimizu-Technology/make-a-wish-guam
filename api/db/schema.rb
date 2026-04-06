@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_31_223029) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_05_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -63,6 +63,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_223029) do
   create_table "golfers", force: :cascade do |t|
     t.string "address"
     t.datetime "checked_in_at"
+    t.integer "checked_in_by_id"
+    t.string "checked_in_by_name"
     t.string "company"
     t.datetime "created_at", null: false
     t.string "email"
@@ -87,6 +89,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_223029) do
     t.string "payment_status"
     t.string "payment_token"
     t.string "payment_type"
+    t.datetime "payment_verified_at"
+    t.integer "payment_verified_by_id"
+    t.string "payment_verified_by_name"
     t.string "phone"
     t.integer "position"
     t.string "receipt_number"
@@ -95,6 +100,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_223029) do
     t.datetime "refunded_at"
     t.integer "refunded_by_id"
     t.string "registration_status"
+    t.bigint "sponsor_id"
+    t.string "sponsor_name"
     t.string "stripe_card_brand"
     t.string "stripe_card_last4"
     t.string "stripe_checkout_session_id"
@@ -109,6 +116,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_223029) do
     t.index ["magic_link_token"], name: "index_golfers_on_magic_link_token", unique: true, where: "(magic_link_token IS NOT NULL)"
     t.index ["paid_at"], name: "index_golfers_on_paid_at"
     t.index ["payment_token"], name: "index_golfers_on_payment_token", unique: true
+    t.index ["payment_verified_at"], name: "index_golfers_on_payment_verified_at"
+    t.index ["sponsor_id"], name: "index_golfers_on_sponsor_id"
     t.index ["stripe_checkout_session_id"], name: "index_golfers_on_stripe_checkout_session_id", unique: true, where: "(stripe_checkout_session_id IS NOT NULL)"
     t.index ["stripe_refund_id"], name: "index_golfers_on_stripe_refund_id", unique: true, where: "(stripe_refund_id IS NOT NULL)"
     t.index ["tournament_id", "email"], name: "index_golfers_on_tournament_id_and_email", unique: true
@@ -310,6 +319,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_223029) do
     t.string "check_in_time"
     t.string "checks_payable_to"
     t.jsonb "config", default: {}
+    t.string "contact_email"
     t.string "contact_name"
     t.string "contact_phone"
     t.string "course_name"
@@ -323,6 +333,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_223029) do
     t.integer "entry_fee", default: 12500
     t.string "entry_fee_display", default: "$300/team"
     t.string "event_date"
+    t.text "event_schedule"
     t.string "fee_includes"
     t.jsonb "flights_config", default: {}
     t.string "format_name"
@@ -355,6 +366,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_223029) do
     t.string "signature_image_url_override"
     t.integer "slope_rating"
     t.string "slug"
+    t.datetime "sponsor_edit_deadline"
     t.string "start_time"
     t.string "status", default: "draft", null: false
     t.string "swipe_simple_url"
@@ -400,6 +412,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_31_223029) do
   add_foreign_key "activity_logs", "tournaments"
   add_foreign_key "activity_logs", "users", column: "admin_id"
   add_foreign_key "golfers", "groups"
+  add_foreign_key "golfers", "sponsors"
   add_foreign_key "golfers", "tournaments"
   add_foreign_key "golfers", "users", column: "refunded_by_id", on_delete: :nullify
   add_foreign_key "groups", "tournaments"

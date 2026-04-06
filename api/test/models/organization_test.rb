@@ -12,7 +12,7 @@ class OrganizationTest < ActiveSupport::TestCase
       name: "Rotary Club",
       slug: "rotary-test",
       description: "Test organization",
-      primary_color: "#1e40af"
+      primary_color: "#0057B8"
     )
   end
 

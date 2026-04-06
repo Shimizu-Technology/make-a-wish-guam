@@ -60,6 +60,9 @@ export interface Tournament {
   registration_open: boolean;
   can_register: boolean;
   confirmed_count: number;
+  public_confirmed_count: number;
+  sponsor_confirmed_count: number;
+  sponsor_reserved_teams: number;
   waitlist_count: number;
   capacity_remaining: number;
   at_capacity: boolean;
@@ -68,6 +71,7 @@ export interface Tournament {
   public_at_capacity: boolean;
   checked_in_count: number;
   paid_count: number;
+  pending_payment_count: number;
   display_name: string;
   short_name: string;
   created_at: string;
@@ -185,6 +189,10 @@ export interface Golfer {
   employee_number: string | null;
   // Payment link
   payment_token: string | null;
+  // Sponsor fields
+  sponsor_id: number | null;
+  sponsor_name: string | null;
+  sponsor_display_name: string | null;
 }
 
 export interface Group {
@@ -354,9 +362,14 @@ export interface PaginationMeta {
 export class ApiClient {
   private getAuthToken: (() => Promise<string | null>) | null = null;
   private currentTournamentId: number | null = null;
+  private userEmail: string | null = null;
 
   setAuthTokenGetter(getter: () => Promise<string | null>) {
     this.getAuthToken = getter;
+  }
+
+  setUserEmail(email: string | null) {
+    this.userEmail = email;
   }
 
   async getWebSocketToken(): Promise<string | null> {

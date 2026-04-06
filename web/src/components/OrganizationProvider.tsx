@@ -31,12 +31,11 @@ export function OrganizationProvider({
         return;
       }
 
-      // Skip fetch if we already have this org
-      if (organization?.slug === orgSlug) {
-        return;
+      // Only show loading spinner on first load (no cached data)
+      if (!organization || organization.slug !== orgSlug) {
+        setLoading(true);
       }
 
-      setLoading(true);
       try {
         const response = await api.get(`/organizations/${orgSlug}`);
         setOrganization(response.data);
@@ -55,7 +54,7 @@ export function OrganizationProvider({
     }
 
     fetchOrganization();
-  }, [orgSlug, organization?.slug, navigate, fallbackPath, setOrganization, setLoading, setError]);
+  }, [orgSlug, navigate, fallbackPath, setOrganization, setLoading, setError]);
 
   // Show loading state
   if (isLoading) {

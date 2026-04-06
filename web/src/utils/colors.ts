@@ -1,5 +1,5 @@
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
-const FALLBACK = '#1e40af';
+const FALLBACK = '#0057B8';
 
 function safeHex(hex: string): string {
   return HEX_RE.test(hex) ? hex : FALLBACK;

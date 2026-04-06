@@ -10,12 +10,12 @@ export default {
       colors: {
         // Make-A-Wish blue — primary brand color (#0057B8)
         brand: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
+          50: '#E8F1FB',
+          100: '#C5DCF5',
+          200: '#8FB9EB',
+          300: '#5996E0',
+          400: '#2E78D4',
+          500: '#0962C4',
           600: '#0057B8',
           700: '#004A9E',
           800: '#003D84',

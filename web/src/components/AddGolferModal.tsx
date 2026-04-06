@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { X, Loader2, UserPlus, CreditCard, Banknote, Building2 } from 'lucide-react';
+import { X, Loader2, CreditCard, Banknote, Building2, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface AddGolferModalProps {
@@ -19,6 +19,9 @@ interface FormData {
   email: string;
   phone: string;
   company: string;
+  partner_name: string;
+  partner_email: string;
+  partner_phone: string;
   payment_status: 'paid' | 'unpaid';
   payment_method: 'cash' | 'check' | 'card' | 'online' | '';
   notes: string;
@@ -29,6 +32,9 @@ const defaultFormData: FormData = {
   email: '',
   phone: '',
   company: '',
+  partner_name: '',
+  partner_email: '',
+  partner_phone: '',
   payment_status: 'unpaid',
   payment_method: '',
   notes: '',
@@ -104,7 +110,8 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
           ...formData,
           tournament_id: tournamentId,
           registration_status: 'confirmed',
-          payment_type: 'pay_on_day', // Manual registrations are always pay on day
+          payment_type: 'pay_on_day',
+          is_team_captain: true,
           waiver_accepted_at: new Date().toISOString(),
         },
       };
@@ -156,11 +163,11 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-brand-100 rounded-lg">
-              <UserPlus className="w-5 h-5 text-brand-600" />
+              <Users className="w-5 h-5 text-brand-600" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Add Golfer</h2>
-              <p className="text-sm text-gray-500">Manual registration</p>
+              <h2 className="text-xl font-semibold text-gray-900">Add Team</h2>
+              <p className="text-sm text-gray-500">Manual team registration</p>
             </div>
           </div>
           <button
@@ -173,62 +180,109 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="John Smith"
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 ${
-                errors.name ? 'border-red-500' : 'border-gray-300'
-              }`}
-            />
-            {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
-          </div>
-
-          {/* Email & Phone */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="john@example.com"
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 ${
-                  errors.email ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
+          {/* Player 1 (Captain) */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-brand-100 text-brand-700 text-xs font-bold">1</span>
+              <p className="text-sm font-semibold text-gray-700">Player 1</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone <span className="text-red-500">*</span>
+                Full Name <span className="text-red-500">*</span>
               </label>
               <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
+                type="text"
+                name="name"
+                value={formData.name}
                 onChange={handleChange}
-                placeholder="(671) 555-1234"
+                placeholder="John Smith"
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 ${
-                  errors.phone ? 'border-red-500' : 'border-gray-300'
+                  errors.name ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone}</p>}
+              {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="john@example.com"
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 ${
+                    errors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="(671) 555-1234"
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 ${
+                    errors.phone ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Player 2 (Partner) */}
+          <div className="space-y-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs font-bold">2</span>
+              <p className="text-sm font-semibold text-gray-700">Player 2 (Partner)</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <input
+                type="text"
+                name="partner_name"
+                value={formData.partner_name}
+                onChange={handleChange}
+                placeholder="Partner's full name"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  name="partner_email"
+                  value={formData.partner_email}
+                  onChange={handleChange}
+                  placeholder="partner@email.com"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input
+                  type="tel"
+                  name="partner_phone"
+                  value={formData.partner_phone}
+                  onChange={handleChange}
+                  placeholder="(671) 555-1234"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
             </div>
           </div>
 
           {/* Company */}
-          <div>
+          <div className="pt-4 border-t border-gray-200">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Company / Organization
             </label>
@@ -360,8 +414,8 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
                 </>
               ) : (
                 <>
-                  <UserPlus className="w-5 h-5" />
-                  Add Golfer
+                  <Users className="w-5 h-5" />
+                  Add Team
                 </>
               )}
             </button>
