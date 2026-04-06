@@ -290,7 +290,7 @@ module Api
         end
 
         after_count = @tournament.raffle_tickets.count
-        created_count = after_count - before_count
+        created_count = [after_count - before_count, 0].max
 
         render json: {
           message: "Synced: #{created_count} ticket#{'s' unless created_count == 1} created (#{after_count} total for #{paid_golfers.count} teams)",

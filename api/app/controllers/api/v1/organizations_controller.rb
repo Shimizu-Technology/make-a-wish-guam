@@ -116,6 +116,7 @@ module Api
                                   "tournaments.*",
                                   "SUM(CASE WHEN golfers.registration_status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_count",
                                   "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_count",
+                                  "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' AND COALESCE(golfers.payment_type, '') != 'sponsor' THEN 1 ELSE 0 END) AS paying_count",
                                   "(SELECT COALESCE(SUM(sponsors.slot_count), 0) / 2 FROM sponsors WHERE sponsors.tournament_id = tournaments.id AND sponsors.active = true) AS sponsor_teams_count"
                                 )
                                 .group("tournaments.id")
@@ -124,6 +125,7 @@ module Api
         tournament_data = tournaments.map do |t|
           confirmed_count = t.read_attribute(:confirmed_count).to_i
           paid_count = t.read_attribute(:paid_count).to_i
+          paying_count = t.read_attribute(:paying_count).to_i
           sponsor_teams = t.read_attribute(:sponsor_teams_count).to_i
 
           {
@@ -135,7 +137,7 @@ module Api
             registration_count: confirmed_count,
             pending_count: confirmed_count - paid_count,
             capacity: t.max_capacity,
-            revenue: paid_count * (t.entry_fee || 0),
+            revenue: paying_count * (t.entry_fee || 0),
             sponsor_reserved_teams: sponsor_teams,
             walkin_fee: t.walkin_fee,
             walkin_swipe_simple_url: t.walkin_swipe_simple_url,
@@ -144,7 +146,7 @@ module Api
         end
 
         loaded = tournaments.to_a
-        total_revenue = loaded.sum { |t| t.read_attribute(:paid_count).to_i * (t.entry_fee || 0) }
+        total_revenue = loaded.sum { |t| t.read_attribute(:paying_count).to_i * (t.entry_fee || 0) }
         total_registrations = loaded.sum { |t| t.read_attribute(:confirmed_count).to_i }
         active_count = loaded.count { |t| %w[open in_progress].include?(t.status) }
 
@@ -194,7 +196,7 @@ module Api
           cancelled: counts_by_registration.fetch('cancelled', 0),
           paid: paid_count,
           checked_in: golfers.count { |g| g.checked_in_at.present? },
-          revenue: paid_count * (tournament.entry_fee || 0),
+          revenue: golfers.count { |g| g.payment_status == 'paid' && g.payment_type != 'sponsor' } * (tournament.entry_fee || 0),
           max_capacity: tournament.max_capacity,
           sponsor_reserved_teams: sponsor_teams,
           public_capacity: tournament.public_capacity,
