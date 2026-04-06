@@ -171,7 +171,7 @@ module Api
         logo = if sponsor.logo.attached?
                  Rails.application.routes.url_helpers.rails_blob_url(
                    sponsor.logo,
-                   host: ENV.fetch('API_URL', 'http://localhost:3000')
+                   host: ENV.fetch('API_URL', request.base_url)
                  )
                else
                  sponsor.logo_url
