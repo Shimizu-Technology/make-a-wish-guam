@@ -33,6 +33,17 @@ class SetMawSponsorTiers < ActiveRecord::Migration[8.1]
     tournament = Tournament.find_by(slug: 'golf-for-wishes-2026')
     return unless tournament
 
+    reverse_mapping = {
+      'presenting'  => 'title',
+      'premiere'    => 'gold',
+      'hole_in_one' => 'hole',
+    }
+
+    tournament.sponsors.find_each do |sponsor|
+      old_tier = reverse_mapping[sponsor.tier]
+      sponsor.update_column(:tier, old_tier) if old_tier
+    end
+
     config = tournament.config || {}
     config.delete('sponsor_tiers')
     tournament.update_column(:config, config)

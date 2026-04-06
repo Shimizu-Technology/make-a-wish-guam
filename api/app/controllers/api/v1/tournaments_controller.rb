@@ -63,9 +63,8 @@ module Api
       def update
         attrs = tournament_params.except(:organization_id, :sponsor_tiers)
 
-        if params[:tournament][:sponsor_tiers].present?
-          tiers = params[:tournament][:sponsor_tiers]
-          tiers = tiers.map(&:to_unsafe_h) if tiers.respond_to?(:first) && tiers.first.respond_to?(:to_unsafe_h)
+        if params.dig(:tournament, :sponsor_tiers).present?
+          tiers = tournament_params[:sponsor_tiers]&.map(&:to_h)
           attrs[:config] = (@tournament.config || {}).merge('sponsor_tiers' => tiers)
         end
 
