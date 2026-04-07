@@ -176,7 +176,7 @@ class Tournament < ApplicationRecord
         Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_type != 'sponsor')"),
         Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_type = 'sponsor')"),
         Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_status = 'paid')"),
-        Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_status != 'paid')"),
+        Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_status != 'paid' AND payment_type != 'sponsor')"),
         Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'waitlist')"),
         Arel.sql("COUNT(*) FILTER (WHERE checked_in_at IS NOT NULL)")
       )
