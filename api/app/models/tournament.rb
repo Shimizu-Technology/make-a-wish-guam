@@ -168,33 +168,64 @@ class Tournament < ApplicationRecord
     waitlist_count < waitlist_max
   end
 
-  # Capacity helpers
+  # Single-query stats computation — replaces 8+ individual COUNT queries
+  def golfer_stats
+    @golfer_stats ||= begin
+      row = Golfer.where(tournament_id: id).pick(
+        Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed')"),
+        Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_type != 'sponsor')"),
+        Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_type = 'sponsor')"),
+        Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_status = 'paid')"),
+        Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_status != 'paid' AND payment_type != 'sponsor')"),
+        Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'waitlist')"),
+        Arel.sql("COUNT(*) FILTER (WHERE checked_in_at IS NOT NULL)")
+      )
+      {
+        confirmed: row[0].to_i,
+        public_confirmed: row[1].to_i,
+        sponsor_confirmed: row[2].to_i,
+        paid: row[3].to_i,
+        pending_payment: row[4].to_i,
+        waitlist: row[5].to_i,
+        checked_in: row[6].to_i
+      }
+    end
+  end
+
   def confirmed_count
-    golfers.confirmed.count
+    golfer_stats[:confirmed]
   end
 
   def public_confirmed_count
-    golfers.confirmed.where.not(payment_type: 'sponsor').count
+    golfer_stats[:public_confirmed]
   end
 
   def sponsor_confirmed_count
-    golfers.confirmed.where(payment_type: 'sponsor').count
+    golfer_stats[:sponsor_confirmed]
   end
 
   def sponsor_reserved_teams
-    sponsors.active.sum(:slot_count).to_i / 2
+    @sponsor_reserved_teams ||= if sponsors.loaded?
+      sponsors.select(&:active?).sum(&:slot_count).to_i / 2
+    else
+      sponsors.active.sum(:slot_count).to_i / 2
+    end
   end
 
   def paid_count
-    golfers.confirmed.paid.count
+    golfer_stats[:paid]
   end
 
   def pending_payment_count
-    golfers.confirmed.where.not(payment_status: 'paid').count
+    golfer_stats[:pending_payment]
   end
 
   def waitlist_count
-    golfers.waitlist.count
+    golfer_stats[:waitlist]
+  end
+
+  def checked_in_count
+    golfer_stats[:checked_in]
   end
 
   def capacity_remaining
@@ -224,11 +255,6 @@ class Tournament < ApplicationRecord
   def at_capacity?
     return false if max_capacity.nil?
     confirmed_count >= max_capacity
-  end
-
-  # Stats
-  def checked_in_count
-    golfers.checked_in.count
   end
 
   # Display helpers

@@ -32,11 +32,15 @@ module Api
       # Public endpoint - returns organization's public tournaments
       def tournaments
         organization = Organization.find_by_slug!(params[:slug])
-        tournaments = organization.tournaments
-                                  .where(status: %w[open closed in_progress completed])
-                                  .order(event_date: :desc)
+        loaded = organization.tournaments
+                             .includes(:organization, :sponsors)
+                             .where(status: %w[open closed in_progress completed])
+                             .order(event_date: :desc)
+                             .to_a
 
-        render json: tournaments, each_serializer: TournamentSerializer
+        preload_tournament_stats(loaded) if loaded.any?
+
+        render json: loaded, each_serializer: TournamentSerializer
       rescue ActiveRecord::RecordNotFound
         render json: { error: 'Organization not found' }, status: :not_found
       end
@@ -110,21 +114,22 @@ module Api
         require_volunteer_or_admin!(organization)
         return if performed?
 
-        tournaments = organization.tournaments
-                                .left_joins(:golfers)
-                                .select(
-                                  "tournaments.*",
-                                  "SUM(CASE WHEN golfers.registration_status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_count",
-                                  "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_count",
-                                  "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' AND COALESCE(golfers.payment_type, '') != 'sponsor' THEN 1 ELSE 0 END) AS paying_count",
-                                  "(SELECT COALESCE(SUM(sponsors.slot_count), 0) / 2 FROM sponsors WHERE sponsors.tournament_id = tournaments.id AND sponsors.active = true) AS sponsor_teams_count"
-                                )
-                                .group("tournaments.id")
-                                .order(event_date: :desc)
+        loaded = organization.tournaments
+                              .left_joins(:golfers)
+                              .select(
+                                "tournaments.*",
+                                "SUM(CASE WHEN golfers.registration_status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_count",
+                                "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status != 'paid' AND COALESCE(golfers.payment_type, '') != 'sponsor' THEN 1 ELSE 0 END) AS pending_count",
+                                "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' AND COALESCE(golfers.payment_type, '') != 'sponsor' THEN 1 ELSE 0 END) AS paying_count",
+                                "(SELECT COALESCE(SUM(sponsors.slot_count), 0) / 2 FROM sponsors WHERE sponsors.tournament_id = tournaments.id AND sponsors.active = true) AS sponsor_teams_count"
+                              )
+                              .group("tournaments.id")
+                              .order(event_date: :desc)
+                              .to_a
 
-        tournament_data = tournaments.map do |t|
+        tournament_data = loaded.map do |t|
           confirmed_count = t.read_attribute(:confirmed_count).to_i
-          paid_count = t.read_attribute(:paid_count).to_i
+          pending_count = t.read_attribute(:pending_count).to_i
           paying_count = t.read_attribute(:paying_count).to_i
           sponsor_teams = t.read_attribute(:sponsor_teams_count).to_i
 
@@ -135,7 +140,7 @@ module Api
             date: t.event_date,
             status: t.status,
             registration_count: confirmed_count,
-            pending_count: confirmed_count - paid_count,
+            pending_count: pending_count,
             capacity: t.max_capacity,
             revenue: paying_count * (t.entry_fee || 0),
             sponsor_reserved_teams: sponsor_teams,
@@ -145,7 +150,6 @@ module Api
           }
         end
 
-        loaded = tournaments.to_a
         total_revenue = loaded.sum { |t| t.read_attribute(:paying_count).to_i * (t.entry_fee || 0) }
         total_registrations = loaded.sum { |t| t.read_attribute(:confirmed_count).to_i }
         active_count = loaded.count { |t| %w[open in_progress].include?(t.status) }
@@ -169,21 +173,33 @@ module Api
         require_volunteer_or_admin!(organization)
         return if performed?
 
-        tournament = organization.tournaments.find_by!(slug: params[:tournament_slug])
-        golfers = tournament.golfers.order(created_at: :desc).to_a
+        tournament = organization.tournaments.includes(:organization, :sponsors).find_by!(slug: params[:tournament_slug])
+        golfers = tournament.golfers.includes(:group, :sponsor).order(created_at: :desc).to_a
+
+        hole_labels = bulk_hole_position_labels(tournament.id, golfers)
+
         counts_by_registration = golfers.group_by(&:registration_status).transform_values(&:count)
-        counts_by_payment = golfers.group_by(&:payment_status).transform_values(&:count)
-        paid_count = counts_by_payment.fetch('paid', 0)
 
         active_golfers = golfers.reject { |g| g.registration_status == 'cancelled' }
         confirmed_golfers = active_golfers.select { |g| g.registration_status == 'confirmed' }
         confirmed_and_paid = confirmed_golfers.count { |g| g.payment_status == 'paid' || g.payment_type == 'sponsor' }
         confirmed_pending = confirmed_golfers.count { |g| g.payment_status != 'paid' && g.payment_type != 'sponsor' }
+        confirmed_paid = confirmed_golfers.count { |g| g.payment_status == 'paid' }
 
         confirmed_count = counts_by_registration.fetch('confirmed', 0)
-        sponsor_teams = tournament.sponsor_reserved_teams
-        sponsor_confirmed = tournament.sponsor_confirmed_count
-        public_confirmed = tournament.public_confirmed_count
+        sponsor_confirmed = confirmed_golfers.count { |g| g.payment_type == 'sponsor' }
+        public_confirmed = confirmed_count - sponsor_confirmed
+
+        # Pre-set stats so TournamentSerializer doesn't fire additional queries
+        tournament.instance_variable_set(:@golfer_stats, {
+          confirmed: confirmed_count,
+          public_confirmed: public_confirmed,
+          sponsor_confirmed: sponsor_confirmed,
+          paid: confirmed_paid,
+          pending_payment: confirmed_pending,
+          waitlist: counts_by_registration.fetch('waitlist', 0),
+          checked_in: golfers.count { |g| g.checked_in_at.present? }
+        })
 
         stats = {
           total_registrations: active_golfers.count,
@@ -194,11 +210,11 @@ module Api
           sponsor_confirmed: sponsor_confirmed,
           waitlisted: counts_by_registration.fetch('waitlist', 0),
           cancelled: counts_by_registration.fetch('cancelled', 0),
-          paid: paid_count,
+          paid: confirmed_paid,
           checked_in: golfers.count { |g| g.checked_in_at.present? },
           revenue: golfers.count { |g| g.payment_status == 'paid' && g.payment_type != 'sponsor' } * (tournament.entry_fee || 0),
           max_capacity: tournament.max_capacity,
-          sponsor_reserved_teams: sponsor_teams,
+          sponsor_reserved_teams: tournament.sponsor_reserved_teams,
           public_capacity: tournament.public_capacity,
           capacity_remaining: tournament.capacity_remaining,
           public_capacity_remaining: tournament.public_capacity_remaining,
@@ -210,15 +226,15 @@ module Api
           tournament: TournamentSerializer.new(tournament).as_json,
           golfers: golfers.map { |g|
             g.as_json(
-              only: [:id, :name, :email, :phone, :company, :registration_status, 
+              only: [:id, :name, :email, :phone, :company, :registration_status,
                      :payment_status, :payment_method, :payment_type, :checked_in_at, :created_at,
                      :paid_at, :payment_verified_by_name, :payment_verified_at,
                      :checked_in_by_name, :payment_notes,
                      :partner_name, :partner_email, :partner_phone,
                      :team_name, :team_category, :registration_source, :group_id,
-                     :sponsor_id, :sponsor_name, :notes],
-              methods: [:hole_position_label]
+                     :sponsor_id, :sponsor_name, :notes]
             ).merge(
+              "hole_position_label" => hole_labels[g.id],
               "sponsor_display_name" => g.sponsor_name.presence || g.sponsor&.name
             )
           },
@@ -588,6 +604,33 @@ module Api
       end
 
       private
+
+      # Compute hole position labels for all golfers in one query instead of 2 per golfer
+      def bulk_hole_position_labels(tournament_id, golfers)
+        # Golfers are loaded with includes(:group), so use the preloaded associations
+        # instead of querying Group again. Only need one query for all tournament groups.
+        groups_by_id = {}
+        golfers.each do |g|
+          groups_by_id[g.group_id] = g.group if g.group
+        end
+        return {} if groups_by_id.empty?
+
+        groups_by_hole = Group.where(tournament_id: tournament_id)
+                              .where.not(hole_number: nil)
+                              .order(:group_number)
+                              .group_by(&:hole_number)
+
+        golfers.each_with_object({}) do |g, labels|
+          grp = groups_by_id[g.group_id]
+          next labels[g.id] = nil unless grp
+          next labels[g.id] = "Unassigned" unless grp.hole_number
+
+          hole_groups = groups_by_hole[grp.hole_number] || []
+          idx = hole_groups.index { |hg| hg.id == grp.id }
+          letter = idx ? ('A'..'Z').to_a[idx] || 'X' : 'X'
+          labels[g.id] = "#{grp.hole_number}#{letter}"
+        end
+      end
 
       def member_response(membership)
         user = membership.user

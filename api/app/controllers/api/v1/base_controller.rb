@@ -81,6 +81,38 @@ module Api
         )
       end
 
+      # Bulk-load golfer stats for a collection of tournaments in a single query.
+      # Sets @golfer_stats ivar so Tournament#golfer_stats skips the per-tournament query.
+      def preload_tournament_stats(tournaments)
+        return if tournaments.empty?
+
+        ids = tournaments.map(&:id)
+        rows = Golfer.where(tournament_id: ids).group(:tournament_id).pluck(
+          :tournament_id,
+          Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed')"),
+          Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_type != 'sponsor')"),
+          Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_type = 'sponsor')"),
+          Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_status = 'paid')"),
+          Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'confirmed' AND payment_status != 'paid' AND payment_type != 'sponsor')"),
+          Arel.sql("COUNT(*) FILTER (WHERE registration_status = 'waitlist')"),
+          Arel.sql("COUNT(*) FILTER (WHERE checked_in_at IS NOT NULL)")
+        )
+
+        stats_by_id = {}
+        rows.each do |row|
+          stats_by_id[row[0]] = {
+            confirmed: row[1].to_i, public_confirmed: row[2].to_i,
+            sponsor_confirmed: row[3].to_i, paid: row[4].to_i,
+            pending_payment: row[5].to_i, waitlist: row[6].to_i, checked_in: row[7].to_i
+          }
+        end
+
+        empty = { confirmed: 0, public_confirmed: 0, sponsor_confirmed: 0,
+                  paid: 0, pending_payment: 0, waitlist: 0, checked_in: 0 }
+
+        tournaments.each { |t| t.instance_variable_set(:@golfer_stats, stats_by_id[t.id] || empty) }
+      end
+
       def paginate(collection)
         collection.page(params[:page] || 1).per(params[:per_page] || 25)
       end
