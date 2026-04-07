@@ -112,11 +112,17 @@ class RafflePrize < ApplicationRecord
 
   def notify_winner
     if winner_email.present?
-      RaffleMailer.winner_email(self)
+      begin
+        RaffleMailer.winner_email(self)
+      rescue => e
+        Rails.logger.error "Failed to send raffle winner email: #{e.message}"
+      end
     end
 
-    RaffleSmsService.winner_notification(raffle_prize: self)
-  rescue => e
-    Rails.logger.error "Failed to send raffle winner notifications: #{e.message}"
+    begin
+      RaffleSmsService.winner_notification(raffle_prize: self)
+    rescue => e
+      Rails.logger.error "Failed to send raffle winner SMS: #{e.message}"
+    end
   end
 end

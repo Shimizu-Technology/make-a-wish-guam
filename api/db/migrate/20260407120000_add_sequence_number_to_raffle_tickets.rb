@@ -18,8 +18,8 @@ class AddSequenceNumberToRaffleTickets < ActiveRecord::Migration[8.0]
     SQL
 
     # Regenerate ticket numbers with a prefix derived from the org name.
-    # Extracts uppercase-only letters to form initials (e.g. "Make-A-Wish Guam" -> "MAWG").
-    # Falls back to first 4 chars of slug if no uppercase letters found.
+    # Only updates tickets that don't already match the PREFIX-NNNN format,
+    # so tickets whose numbers were already emailed to buyers are preserved.
     execute <<~SQL
       UPDATE raffle_tickets
       SET ticket_number = sub.prefix || '-' || LPAD(raffle_tickets.sequence_number::text, 4, '0')
@@ -34,6 +34,7 @@ class AddSequenceNumberToRaffleTickets < ActiveRecord::Migration[8.0]
         JOIN organizations o ON o.id = t.organization_id
       ) sub
       WHERE raffle_tickets.tournament_id = sub.tournament_id
+        AND raffle_tickets.ticket_number !~ ('^' || sub.prefix || '-\\d{4,}$')
     SQL
 
     add_index :raffle_tickets, [:tournament_id, :sequence_number], unique: true
