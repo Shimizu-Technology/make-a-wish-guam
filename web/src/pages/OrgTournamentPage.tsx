@@ -495,7 +495,7 @@ export function OrgTournamentPage() {
                 const tierSponsors = (tournament.sponsors || []).filter(s => s.tier === tierDef.key);
                 if (tierSponsors.length === 0) return null;
 
-                const isHoleTier = tierDef.key === 'hole';
+                const isHoleTier = tierSponsors.some(s => s.hole_number != null);
                 const isTopTier = tierDef.sort_order <= 1;
 
                 return (
@@ -594,7 +594,7 @@ function HoleSponsorGrid({
   return (
     <motion.div
       ref={ref}
-      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
+      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
       initial="hidden"
       animate={isInView ? 'visible' : 'hidden'}
       variants={staggerContainer}
@@ -604,15 +604,31 @@ function HoleSponsorGrid({
           <motion.div
             key={sponsor.id}
             variants={staggerItem}
-            className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-neutral-200 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+            className="relative bg-white rounded-2xl border border-neutral-200 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 overflow-hidden"
           >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm bg-[#0057B8]/10 text-[#0057B8] flex-shrink-0">
-              {sponsor.hole_number}
+            {/* Hole number badge */}
+            {sponsor.hole_number && (
+              <div className="absolute top-2 left-2 z-10 w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs bg-[#0057B8] text-white shadow-sm">
+                {sponsor.hole_number}
+              </div>
+            )}
+            {/* Logo area */}
+            <div className="flex items-center justify-center bg-neutral-50/60 p-4 min-h-[80px]">
+              {sponsor.logo_url ? (
+                <img
+                  src={sponsor.logo_url}
+                  alt={sponsor.name}
+                  className="max-w-full max-h-10 object-contain"
+                />
+              ) : (
+                <Building2 className="w-8 h-8 text-neutral-300" strokeWidth={1.5} />
+              )}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-neutral-900 truncate text-sm">{sponsor.name}</p>
+            {/* Name */}
+            <div className="text-center px-2 py-2">
+              <p className="font-semibold text-neutral-800 text-xs truncate">{sponsor.name}</p>
               {sponsor.website_url && (
-                <span className="text-xs text-[#0057B8] flex items-center gap-1">
+                <span className="inline-flex items-center gap-1 text-[10px] text-[#0057B8] mt-1">
                   <ExternalLink className="w-2.5 h-2.5" />
                   Visit
                 </span>
