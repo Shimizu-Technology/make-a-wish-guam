@@ -17,6 +17,10 @@ class RaffleMailer
     def ticket_confirmation_email(raffle_ticket)
       new.ticket_confirmation_email(raffle_ticket)
     end
+
+    def purchase_confirmation_email(tickets:, buyer_email:, buyer_name:, tournament:)
+      new.purchase_confirmation_email(tickets: tickets, buyer_email: buyer_email, buyer_name: buyer_name, tournament: tournament)
+    end
   end
 
   def winner_email(raffle_prize)
@@ -69,6 +73,25 @@ class RaffleMailer
     )
   end
 
+  def purchase_confirmation_email(tickets:, buyer_email:, buyer_name:, tournament:)
+    @tickets = tickets
+    @buyer_name = buyer_name
+    @buyer_email = buyer_email
+    @tournament = tournament
+    @organization = tournament.organization
+    @total_cents = tickets.sum(&:price_cents)
+
+    return { error: 'No buyer email' } unless buyer_email.present?
+
+    set_branding
+
+    send_email(
+      to: buyer_email,
+      subject: "#{@tournament.name} — Your Raffle Tickets (#{tickets.size} ticket#{'s' if tickets.size != 1})",
+      html: render_purchase_confirmation_html
+    )
+  end
+
   private
 
   def set_branding
@@ -93,6 +116,82 @@ class RaffleMailer
       nil
     )
     view.render(template: template_path, layout: false)
+  end
+
+  def render_purchase_confirmation_html
+    brand = @primary_color
+    dark_brand = brand.gsub('#', '').tap { |hex|
+      break '#000000' unless hex.length == 6 && hex.match?(/\A[0-9A-Fa-f]{6}\z/)
+      r = [hex[0..1].to_i(16) * 75 / 100, 0].max
+      g = [hex[2..3].to_i(16) * 75 / 100, 0].max
+      b = [hex[4..5].to_i(16) * 75 / 100, 0].max
+      break "#%02x%02x%02x" % [r, g, b]
+    }
+    total_dollars = number_to_currency(@total_cents / 100.0)
+    ticket_numbers = @tickets.map(&:display_number)
+
+    <<~HTML
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <tr><td align="center" style="padding: 32px 16px;">
+          <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; max-width: 100%;">
+
+            <tr><td style="background: linear-gradient(135deg, #{brand} 0%, #{dark_brand} 100%); padding: 32px 32px 28px; text-align: center;">
+              <p style="margin: 0 0 6px; color: rgba(255,255,255,0.75); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-weight: 600;">#{ERB::Util.html_escape(@org_name)}</p>
+              <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 700;">Your Raffle Tickets</h1>
+              <p style="margin: 8px 0 0; color: rgba(255,255,255,0.7); font-size: 13px;">#{ERB::Util.html_escape(@tournament.name)}</p>
+            </td></tr>
+
+            <tr><td style="padding: 24px 32px 0;">
+              <p style="margin: 0 0 16px; color: #1a1a1a; font-size: 17px; font-weight: 600;">Hi #{ERB::Util.html_escape(@buyer_name)},</p>
+              <p style="margin: 0 0 20px; color: #4b5563; font-size: 14px; line-height: 1.65;">
+                Thank you for purchasing raffle tickets! Here are your ticket details. Hold on to these — if your number is drawn, you win!
+              </p>
+            </td></tr>
+
+            <tr><td style="padding: 0 32px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f9fafb; border-radius: 12px; margin-bottom: 20px;">
+                <tr><td style="padding: 20px;">
+                  <p style="margin: 0 0 4px; color: #{brand}; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Purchase Summary</p>
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top: 12px;">
+                    <tr>
+                      <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Tickets</td>
+                      <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 600; text-align: right;">#{@tickets.size}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 4px 0; color: #6b7280; font-size: 13px;">Total Paid</td>
+                      <td style="padding: 4px 0; color: #111827; font-size: 13px; font-weight: 600; text-align: right;">#{total_dollars}</td>
+                    </tr>
+                  </table>
+                </td></tr>
+              </table>
+            </td></tr>
+
+            <tr><td style="padding: 0 32px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 12px; margin-bottom: 20px;">
+                <tr><td style="padding: 20px;">
+                  <p style="margin: 0 0 12px; color: #{brand}; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Your Ticket Numbers</p>
+                  <p style="margin: 0; color: #111827; font-size: 16px; font-weight: 700; font-family: 'Courier New', monospace; letter-spacing: 1px; line-height: 2;">
+                    #{ticket_numbers.map { |n| "##{ERB::Util.html_escape(n)}" }.join(' &nbsp;&middot;&nbsp; ')}
+                  </p>
+                </td></tr>
+              </table>
+            </td></tr>
+
+            <tr><td style="padding: 8px 32px 28px;">
+              <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6;">
+                Winners will be notified by email or text. Thank you for supporting <strong style="color: #1a1a1a;">#{ERB::Util.html_escape(@org_name)}</strong>!
+              </p>
+            </td></tr>
+
+            <tr><td style="background-color: #f9fafb; border-top: 1px solid #e5e7eb; padding: 20px 32px; text-align: center;">
+              <p style="margin: 0 0 4px; color: #6b7280; font-size: 12px; font-weight: 500;">#{ERB::Util.html_escape(@org_name)}</p>
+              <p style="margin: 0; color: #9ca3af; font-size: 11px;">Powered by Shimizu Technology</p>
+            </td></tr>
+
+          </table>
+        </td></tr>
+      </table>
+    HTML
   end
 
   def send_email(to:, subject:, html:)
