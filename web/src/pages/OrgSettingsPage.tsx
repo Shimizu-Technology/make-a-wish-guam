@@ -1312,8 +1312,8 @@ export const OrgSettingsPage: React.FC = () => {
                     </div>
                     <p className="text-xs text-gray-500 -mt-2 ml-8">
                       {tournamentSettings.raffle_include_with_registration
-                        ? 'Registrants automatically receive raffle tickets when they pay.'
-                        : 'Raffle tickets are sold separately at the event. No tickets are included with registration.'}
+                        ? 'Registrants automatically receive complimentary raffle tickets when they pay.'
+                        : 'No complimentary tickets with registration. Tickets can be purchased as an add-on during registration or at the event.'}
                     </p>
 
                     <div>

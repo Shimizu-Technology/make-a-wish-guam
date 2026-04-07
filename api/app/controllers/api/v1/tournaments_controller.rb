@@ -64,7 +64,7 @@ module Api
         attrs = tournament_params.except(:organization_id, :sponsor_tiers,
                                          :raffle_include_with_registration, :raffle_bundles)
 
-        merged_config = @tournament.config || {}
+        merged_config = (@tournament.config || {}).deep_dup
 
         if params.dig(:tournament, :sponsor_tiers).present?
           tiers = tournament_params[:sponsor_tiers]&.map(&:to_h)
