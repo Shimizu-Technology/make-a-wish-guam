@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_07_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_07_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -94,6 +94,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_07_100000) do
     t.string "payment_verified_by_name"
     t.string "phone"
     t.integer "position"
+    t.string "raffle_bundle_label"
+    t.integer "raffle_tickets_requested", default: 0, null: false
     t.string "receipt_number"
     t.integer "refund_amount_cents"
     t.text "refund_reason"

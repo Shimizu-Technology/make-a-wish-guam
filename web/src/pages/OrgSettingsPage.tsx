@@ -87,9 +87,9 @@ interface RaffleBundleDef {
 }
 
 const DEFAULT_RAFFLE_BUNDLES: RaffleBundleDef[] = [
-  { quantity: 8,  price_cents: 4000,  label: '$40 for 8 tickets' },
-  { quantity: 10, price_cents: 5000,  label: '$50 for 10 tickets' },
-  { quantity: 20, price_cents: 10000, label: '$100 for 20 tickets' },
+  { quantity: 4,  price_cents: 2000,  label: '$20 for 4 tickets' },
+  { quantity: 12, price_cents: 5000,  label: '$50 for 12 tickets' },
+  { quantity: 25, price_cents: 10000, label: '$100 for 25 tickets' },
 ];
 
 interface TournamentSettings {

@@ -129,6 +129,9 @@ export interface Tournament {
   raffle_description?: string;
   raffle_draw_time?: string;
   raffle_auto_draw?: boolean;
+  raffle_ticket_price_cents?: number;
+  raffle_include_with_registration?: boolean;
+  raffle_bundles?: { quantity: number; price_cents: number; label: string }[];
 
   // Legacy compatibility fields (optional)
   employee_entry_fee?: number;
@@ -595,6 +598,8 @@ export class ApiClient {
       team_name?: string;
       tshirt_size?: string;
       partner_tshirt_size?: string;
+      raffle_tickets_requested?: number;
+      raffle_bundle_label?: string;
     };
     waiver_accepted: boolean;
     tournament_id?: string | number;

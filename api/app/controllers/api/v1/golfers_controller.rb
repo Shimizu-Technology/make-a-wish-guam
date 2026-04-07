@@ -441,6 +441,7 @@ module Api
 
           begin
             golfer.create_raffle_tickets!
+            golfer.create_purchased_raffle_tickets!
           rescue => e
             Rails.logger.warn("Failed to create raffle tickets for #{golfer.name}: #{e.message}")
           end
@@ -662,6 +663,7 @@ module Api
 
         begin
           golfer.create_raffle_tickets!
+          golfer.create_purchased_raffle_tickets!
         rescue => e
           Rails.logger.warn("Failed to create raffle tickets for #{golfer.name}: #{e.message}")
         end
@@ -924,7 +926,8 @@ module Api
           :name, :company, :address, :phone, :mobile, :email,
           :payment_type, :payment_status, :notes, :is_team_captain,
           :partner_name, :partner_email, :partner_phone, :partner_waiver_accepted_at,
-          :team_name, :tshirt_size, :partner_tshirt_size
+          :team_name, :tshirt_size, :partner_tshirt_size,
+          :raffle_tickets_requested, :raffle_bundle_label
         )
       end
 

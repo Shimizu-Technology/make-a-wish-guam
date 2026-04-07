@@ -208,6 +208,36 @@ class Golfer < ApplicationRecord
     end
   end
 
+  # Create pre-purchased raffle tickets (selected during registration)
+  def create_purchased_raffle_tickets!
+    return unless tournament&.raffle_enabled?
+    return unless raffle_tickets_requested.to_i > 0
+
+    with_lock do
+      existing_purchased = tournament.raffle_tickets
+        .where(golfer_id: id)
+        .where('price_cents > 0')
+        .count
+
+      return if existing_purchased >= raffle_tickets_requested
+
+      tickets_to_create = raffle_tickets_requested - existing_purchased
+      per_ticket_cents = tournament.raffle_ticket_price_cents || 500
+
+      tickets_to_create.times do
+        tournament.raffle_tickets.create!(
+          golfer_id: id,
+          purchaser_name: name,
+          purchaser_email: email,
+          purchaser_phone: phone,
+          price_cents: per_ticket_cents,
+          payment_status: 'paid',
+          purchased_at: Time.current
+        )
+      end
+    end
+  end
+
   # Cancel a golfer's registration (without refund - for unpaid or non-Stripe payments)
   def cancel!(admin: nil, reason: nil)
     assign_attributes(
