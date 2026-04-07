@@ -76,6 +76,7 @@ export const OrgRegistrationPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'redirecting'>('idle');
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     player1Name: '',
@@ -205,9 +206,9 @@ export const OrgRegistrationPage: React.FC = () => {
 
       if (checkoutResponse.redirect_url) {
         setSubmitState('redirecting');
-        setTimeout(() => {
-          window.location.href = checkoutResponse.redirect_url;
-        }, 500);
+        setPaymentUrl(checkoutResponse.redirect_url);
+        // Redirect immediately - no delay
+        window.location.href = checkoutResponse.redirect_url;
       } else {
         navigate(`/${tournamentSlug}/success`, {
           state: {
@@ -667,6 +668,22 @@ export const OrgRegistrationPage: React.FC = () => {
                     </span>
                   )}
                 </motion.button>
+              )}
+
+              {/* Fallback payment link if auto-redirect doesn't work */}
+              {submitState === 'redirecting' && paymentUrl && (
+                <div className="mt-4 p-4 bg-[#0057B8]/5 rounded-2xl text-center">
+                  <p className="text-sm text-neutral-600 mb-2">
+                    Registration complete! If you are not automatically redirected:
+                  </p>
+                  <a
+                    href={paymentUrl}
+                    className="inline-flex items-center gap-2 text-[#0057B8] font-semibold text-sm hover:underline"
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    Tap here to proceed to payment
+                  </a>
+                </div>
               )}
             </div>
           </div>
