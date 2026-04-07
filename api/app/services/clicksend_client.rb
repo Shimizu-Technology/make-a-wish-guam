@@ -79,10 +79,10 @@ class ClicksendClient
     end
 
     def normalize_phone(phone)
-      formatted = phone.to_s.strip
-      formatted = "+1#{formatted}" if formatted.match?(/\A\d{10}\z/)
-      formatted = "+#{formatted}" unless formatted.start_with?("+")
-      formatted
+      digits = phone.to_s.gsub(/\D/, '')
+      digits = "1#{digits}" if digits.match?(/\A\d{10}\z/)
+      digits = "+#{digits}" unless digits.start_with?("+")
+      digits
     end
 
     def mask_phone(phone)
