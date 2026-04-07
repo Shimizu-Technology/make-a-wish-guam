@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useOrganization } from '../components/OrganizationProvider';
@@ -20,7 +20,9 @@ import {
   DollarSign,
   Search,
   X,
-  PartyPopper
+  PartyPopper,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
@@ -66,6 +68,13 @@ interface Stats {
   complimentary: number;
   purchased: number;
   additional_revenue_cents: number;
+}
+
+interface Pagination {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
 }
 
 interface RaffleBundleDef {
@@ -302,6 +311,12 @@ export const RaffleManagementPage: React.FC = () => {
   const [prizes, setPrizes] = useState<Prize[]>([]);
   const [tickets, setTickets] = useState<RaffleTicket[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [ticketSearchInput, setTicketSearchInput] = useState('');
+  const [ticketSearch, setTicketSearch] = useState('');
+  const [ticketFilter, setTicketFilter] = useState<'' | 'purchased' | 'complimentary' | 'winners'>('');
+  const [ticketPage, setTicketPage] = useState(1);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'prizes' | 'tickets' | 'sell'>('prizes');
 
@@ -320,7 +335,32 @@ export const RaffleManagementPage: React.FC = () => {
   // Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchTickets = useCallback(async (tournamentId?: string, search?: string, filter?: string, page?: number) => {
+    const tid = tournamentId || tournament?.id;
+    if (!tid) return;
+
+    try {
+      const token = await getToken();
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (filter) params.set('type', filter);
+      params.set('page', String(page || 1));
+      params.set('per_page', '50');
+
+      const ticketsRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tid}/raffle/admin/tickets?${params}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const ticketsData = await ticketsRes.json();
+      setTickets(ticketsData.tickets || []);
+      setStats(ticketsData.stats || null);
+      setPagination(ticketsData.pagination || null);
+    } catch {
+      // stats/tickets fail silently - main data already loaded
+    }
+  }, [tournament?.id, getToken]);
+
+  const fetchData = useCallback(async (skipTickets = false) => {
     if (!organization || !tournamentSlug) return;
 
     try {
@@ -335,32 +375,40 @@ export const RaffleManagementPage: React.FC = () => {
       const tid = t.id;
       setTournament({ ...t, id: tid });
 
-      // Get prizes
       const prizesRes = await fetch(
         `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tid}/raffle/prizes`
       );
       const prizesData = await prizesRes.json();
       setPrizes(prizesData.prizes || []);
 
-      // Get tickets (admin)
-      const ticketsRes = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tid}/raffle/admin/tickets`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-      const ticketsData = await ticketsRes.json();
-      setTickets(ticketsData.tickets || []);
-      setStats(ticketsData.stats || null);
-
+      if (!skipTickets) {
+        await fetchTickets(tid, ticketSearch, ticketFilter, ticketPage);
+      }
     } catch (err) {
       toast.error('Failed to load raffle data');
     } finally {
       setLoading(false);
     }
-  }, [organization, tournamentSlug, getToken]);
+  }, [organization, tournamentSlug, getToken, fetchTickets, ticketSearch, ticketFilter, ticketPage]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setTicketSearch(ticketSearchInput);
+      setTicketPage(1);
+    }, 300);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [ticketSearchInput]);
+
+  useEffect(() => {
+    if (tournament?.id) {
+      fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
+    }
+  }, [ticketSearch, ticketFilter, ticketPage]);
 
   const handleDrawPrize = async (prize: Prize) => {
     if (!confirm(`Draw a winner for "${prize.name}"?`)) return;
@@ -957,9 +1005,9 @@ export const RaffleManagementPage: React.FC = () => {
         )}
 
         {activeTab === 'tickets' && (
-          <div>
+          <div className="space-y-4">
             {/* Actions */}
-            <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={handleSyncTickets}
                 disabled={actionLoading === 'sync-tickets'}
@@ -981,6 +1029,48 @@ export const RaffleManagementPage: React.FC = () => {
               </button>
             </div>
 
+            {/* Search + Filters */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name, email, phone, or ticket #..."
+                  value={ticketSearchInput}
+                  onChange={(e) => setTicketSearchInput(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+                {ticketSearchInput && (
+                  <button
+                    onClick={() => { setTicketSearchInput(''); setTicketSearch(''); setTicketPage(1); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-1.5 bg-gray-100 rounded-xl p-1">
+                {([
+                  { key: '' as const, label: 'All' },
+                  { key: 'purchased' as const, label: 'Purchased' },
+                  { key: 'complimentary' as const, label: 'Included' },
+                  { key: 'winners' as const, label: 'Winners' },
+                ] as const).map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => { setTicketFilter(f.key); setTicketPage(1); }}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      ticketFilter === f.key
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Tickets Table */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <table className="w-full">
@@ -988,9 +1078,10 @@ export const RaffleManagementPage: React.FC = () => {
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Ticket #</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Name</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Contact</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Type</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Winner</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Date</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Winner</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -998,10 +1089,14 @@ export const RaffleManagementPage: React.FC = () => {
                     const isComplimentary = !ticket.price_cents || ticket.price_cents === 0;
                     return (
                     <tr key={ticket.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-sm">{ticket.ticket_number}</td>
+                      <td className="px-4 py-3 font-mono text-sm font-semibold text-gray-800">{ticket.ticket_number}</td>
                       <td className="px-4 py-3">
                         <p className="font-medium text-gray-900">{ticket.purchaser_name}</p>
-                        <p className="text-sm text-gray-500">{ticket.purchaser_email}</p>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        {ticket.purchaser_email && <p className="text-sm text-gray-500">{ticket.purchaser_email}</p>}
+                        {ticket.purchaser_phone && <p className="text-sm text-gray-400">{ticket.purchaser_phone}</p>}
+                        {!ticket.purchaser_email && !ticket.purchaser_phone && <span className="text-gray-300">-</span>}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-full text-xs ${
@@ -1012,7 +1107,7 @@ export const RaffleManagementPage: React.FC = () => {
                           {isComplimentary ? 'Included' : `$${((ticket.price_cents || 0) / 100).toFixed(0)}`}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 hidden sm:table-cell">
                         {ticket.is_winner ? (
                           <span className="flex items-center gap-1 text-yellow-600">
                             <Trophy className="w-4 h-4" />
@@ -1022,7 +1117,7 @@ export const RaffleManagementPage: React.FC = () => {
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
+                      <td className="px-4 py-3 text-sm text-gray-500 hidden sm:table-cell">
                         {ticket.purchased_at 
                           ? new Date(ticket.purchased_at).toLocaleDateString()
                           : '-'
@@ -1033,13 +1128,44 @@ export const RaffleManagementPage: React.FC = () => {
                   })}
                   {tickets.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-12 text-center text-gray-500">
-                        No tickets yet. Click "Sync Registration Tickets" to generate tickets for paid registrants.
+                      <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                        {ticketSearchInput || ticketFilter
+                          ? 'No tickets match your search or filter.'
+                          : 'No tickets yet. Click "Sync Registration Tickets" to generate tickets for paid registrants.'
+                        }
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
+
+              {/* Pagination */}
+              {pagination && pagination.total_pages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
+                  <p className="text-sm text-gray-600">
+                    Showing {((pagination.page - 1) * pagination.per_page) + 1}–{Math.min(pagination.page * pagination.per_page, pagination.total)} of {pagination.total}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setTicketPage(p => Math.max(1, p - 1))}
+                      disabled={pagination.page <= 1}
+                      className="p-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="px-3 text-sm font-medium text-gray-700">
+                      {pagination.page} / {pagination.total_pages}
+                    </span>
+                    <button
+                      onClick={() => setTicketPage(p => Math.min(pagination.total_pages, p + 1))}
+                      disabled={pagination.page >= pagination.total_pages}
+                      className="p-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

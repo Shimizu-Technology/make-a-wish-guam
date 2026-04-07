@@ -196,19 +196,53 @@ module Api
       # ===========================================
 
       # GET /api/v1/tournaments/:tournament_id/raffle/admin/tickets
-      # Admin - list all tickets
+      # Admin - list all tickets with search, filter, pagination
       def admin_tickets
         tickets = @tournament.raffle_tickets.includes(:golfer, :raffle_prize).recent
 
-        # Filter by status
+        # Filter by payment status
         tickets = tickets.where(payment_status: params[:status]) if params[:status].present?
 
+        # Filter by type: "purchased" or "complimentary"
+        case params[:type]
+        when 'purchased'
+          tickets = tickets.where('price_cents > 0')
+        when 'complimentary'
+          tickets = tickets.where(price_cents: [0, nil])
+        when 'winners'
+          tickets = tickets.where(is_winner: true)
+        end
+
+        # Search by ticket number, name, email, or phone
+        if params[:search].present?
+          q = "%#{params[:search].downcase}%"
+          tickets = tickets.where(
+            "LOWER(ticket_number) LIKE ? OR LOWER(purchaser_name) LIKE ? OR LOWER(purchaser_email) LIKE ? OR purchaser_phone LIKE ?",
+            q, q, q, "%#{params[:search]}%"
+          )
+        end
+
+        # Stats (always computed on full set, not paginated)
         all_tickets = @tournament.raffle_tickets
-        complimentary = all_tickets.where(price_cents: 0).or(all_tickets.where(price_cents: nil))
+        complimentary = all_tickets.where(price_cents: [0, nil])
         purchased = all_tickets.where('price_cents > 0')
 
+        total_filtered = tickets.count
+
+        # Pagination
+        page = [params[:page].to_i, 1].max
+        per_page = [[params[:per_page].to_i, 1].max, 200].min
+        per_page = 50 if params[:per_page].blank?
+        paginated = tickets.offset((page - 1) * per_page).limit(per_page)
+
         render json: {
-          tickets: tickets.map { |t| ticket_response(t, admin: true) },
+          tickets: paginated.map { |t| ticket_response(t, admin: true) },
+          pagination: {
+            page: page,
+            per_page: per_page,
+            total: total_filtered,
+            total_pages: (total_filtered.to_f / per_page).ceil
+          },
           stats: {
             total: all_tickets.count,
             paid: all_tickets.paid.count,

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_07_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_07_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -200,6 +200,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_07_110000) do
     t.string "purchaser_name"
     t.string "purchaser_phone"
     t.bigint "raffle_prize_id"
+    t.integer "sequence_number"
     t.bigint "sold_by_user_id"
     t.string "stripe_payment_intent_id"
     t.string "ticket_number", null: false
@@ -211,6 +212,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_07_110000) do
     t.index ["ticket_number"], name: "index_raffle_tickets_on_ticket_number", unique: true
     t.index ["tournament_id", "is_winner"], name: "index_raffle_tickets_on_tournament_id_and_is_winner"
     t.index ["tournament_id", "payment_status"], name: "index_raffle_tickets_on_tournament_id_and_payment_status"
+    t.index ["tournament_id", "sequence_number"], name: "index_raffle_tickets_on_tournament_id_and_sequence_number", unique: true
     t.index ["tournament_id"], name: "index_raffle_tickets_on_tournament_id"
   end
 

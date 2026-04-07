@@ -60,12 +60,16 @@ class RaffleTicket < ApplicationRecord
   def generate_ticket_number
     return if ticket_number.present?
 
-    # Generate unique ticket number: TOURNEY-XXXXXX
-    prefix = tournament&.slug&.first(6)&.upcase || 'RAFFLE'
-    
-    loop do
-      self.ticket_number = "#{prefix}-#{SecureRandom.alphanumeric(6).upcase}"
-      break unless RaffleTicket.exists?(ticket_number: ticket_number)
-    end
+    prefix = ticket_prefix
+    next_seq = (tournament&.raffle_tickets&.maximum(:sequence_number) || 0) + 1
+    self.sequence_number = next_seq
+    self.ticket_number = "#{prefix}-#{next_seq.to_s.rjust(4, '0')}"
+  end
+
+  def ticket_prefix
+    org = tournament&.organization
+    return 'TIX' unless org
+
+    org.name.scan(/[A-Z]/).first(4).join.presence || org.slug&.first(3)&.upcase || 'TIX'
   end
 end
