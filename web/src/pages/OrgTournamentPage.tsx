@@ -606,12 +606,6 @@ function HoleSponsorGrid({
             variants={staggerItem}
             className="relative bg-white rounded-2xl border border-neutral-200 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 overflow-hidden"
           >
-            {/* Hole number badge */}
-            {sponsor.hole_number && (
-              <div className="absolute top-2 left-2 z-10 w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs bg-[#0057B8] text-white shadow-sm">
-                {sponsor.hole_number}
-              </div>
-            )}
             {/* Logo area */}
             <div className="flex items-center justify-center bg-neutral-50/60 p-4 min-h-[80px]">
               {sponsor.logo_url ? (
