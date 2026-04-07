@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { X, Loader2, CreditCard, Banknote, Building2, Users } from 'lucide-react';
+import { X, Loader2, CreditCard, Banknote, Building2, Users, Send, Clock, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface AddGolferModalProps {
@@ -14,6 +14,8 @@ interface AddGolferModalProps {
   tournamentName?: string;
 }
 
+type PaymentOption = 'pay_on_day' | 'send_link' | 'already_paid';
+
 interface FormData {
   name: string;
   email: string;
@@ -23,8 +25,8 @@ interface FormData {
   partner_email: string;
   partner_phone: string;
   team_category: string;
-  payment_status: 'paid' | 'unpaid';
-  payment_method: 'cash' | 'check' | 'card' | 'online' | '';
+  payment_option: PaymentOption;
+  payment_method: 'cash' | 'check' | 'card' | '';
   notes: string;
 }
 
@@ -37,7 +39,7 @@ const defaultFormData: FormData = {
   partner_email: '',
   partner_phone: '',
   team_category: '',
-  payment_status: 'unpaid',
+  payment_option: 'pay_on_day',
   payment_method: '',
   notes: '',
 };
@@ -80,8 +82,8 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone is required';
     }
-    if (formData.payment_status === 'paid' && !formData.payment_method) {
-      newErrors.payment_method = 'Payment method is required when marked as paid';
+    if (formData.payment_option === 'already_paid' && !formData.payment_method) {
+      newErrors.payment_method = 'Payment method is required';
     }
 
     setErrors(newErrors);
@@ -107,13 +109,24 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
         ? `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${orgSlug}/tournaments/${tournamentSlug}/golfers`
         : `${import.meta.env.VITE_API_URL}/api/v1/golfers`;
 
+      const isPaid = formData.payment_option === 'already_paid';
+
       const payload = {
         golfer: {
-          ...formData,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          company: formData.company || undefined,
+          partner_name: formData.partner_name || undefined,
+          partner_email: formData.partner_email || undefined,
+          partner_phone: formData.partner_phone || undefined,
           team_category: formData.team_category || undefined,
+          notes: formData.notes || undefined,
           tournament_id: tournamentId,
           registration_status: 'confirmed',
-          payment_type: 'pay_on_day',
+          payment_type: formData.payment_option === 'send_link' ? 'stripe' : 'pay_on_day',
+          payment_status: isPaid ? 'paid' : 'unpaid',
+          payment_method: isPaid ? formData.payment_method : undefined,
           is_team_captain: true,
           waiver_accepted_at: new Date().toISOString(),
         },
@@ -130,15 +143,55 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to add golfer');
+        throw new Error(data.error || 'Failed to add team');
       }
 
-      toast.success(`${formData.name} added successfully!`);
+      const golferData = await response.json();
+      const golferId = golferData.id || golferData.golfer?.id;
+
+      if (formData.payment_option === 'send_link' && golferId) {
+        try {
+          const linkRes = await fetch(
+            `${import.meta.env.VITE_API_URL}/api/v1/golfers/${golferId}/send_payment_link`,
+            {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            }
+          );
+          if (linkRes.ok) {
+            toast.success(`${formData.name} added and payment link sent to ${formData.email}!`);
+          } else {
+            toast.success(`${formData.name} added! Payment link could not be sent — you can resend from their details.`);
+          }
+        } catch {
+          toast.success(`${formData.name} added! Payment link could not be sent — you can resend from their details.`);
+        }
+      } else if (formData.payment_option === 'already_paid' && golferId) {
+        try {
+          await fetch(
+            `${import.meta.env.VITE_API_URL}/api/v1/golfers/${golferId}/mark_paid`,
+            {
+              method: 'PATCH',
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                payment_method: formData.payment_method,
+                payment_notes: `Marked paid on registration (${formData.payment_method})`,
+              }),
+            }
+          );
+        } catch {
+          // golfer was already created with paid status, mark_paid is best-effort
+        }
+        toast.success(`${formData.name} added and marked as paid!`);
+      } else {
+        toast.success(`${formData.name} added successfully! They can pay on the day of the event.`);
+      }
+
       setFormData(defaultFormData);
       onSuccess();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to add golfer');
+      toast.error(err instanceof Error ? err.message : 'Failed to add team');
     } finally {
       setSaving(false);
     }
@@ -284,94 +337,143 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
             </div>
           </div>
 
-          {/* Company */}
-          <div className="pt-4 border-t border-gray-200">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Company / Organization
-            </label>
-            <div className="relative">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                name="company"
-                value={formData.company}
-                onChange={handleChange}
-                placeholder="Optional"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-              />
+          {/* Company & Category */}
+          <div className="pt-4 border-t border-gray-200 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company / Organization
+              </label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  name="company"
+                  value={formData.company}
+                  onChange={handleChange}
+                  placeholder="Optional"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
             </div>
-          </div>
-
-          <div className="pt-4 border-t border-gray-200">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Team Category</label>
-            <select
-              name="team_category"
-              value={formData.team_category}
-              onChange={handleChange}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-            >
-              <option value="">—</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Co-Ed">Co-Ed</option>
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Team Category</label>
+              <select
+                name="team_category"
+                value={formData.team_category}
+                onChange={handleChange}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              >
+                <option value="">--</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Co-Ed">Co-Ed</option>
+              </select>
+            </div>
           </div>
 
           {/* Payment Section */}
-          <div className="p-4 bg-gray-50 rounded-lg space-y-4">
+          <div className="pt-4 border-t border-gray-200 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-gray-900">Entry Fee</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Payment</span>
               <span className="text-lg font-bold text-gray-900">{formatCurrency(entryFee)}</span>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Payment Status
+            <div className="space-y-2">
+              {/* Pay on Day */}
+              <label
+                className={`flex items-start gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${
+                  formData.payment_option === 'pay_on_day'
+                    ? 'border-brand-500 bg-brand-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="payment_option"
+                  value="pay_on_day"
+                  checked={formData.payment_option === 'pay_on_day'}
+                  onChange={handleChange}
+                  className="mt-0.5 w-4 h-4 text-brand-600"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-brand-600 shrink-0" />
+                    <span className="font-medium text-gray-900">Pay on Day of Tournament</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">Golfer will pay at check-in (cash, check, or card)</p>
+                </div>
               </label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="payment_status"
-                    value="unpaid"
-                    checked={formData.payment_status === 'unpaid'}
-                    onChange={handleChange}
-                    className="w-4 h-4 text-brand-600"
-                  />
-                  <span className="text-gray-700">Unpaid</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="payment_status"
-                    value="paid"
-                    checked={formData.payment_status === 'paid'}
-                    onChange={handleChange}
-                    className="w-4 h-4 text-brand-600"
-                  />
-                  <span className="text-gray-700">Paid</span>
-                </label>
-              </div>
+
+              {/* Send Payment Link */}
+              <label
+                className={`flex items-start gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${
+                  formData.payment_option === 'send_link'
+                    ? 'border-brand-500 bg-brand-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="payment_option"
+                  value="send_link"
+                  checked={formData.payment_option === 'send_link'}
+                  onChange={handleChange}
+                  className="mt-0.5 w-4 h-4 text-brand-600"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Send className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span className="font-medium text-gray-900">Send Payment Link</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">Email golfer a secure link to pay online</p>
+                </div>
+              </label>
+
+              {/* Already Paid */}
+              <label
+                className={`flex items-start gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${
+                  formData.payment_option === 'already_paid'
+                    ? 'border-brand-500 bg-brand-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="payment_option"
+                  value="already_paid"
+                  checked={formData.payment_option === 'already_paid'}
+                  onChange={handleChange}
+                  className="mt-0.5 w-4 h-4 text-brand-600"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
+                    <span className="font-medium text-gray-900">Already Paid</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-medium">Cash/Check</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">Payment already received (mark as paid immediately)</p>
+                </div>
+              </label>
             </div>
 
-            {formData.payment_status === 'paid' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+            {/* Payment method selector for "Already Paid" */}
+            {formData.payment_option === 'already_paid' && (
+              <div className="pl-7 space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
                   Payment Method <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[
                     { value: 'cash', label: 'Cash', icon: Banknote },
                     { value: 'check', label: 'Check', icon: CreditCard },
                     { value: 'card', label: 'Card', icon: CreditCard },
-                    { value: 'online', label: 'Online', icon: CreditCard },
                   ].map(({ value, label, icon: Icon }) => (
                     <label
                       key={value}
-                      className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors ${
+                      className={`flex items-center justify-center gap-1.5 p-2.5 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
                         formData.payment_method === value
-                          ? 'border-brand-500 bg-brand-50'
-                          : 'border-gray-300 hover:bg-gray-50'
+                          ? 'border-green-500 bg-green-50 text-green-700 font-medium'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
                       }`}
                     >
                       <input
@@ -382,15 +484,13 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
                         onChange={handleChange}
                         className="sr-only"
                       />
-                      <Icon className={`w-4 h-4 ${formData.payment_method === value ? 'text-brand-600' : 'text-gray-400'}`} />
-                      <span className={formData.payment_method === value ? 'text-brand-700 font-medium' : 'text-gray-700'}>
-                        {label}
-                      </span>
+                      <Icon className="w-4 h-4" />
+                      {label}
                     </label>
                   ))}
                 </div>
                 {errors.payment_method && (
-                  <p className="mt-1 text-sm text-red-500">{errors.payment_method}</p>
+                  <p className="text-sm text-red-500">{errors.payment_method}</p>
                 )}
               </div>
             )}

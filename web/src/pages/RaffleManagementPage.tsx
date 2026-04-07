@@ -1254,16 +1254,17 @@ export const RaffleManagementPage: React.FC = () => {
 
             {/* Tickets Table */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px]">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-600 whitespace-nowrap">Ticket #</th>
-                    <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-600">Name</th>
-                    <th className="px-2 sm:px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Contact</th>
-                    <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-600">Status</th>
-                    <th className="px-2 sm:px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Winner</th>
-                    <th className="px-2 sm:px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Date</th>
-                    <th className="px-1 sm:px-4 py-3 text-right text-sm font-medium text-gray-600 w-10 sm:w-16"></th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 whitespace-nowrap">Ticket #</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Name</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Contact</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Winner</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Date</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-600 w-16"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -1277,30 +1278,30 @@ export const RaffleManagementPage: React.FC = () => {
                       className={`hover:bg-gray-50 cursor-pointer ${isVoided ? 'opacity-60' : ''}`}
                       onClick={() => setExpandedTicketId(isExpanded ? null : ticket.id)}
                     >
-                      <td className="px-2 sm:px-4 py-3">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400 transition-transform shrink-0 ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
-                          <span className={`font-mono text-xs sm:text-sm font-semibold whitespace-nowrap ${isVoided ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform shrink-0 ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                          <span className={`font-mono text-sm font-semibold whitespace-nowrap ${isVoided ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                             {ticket.ticket_number}
                           </span>
                         </div>
                       </td>
-                      <td className="px-2 sm:px-4 py-3">
+                      <td className="px-4 py-3">
                         <p className={`font-medium text-sm ${isVoided ? 'text-gray-400' : 'text-gray-900'}`}>{ticket.purchaser_name}</p>
                       </td>
-                      <td className="px-2 sm:px-4 py-3 hidden sm:table-cell">
+                      <td className="px-4 py-3">
                         {ticket.purchaser_email && <p className="text-sm text-gray-500">{ticket.purchaser_email}</p>}
                         {ticket.purchaser_phone && <p className="text-sm text-gray-400">{ticket.purchaser_phone}</p>}
                         {!ticket.purchaser_email && !ticket.purchaser_phone && <span className="text-gray-300">-</span>}
                       </td>
-                      <td className="px-2 sm:px-4 py-3">
+                      <td className="px-4 py-3">
                         {isVoided ? (
-                          <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs bg-red-50 text-red-600">
-                            <Ban className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-red-50 text-red-600">
+                            <Ban className="w-3 h-3" />
                             Voided
                           </span>
                         ) : (
-                          <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs ${
+                          <span className={`px-2 py-1 rounded-full text-xs ${
                             isComplimentary
                               ? 'bg-blue-50 text-blue-700'
                               : 'bg-green-100 text-green-700'
@@ -1309,7 +1310,7 @@ export const RaffleManagementPage: React.FC = () => {
                           </span>
                         )}
                       </td>
-                      <td className="px-2 sm:px-4 py-3 hidden sm:table-cell">
+                      <td className="px-4 py-3">
                         {ticket.is_winner ? (
                           <span className="flex items-center gap-1 text-yellow-600">
                             <Trophy className="w-4 h-4" />
@@ -1319,24 +1320,24 @@ export const RaffleManagementPage: React.FC = () => {
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-2 sm:px-4 py-3 text-sm text-gray-500 hidden sm:table-cell">
+                      <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                         {ticket.purchased_at 
                           ? formatDate(ticket.purchased_at)
                           : '-'
                         }
                       </td>
-                      <td className="px-1 sm:px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         {!isVoided && !ticket.is_winner && (
                           <button
                             onClick={() => handleVoidTicket(ticket)}
                             disabled={actionLoading === `void-${ticket.id}`}
-                            className="p-1 sm:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Void ticket"
                           >
                             {actionLoading === `void-${ticket.id}` ? (
-                              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                              <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                              <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              <Ban className="w-4 h-4" />
                             )}
                           </button>
                         )}
@@ -1416,6 +1417,7 @@ export const RaffleManagementPage: React.FC = () => {
                   )}
                 </tbody>
               </table>
+              </div>
 
               {/* Pagination */}
               {pagination && pagination.total_pages > 1 && (

@@ -427,7 +427,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white/95 backdrop-blur lg:hidden">
         <div className="grid h-16 grid-cols-4">
-          {organizationNav.map((item) => {
+          {organizationNav.filter((item) => item.label !== 'Activity Log').map((item) => {
             const Icon = item.icon;
             const isActive = item.match ? item.match(location.pathname) : location.pathname === item.path;
 
