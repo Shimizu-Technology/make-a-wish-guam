@@ -35,7 +35,7 @@ interface Golfer {
   email: string;
   phone: string;
   company: string | null;
-  registration_status: 'confirmed' | 'waitlist' | 'cancelled';
+  registration_status: 'confirmed' | 'waitlist' | 'cancelled' | 'pending';
   payment_status: 'paid' | 'unpaid' | 'pending' | 'refunded';
   payment_method: string | null;
   payment_type: string | null;
@@ -54,6 +54,7 @@ interface Golfer {
   sponsor_name: string | null;
   sponsor_display_name: string | null;
   team_category: string | null;
+  registration_source: 'admin' | 'public' | null;
 }
 
 interface Tournament {
@@ -172,6 +173,7 @@ export const OrgTournamentAdmin: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<
     'all' | 'male' | 'female' | 'co-ed' | 'unset'
   >('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'admin' | 'public'>('all');
   
   const [sortColumn, setSortColumn] = useState<'name' | 'created_at'>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -259,7 +261,10 @@ export const OrgTournamentAdmin: React.FC = () => {
     }
 
     if (statusFilter === 'pending_payment') {
-      filtered = filtered.filter(g => g.registration_status === 'confirmed' && g.payment_status !== 'paid' && g.payment_status !== 'refunded');
+      filtered = filtered.filter(g =>
+        (g.registration_status === 'confirmed' || g.registration_status === 'pending') &&
+        g.payment_status !== 'paid' && g.payment_status !== 'refunded'
+      );
     } else if (statusFilter === 'confirmed') {
       filtered = filtered.filter(g => g.registration_status === 'confirmed' && g.payment_status === 'paid');
     } else if (statusFilter !== 'all') {
@@ -290,6 +295,12 @@ export const OrgTournamentAdmin: React.FC = () => {
       filtered = filtered.filter(g => !g.team_category);
     }
 
+    if (sourceFilter === 'admin') {
+      filtered = filtered.filter(g => g.registration_source === 'admin');
+    } else if (sourceFilter === 'public') {
+      filtered = filtered.filter(g => !g.registration_source || g.registration_source === 'public');
+    }
+
     filtered.sort((a, b) => {
       let comparison = 0;
       if (sortColumn === 'name') {
@@ -301,7 +312,7 @@ export const OrgTournamentAdmin: React.FC = () => {
     });
 
     return filtered;
-  }, [golfers, searchTerm, statusFilter, paymentFilter, checkinFilter, categoryFilter, sortColumn, sortDirection]);
+  }, [golfers, searchTerm, statusFilter, paymentFilter, checkinFilter, categoryFilter, sourceFilter, sortColumn, sortDirection]);
 
   const handleSort = (column: 'name' | 'created_at') => {
     if (sortColumn === column) {
@@ -437,7 +448,7 @@ export const OrgTournamentAdmin: React.FC = () => {
       g.company || '',
       g.partner_name || '',
       g.team_category || '',
-      (g as any).registration_source === 'admin' ? 'Admin' : 'Public',
+      g.registration_source === 'admin' ? 'Admin' : 'Public',
       g.payment_status === 'paid' ? 'Confirmed' : 'Pending Payment',
       g.payment_status,
       g.payment_method || g.payment_type || '',
@@ -770,6 +781,16 @@ export const OrgTournamentAdmin: React.FC = () => {
                 <option value="unset">Unset</option>
               </select>
 
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value as 'all' | 'admin' | 'public')}
+                className="flex-shrink-0 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="all">All Sources</option>
+                <option value="public">Public</option>
+                <option value="admin">Admin</option>
+              </select>
+
               <div className="flex-shrink-0 flex items-center gap-2 ml-auto">
                 <button onClick={fetchData} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg" title="Refresh">
                   <RefreshCw className="w-5 h-5" />
@@ -855,11 +876,18 @@ export const OrgTournamentAdmin: React.FC = () => {
                               )}
                             </p>
                             {golfer.company && <p className="text-sm text-gray-500">{golfer.company}</p>}
-                            {golfer.sponsor_display_name && (
-                              <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-medium text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-full">
-                                Sponsored by {golfer.sponsor_display_name}
-                              </span>
-                            )}
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {golfer.sponsor_display_name && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                                  Sponsored by {golfer.sponsor_display_name}
+                                </span>
+                              )}
+                              {golfer.registration_source === 'admin' && (
+                                <span className="inline-flex items-center text-[10px] font-medium text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded-full">
+                                  Admin
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
@@ -941,7 +969,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                     <span className="text-gray-400 font-normal"> &amp; {selectedGolfer.partner_name}</span>
                   )}
                 </h3>
-                <div className="flex gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2">
                   {(() => {
                     const s = getDisplayStatus(selectedGolfer);
                     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${s.style}`}>{s.label}</span>;
@@ -950,6 +978,13 @@ export const OrgTournamentAdmin: React.FC = () => {
                     const p = getPaymentBadge(selectedGolfer);
                     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.style}`}>{p.label}</span>;
                   })()}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    selectedGolfer.registration_source === 'admin'
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {selectedGolfer.registration_source === 'admin' ? 'Admin Registered' : 'Public'}
+                  </span>
                 </div>
               </div>
 

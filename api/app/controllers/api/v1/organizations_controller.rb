@@ -208,15 +208,20 @@ module Api
 
         render json: {
           tournament: TournamentSerializer.new(tournament).as_json,
-          golfers: golfers.as_json(
-            only: [:id, :name, :email, :phone, :company, :registration_status, 
-                   :payment_status, :payment_method, :payment_type, :checked_in_at, :created_at,
-                   :paid_at, :payment_verified_by_name, :payment_verified_at,
-                   :checked_in_by_name, :payment_notes,
-                   :partner_name, :partner_email, :partner_phone,
-                   :team_name, :team_category, :group_id],
-            methods: [:hole_position_label]
-          ),
+          golfers: golfers.map { |g|
+            g.as_json(
+              only: [:id, :name, :email, :phone, :company, :registration_status, 
+                     :payment_status, :payment_method, :payment_type, :checked_in_at, :created_at,
+                     :paid_at, :payment_verified_by_name, :payment_verified_at,
+                     :checked_in_by_name, :payment_notes,
+                     :partner_name, :partner_email, :partner_phone,
+                     :team_name, :team_category, :registration_source, :group_id,
+                     :sponsor_id, :sponsor_name, :notes],
+              methods: [:hole_position_label]
+            ).merge(
+              "sponsor_display_name" => g.sponsor_name.presence || g.sponsor&.name
+            )
+          },
           stats: stats
         }
       rescue ActiveRecord::RecordNotFound

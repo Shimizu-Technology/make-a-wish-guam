@@ -76,7 +76,7 @@ export function ReportsPage() {
           g.email?.toLowerCase().includes(s) ||
           (g.company && g.company.toLowerCase().includes(s)) ||
           (g.sponsor_display_name && g.sponsor_display_name.toLowerCase().includes(s)) ||
-          ((g as any).partner_name && (g as any).partner_name.toLowerCase().includes(s))
+          (g.partner_name && g.partner_name.toLowerCase().includes(s))
       );
     }
     return result;
@@ -153,9 +153,9 @@ export function ReportsPage() {
           Phone: g.phone || '',
           Company: g.company || '',
           Sponsor: g.sponsor_display_name || '',
-          'Partner Name': (g as any).partner_name || '',
-          Category: (g as any).team_category || '',
-          Source: (g as any).registration_source === 'admin' ? 'Admin' : 'Public',
+          'Partner Name': g.partner_name || '',
+          Category: g.team_category || '',
+          Source: g.registration_source === 'admin' ? 'Admin' : 'Public',
           Status: g.registration_status,
           Payment: g.payment_status,
           'Payment Method': g.payment_method || g.payment_type || '',
@@ -167,9 +167,9 @@ export function ReportsPage() {
       case 'checkin': {
         const data = confirmedGolfers.map((g) => ({
           Name: g.name,
-          'Partner Name': (g as any).partner_name || '',
+          'Partner Name': g.partner_name || '',
           Company: g.company || '',
-          Category: (g as any).team_category || '',
+          Category: g.team_category || '',
           Hole: g.hole_position_label || 'Unassigned',
           Paid: g.payment_status === 'paid' ? 'Yes' : 'No',
           'Checked In': g.checked_in ? 'Yes' : 'No',
@@ -180,7 +180,7 @@ export function ReportsPage() {
       case 'payments': {
         const paidData = paidGolfers.map((g) => ({
           'Player 1': g.name,
-          'Player 2': (g as any).partner_name || '',
+          'Player 2': g.partner_name || '',
           Company: g.company || '',
           Timing: g.payment_timing || '',
           Method: g.payment_channel || g.payment_type || '',
@@ -189,7 +189,7 @@ export function ReportsPage() {
         }));
         const unpaidData = unpaidGolfers.map((g) => ({
           'Player 1': g.name,
-          'Player 2': (g as any).partner_name || '',
+          'Player 2': g.partner_name || '',
           Email: g.email,
           Phone: g.phone || '',
           Company: g.company || '',
@@ -217,13 +217,13 @@ export function ReportsPage() {
       case 'contacts': {
         const data = confirmedGolfers.map((g) => ({
           Name: g.name,
-          'Partner Name': (g as any).partner_name || '',
+          'Partner Name': g.partner_name || '',
           Email: g.email,
           Phone: g.phone || '',
           Company: g.company || '',
-          Category: (g as any).team_category || '',
+          Category: g.team_category || '',
           Sponsor: g.sponsor_display_name || '',
-          Source: (g as any).registration_source === 'admin' ? 'Admin' : 'Public',
+          Source: g.registration_source === 'admin' ? 'Admin' : 'Public',
         }));
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Contact List');
         break;
@@ -420,7 +420,7 @@ function RegistrationsTab({ golfers }: { golfers: Golfer[] }) {
               <div className="min-w-0">
                 <span className="font-medium text-gray-900 text-sm">
                   {g.name}
-                  {(g as any).partner_name && <span className="text-gray-400 font-normal"> &amp; {(g as any).partner_name}</span>}
+                  {g.partner_name && <span className="text-gray-400 font-normal"> &amp; {g.partner_name}</span>}
                 </span>
                 {g.sponsor_display_name && (
                   <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium whitespace-nowrap">{g.sponsor_display_name}</span>
@@ -455,8 +455,8 @@ function RegistrationsTab({ golfers }: { golfers: Golfer[] }) {
               <tr key={g.id} className="hover:bg-gray-50/50">
                 <td className="px-4 py-2.5 font-medium text-gray-900">
                   {g.name}
-                  {(g as any).partner_name && (
-                    <span className="text-gray-400 font-normal"> &amp; {(g as any).partner_name}</span>
+                  {g.partner_name && (
+                    <span className="text-gray-400 font-normal"> &amp; {g.partner_name}</span>
                   )}
                 </td>
                 <td className="px-4 py-2.5 text-gray-500">{g.email}</td>
@@ -497,7 +497,7 @@ function CheckInTab({ golfers }: { golfers: Golfer[] }) {
             <div>
               <div className="font-medium text-sm text-gray-900">
                 {g.name}
-                {(g as any).partner_name && <span className="text-gray-400 font-normal"> &amp; {(g as any).partner_name}</span>}
+                {g.partner_name && <span className="text-gray-400 font-normal"> &amp; {g.partner_name}</span>}
               </div>
               <div className="text-xs text-gray-400">{g.hole_position_label || 'Unassigned'}</div>
             </div>
@@ -530,7 +530,7 @@ function CheckInTab({ golfers }: { golfers: Golfer[] }) {
               <tr key={g.id} className={`hover:bg-gray-50/50 ${g.checked_in ? 'bg-green-50/40' : ''}`}>
                 <td className="px-4 py-2.5 font-medium text-gray-900">
                   {g.name}
-                  {(g as any).partner_name && <span className="text-gray-400 font-normal"> &amp; {(g as any).partner_name}</span>}
+                  {g.partner_name && <span className="text-gray-400 font-normal"> &amp; {g.partner_name}</span>}
                 </td>
                 <td className="px-4 py-2.5 text-gray-500">{g.company || '-'}</td>
                 <td className="px-4 py-2.5 text-gray-500">{g.hole_position_label || 'Unassigned'}</td>
@@ -624,7 +624,7 @@ function PaymentsTab({ paid, unpaid, stats, timingFilter, channelFilter, onTimin
             <div className="flex items-center justify-between">
               <span className="font-medium text-sm text-gray-900">
                 {g.name}
-                {(g as any).partner_name && <span className="text-gray-400 font-normal"> &amp; {(g as any).partner_name}</span>}
+                {g.partner_name && <span className="text-gray-400 font-normal"> &amp; {g.partner_name}</span>}
               </span>
               <span className="text-xs font-medium text-green-700">
                 {g.payment_amount_cents ? `$${(g.payment_amount_cents / 100).toFixed(2)}` : ''}
@@ -656,7 +656,7 @@ function PaymentsTab({ paid, unpaid, stats, timingFilter, channelFilter, onTimin
               <tr key={g.id} className="hover:bg-gray-50/50">
                 <td className="px-4 py-2.5 font-medium text-gray-900">
                   {g.name}
-                  {(g as any).partner_name && <span className="text-gray-400 font-normal"> &amp; {(g as any).partner_name}</span>}
+                  {g.partner_name && <span className="text-gray-400 font-normal"> &amp; {g.partner_name}</span>}
                 </td>
                 <td className="px-4 py-2.5 text-gray-500">{g.company || '-'}</td>
                 <td className="px-4 py-2.5 text-gray-500">
@@ -685,7 +685,7 @@ function PaymentsTab({ paid, unpaid, stats, timingFilter, channelFilter, onTimin
           <div key={g.id} className="px-4 py-3">
             <span className="font-medium text-sm text-gray-900">
               {g.name}
-              {(g as any).partner_name && <span className="text-gray-400 font-normal"> &amp; {(g as any).partner_name}</span>}
+              {g.partner_name && <span className="text-gray-400 font-normal"> &amp; {g.partner_name}</span>}
             </span>
             <div className="text-xs text-gray-400">{g.email} {g.phone ? `· ${g.phone}` : ''}</div>
           </div>
@@ -707,7 +707,7 @@ function PaymentsTab({ paid, unpaid, stats, timingFilter, channelFilter, onTimin
               <tr key={g.id} className="hover:bg-gray-50/50">
                 <td className="px-4 py-2.5 font-medium text-gray-900">
                   {g.name}
-                  {(g as any).partner_name && <span className="text-gray-400 font-normal"> &amp; {(g as any).partner_name}</span>}
+                  {g.partner_name && <span className="text-gray-400 font-normal"> &amp; {g.partner_name}</span>}
                 </td>
                 <td className="px-4 py-2.5 text-gray-500">{g.email}</td>
                 <td className="px-4 py-2.5 text-gray-500">{g.phone || '-'}</td>
@@ -812,16 +812,16 @@ function ContactsTab({ golfers }: { golfers: Golfer[] }) {
           <div key={g.id} className="px-4 py-3">
             <div className="font-medium text-sm text-gray-900">
               {g.name}
-              {(g as any).partner_name && <span className="text-gray-400 font-normal"> &amp; {(g as any).partner_name}</span>}
+              {g.partner_name && <span className="text-gray-400 font-normal"> &amp; {g.partner_name}</span>}
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs">
               <a href={`mailto:${g.email}`} className="text-brand-600">{g.email}</a>
               {g.phone && <a href={`tel:${g.phone}`} className="text-brand-600">{g.phone}</a>}
             </div>
-            {(g as any).partner_email && (
+            {g.partner_email && (
               <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs">
-                <a href={`mailto:${(g as any).partner_email}`} className="text-brand-600">{(g as any).partner_email}</a>
-                {(g as any).partner_phone && <a href={`tel:${(g as any).partner_phone}`} className="text-brand-600">{(g as any).partner_phone}</a>}
+                <a href={`mailto:${g.partner_email}`} className="text-brand-600">{g.partner_email}</a>
+                {g.partner_phone && <a href={`tel:${g.partner_phone}`} className="text-brand-600">{g.partner_phone}</a>}
               </div>
             )}
             {(g.company || g.sponsor_display_name) && (
@@ -849,14 +849,14 @@ function ContactsTab({ golfers }: { golfers: Golfer[] }) {
             {golfers.map((g) => (
               <tr key={g.id} className="hover:bg-gray-50/50">
                 <td className="px-4 py-2.5 font-medium text-gray-900">{g.name}</td>
-                <td className="px-4 py-2.5 text-gray-600">{(g as any).partner_name || '-'}</td>
+                <td className="px-4 py-2.5 text-gray-600">{g.partner_name || '-'}</td>
                 <td className="px-4 py-2.5">
                   <div><a href={`mailto:${g.email}`} className="text-brand-600 hover:underline text-xs">{g.email}</a></div>
-                  {(g as any).partner_email && <div><a href={`mailto:${(g as any).partner_email}`} className="text-brand-600 hover:underline text-xs">{(g as any).partner_email}</a></div>}
+                  {g.partner_email && <div><a href={`mailto:${g.partner_email}`} className="text-brand-600 hover:underline text-xs">{g.partner_email}</a></div>}
                 </td>
                 <td className="px-4 py-2.5">
                   <div>{g.phone ? <a href={`tel:${g.phone}`} className="text-brand-600 hover:underline text-xs">{g.phone}</a> : '-'}</div>
-                  {(g as any).partner_phone && <div><a href={`tel:${(g as any).partner_phone}`} className="text-brand-600 hover:underline text-xs">{(g as any).partner_phone}</a></div>}
+                  {g.partner_phone && <div><a href={`tel:${g.partner_phone}`} className="text-brand-600 hover:underline text-xs">{g.partner_phone}</a></div>}
                 </td>
                 <td className="px-4 py-2.5 text-gray-500">
                   {g.company || '-'}
