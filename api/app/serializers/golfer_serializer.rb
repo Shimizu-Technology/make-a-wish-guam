@@ -22,7 +22,9 @@ class GolferSerializer < ActiveModel::Serializer
              # Sponsor fields
              :sponsor_id, :sponsor_name, :sponsor_display_name,
              # Raffle add-on
-             :raffle_tickets_requested, :raffle_bundle_label
+             :raffle_tickets_requested, :raffle_bundle_label,
+             # Registration source
+             :registration_source
 
   belongs_to :group, optional: true
 

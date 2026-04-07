@@ -36,10 +36,18 @@ module Api
 
         # Filter by date range
         if params[:start_date].present?
-          logs = logs.where('created_at >= ?', Date.parse(params[:start_date]).beginning_of_day)
+          begin
+            logs = logs.where('created_at >= ?', Date.parse(params[:start_date]).beginning_of_day)
+          rescue Date::Error
+            # ignore invalid date
+          end
         end
         if params[:end_date].present?
-          logs = logs.where('created_at <= ?', Date.parse(params[:end_date]).end_of_day)
+          begin
+            logs = logs.where('created_at <= ?', Date.parse(params[:end_date]).end_of_day)
+          rescue Date::Error
+            # ignore invalid date
+          end
         end
 
         # Pagination

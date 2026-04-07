@@ -330,10 +330,21 @@ class Golfer < ApplicationRecord
   end
 
   # Get the payment link URL
+  # Prefer SwipeSimple URL for the tournament; fall back to Stripe payment page
   def payment_link_url
-    return nil unless payment_token.present?
-    frontend_url = ENV.fetch("FRONTEND_URL", "http://localhost:5173")
-    "#{frontend_url}/pay/#{payment_token}"
+    t = tournament
+    if t&.swipe_simple_url.present?
+      if t.registration_open?
+        t.swipe_simple_url
+      elsif t.walkin_registration_open? && t.walkin_swipe_simple_url.present?
+        t.walkin_swipe_simple_url
+      else
+        t.swipe_simple_url
+      end
+    elsif payment_token.present?
+      frontend_url = ENV.fetch("FRONTEND_URL", "http://localhost:5173")
+      "#{frontend_url}/pay/#{payment_token}"
+    end
   end
 
   # Check if payment link can be sent

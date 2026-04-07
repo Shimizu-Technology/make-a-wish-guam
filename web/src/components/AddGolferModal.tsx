@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { X, Loader2, CreditCard, Banknote, Building2, Users, Send, Clock, CheckCircle } from 'lucide-react';
+import { X, Loader2, CreditCard, Banknote, Building2, Users, Send, CheckCircle, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface AddGolferModalProps {
@@ -14,7 +14,7 @@ interface AddGolferModalProps {
   tournamentName?: string;
 }
 
-type PaymentOption = 'pay_on_day' | 'send_link' | 'already_paid';
+type PaymentOption = 'send_link' | 'already_paid';
 
 interface FormData {
   name: string;
@@ -26,20 +26,20 @@ interface FormData {
   partner_phone: string;
   team_category: string;
   payment_option: PaymentOption;
-  payment_method: 'cash' | 'check' | 'card' | '';
+  payment_method: 'swipe_simple' | 'cash' | 'check' | 'card' | '';
   notes: string;
 }
 
 const defaultFormData: FormData = {
   name: '',
   email: '',
-  phone: '',
+  phone: '+1671',
   company: '',
   partner_name: '',
   partner_email: '',
   partner_phone: '',
   team_category: '',
-  payment_option: 'pay_on_day',
+  payment_option: 'send_link',
   payment_method: '',
   notes: '',
 };
@@ -54,7 +54,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
   tournamentId,
 }) => {
   const { getToken } = useAuth();
-  const [formData, setFormData] = useState<FormData>(defaultFormData);
+  const [formData, setFormData] = useState<FormData>({ ...defaultFormData });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -68,6 +68,11 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
     }
   };
 
+  const phoneIsEmpty = (val: string) => {
+    const stripped = val.replace(/\D/g, '');
+    return !stripped || stripped === '1671' || stripped === '1670';
+  };
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -79,7 +84,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Invalid email address';
     }
-    if (!formData.phone.trim()) {
+    if (phoneIsEmpty(formData.phone)) {
       newErrors.phone = 'Phone is required';
     }
     if (formData.payment_option === 'already_paid' && !formData.payment_method) {
@@ -88,6 +93,12 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleClose = () => {
+    setFormData({ ...defaultFormData });
+    setErrors({});
+    onClose();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -123,8 +134,9 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
           team_category: formData.team_category || undefined,
           notes: formData.notes || undefined,
           tournament_id: tournamentId,
-          registration_status: 'confirmed',
-          payment_type: formData.payment_option === 'send_link' ? 'stripe' : 'pay_on_day',
+          registration_status: isPaid ? 'confirmed' : 'pending',
+          registration_source: 'admin',
+          payment_type: isPaid ? (formData.payment_method === 'swipe_simple' ? 'swipe_simple' : 'pay_on_day') : 'stripe',
           payment_status: isPaid ? 'paid' : 'unpaid',
           payment_method: isPaid ? formData.payment_method : undefined,
           is_team_captain: true,
@@ -166,7 +178,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
         } catch {
           toast.success(`${formData.name} added! Payment link could not be sent — you can resend from their details.`);
         }
-      } else if (formData.payment_option === 'already_paid' && golferId) {
+      } else if (isPaid && golferId) {
         try {
           await fetch(
             `${import.meta.env.VITE_API_URL}/api/v1/golfers/${golferId}/mark_paid`,
@@ -180,14 +192,12 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
             }
           );
         } catch {
-          // golfer was already created with paid status, mark_paid is best-effort
+          // already created as paid; mark_paid is best-effort for audit
         }
         toast.success(`${formData.name} added and marked as paid!`);
-      } else {
-        toast.success(`${formData.name} added successfully! They can pay on the day of the event.`);
       }
 
-      setFormData(defaultFormData);
+      setFormData({ ...defaultFormData });
       onSuccess();
       onClose();
     } catch (err) {
@@ -209,10 +219,10 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
-        className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-xl shadow-xl w-full max-w-lg md:max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -227,7 +237,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
           >
             <X className="w-5 h-5" />
@@ -240,7 +250,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-brand-100 text-brand-700 text-xs font-bold">1</span>
-              <p className="text-sm font-semibold text-gray-700">Player 1</p>
+              <p className="text-sm font-semibold text-gray-700">Player 1 (Team Captain)</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -258,7 +268,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
               />
               {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email <span className="text-red-500">*</span>
@@ -284,7 +294,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="(671) 555-1234"
+                  placeholder="+1671"
                   className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 ${
                     errors.phone ? 'border-red-500' : 'border-gray-300'
                   }`}
@@ -311,7 +321,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input
@@ -338,36 +348,38 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
           </div>
 
           {/* Company & Category */}
-          <div className="pt-4 border-t border-gray-200 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Company / Organization
-              </label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  name="company"
-                  value={formData.company}
-                  onChange={handleChange}
-                  placeholder="Optional"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                />
+          <div className="pt-4 border-t border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Company / Organization
+                </label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    name="company"
+                    value={formData.company}
+                    onChange={handleChange}
+                    placeholder="Optional"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  />
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Team Category</label>
-              <select
-                name="team_category"
-                value={formData.team_category}
-                onChange={handleChange}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-              >
-                <option value="">--</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Co-Ed">Co-Ed</option>
-              </select>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Team Category</label>
+                <select
+                  name="team_category"
+                  value={formData.team_category}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                >
+                  <option value="">--</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Co-Ed">Co-Ed</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -378,32 +390,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
               <span className="text-lg font-bold text-gray-900">{formatCurrency(entryFee)}</span>
             </div>
 
-            <div className="space-y-2">
-              {/* Pay on Day */}
-              <label
-                className={`flex items-start gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${
-                  formData.payment_option === 'pay_on_day'
-                    ? 'border-brand-500 bg-brand-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="payment_option"
-                  value="pay_on_day"
-                  checked={formData.payment_option === 'pay_on_day'}
-                  onChange={handleChange}
-                  className="mt-0.5 w-4 h-4 text-brand-600"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-brand-600 shrink-0" />
-                    <span className="font-medium text-gray-900">Pay on Day of Tournament</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-0.5">Golfer will pay at check-in (cash, check, or card)</p>
-                </div>
-              </label>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Send Payment Link */}
               <label
                 className={`flex items-start gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${
@@ -423,9 +410,9 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <Send className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span className="font-medium text-gray-900">Send Payment Link</span>
+                    <span className="font-medium text-gray-900 text-sm">Send Payment Link</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">Email golfer a secure link to pay online</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Email golfer a link to pay online</p>
                 </div>
               </label>
 
@@ -448,25 +435,25 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
-                    <span className="font-medium text-gray-900">Already Paid</span>
-                    <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-medium">Cash/Check</span>
+                    <span className="font-medium text-gray-900 text-sm">Already Paid</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">Payment already received (mark as paid immediately)</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Mark as paid immediately</p>
                 </div>
               </label>
             </div>
 
             {/* Payment method selector for "Already Paid" */}
             {formData.payment_option === 'already_paid' && (
-              <div className="pl-7 space-y-2">
+              <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
                   Payment Method <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {[
-                    { value: 'cash', label: 'Cash', icon: Banknote },
-                    { value: 'check', label: 'Check', icon: CreditCard },
-                    { value: 'card', label: 'Card', icon: CreditCard },
+                    { value: 'swipe_simple' as const, label: 'SwipeSimple', icon: Smartphone },
+                    { value: 'cash' as const, label: 'Cash', icon: Banknote },
+                    { value: 'check' as const, label: 'Check', icon: CreditCard },
+                    { value: 'card' as const, label: 'Card', icon: CreditCard },
                   ].map(({ value, label, icon: Icon }) => (
                     <label
                       key={value}
@@ -515,7 +502,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
           <div className="flex gap-3 pt-4 border-t border-gray-200">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium"
             >
               Cancel

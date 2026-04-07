@@ -154,8 +154,11 @@ export function ReportsPage() {
           Company: g.company || '',
           Sponsor: g.sponsor_display_name || '',
           'Partner Name': (g as any).partner_name || '',
+          Category: (g as any).team_category || '',
+          Source: (g as any).registration_source === 'admin' ? 'Admin' : 'Public',
           Status: g.registration_status,
           Payment: g.payment_status,
+          'Payment Method': g.payment_method || g.payment_type || '',
           Hole: g.hole_position_label || 'Unassigned',
         }));
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Registrations');
@@ -166,6 +169,7 @@ export function ReportsPage() {
           Name: g.name,
           'Partner Name': (g as any).partner_name || '',
           Company: g.company || '',
+          Category: (g as any).team_category || '',
           Hole: g.hole_position_label || 'Unassigned',
           Paid: g.payment_status === 'paid' ? 'Yes' : 'No',
           'Checked In': g.checked_in ? 'Yes' : 'No',
@@ -217,7 +221,9 @@ export function ReportsPage() {
           Email: g.email,
           Phone: g.phone || '',
           Company: g.company || '',
+          Category: (g as any).team_category || '',
           Sponsor: g.sponsor_display_name || '',
+          Source: (g as any).registration_source === 'admin' ? 'Admin' : 'Public',
         }));
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Contact List');
         break;

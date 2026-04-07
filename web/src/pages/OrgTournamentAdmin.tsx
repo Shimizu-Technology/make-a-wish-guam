@@ -429,7 +429,7 @@ export const OrgTournamentAdmin: React.FC = () => {
   };
 
   const exportCSV = () => {
-    const headers = ['Name', 'Email', 'Phone', 'Company', 'Partner Name', 'Category', 'Status', 'Payment', 'Checked In', 'Registered'];
+    const headers = ['Name', 'Email', 'Phone', 'Company', 'Partner Name', 'Category', 'Source', 'Status', 'Payment', 'Payment Method', 'Checked In', 'Registered'];
     const rows = filteredGolfers.map(g => [
       g.name,
       g.email,
@@ -437,8 +437,10 @@ export const OrgTournamentAdmin: React.FC = () => {
       g.company || '',
       g.partner_name || '',
       g.team_category || '',
+      (g as any).registration_source === 'admin' ? 'Admin' : 'Public',
       g.payment_status === 'paid' ? 'Confirmed' : 'Pending Payment',
       g.payment_status,
+      g.payment_method || g.payment_type || '',
       g.checked_in_at ? 'Yes' : 'No',
       formatShortDate(g.created_at),
     ]);
@@ -1115,7 +1117,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                   {/* Verify Payment — only for pending payment */}
                   {selectedGolfer.payment_status !== 'paid' && 
                    selectedGolfer.payment_status !== 'refunded' && 
-                   selectedGolfer.registration_status === 'confirmed' && (
+                   selectedGolfer.registration_status !== 'cancelled' && (
                     <button
                       onClick={() => setVerifyingGolfer(selectedGolfer)}
                       className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -1138,6 +1140,44 @@ export const OrgTournamentAdmin: React.FC = () => {
                     </button>
                   )}
                 </div>
+
+                {/* Resend Payment Link — for unpaid, non-cancelled golfers */}
+                {selectedGolfer.payment_status !== 'paid' && 
+                 selectedGolfer.payment_status !== 'refunded' && 
+                 selectedGolfer.registration_status !== 'cancelled' && (
+                  <div className="pt-3 border-t border-gray-200">
+                    <button
+                      onClick={async () => {
+                        setActionLoading(`send-link-${selectedGolfer.id}`);
+                        try {
+                          const token = await getToken();
+                          if (!token) throw new Error('Not authenticated');
+                          const res = await fetch(
+                            `${import.meta.env.VITE_API_URL}/api/v1/golfers/${selectedGolfer.id}/send_payment_link`,
+                            {
+                              method: 'POST',
+                              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                            }
+                          );
+                          if (res.ok) {
+                            toast.success(`Payment link sent to ${selectedGolfer.email}`);
+                          } else {
+                            const data = await res.json();
+                            toast.error(data.error || 'Failed to send payment link');
+                          }
+                        } catch {
+                          toast.error('Failed to send payment link');
+                        } finally {
+                          setActionLoading(null);
+                        }
+                      }}
+                      disabled={actionLoading === `send-link-${selectedGolfer.id}`}
+                      className="w-full px-4 py-2 text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {actionLoading === `send-link-${selectedGolfer.id}` ? 'Sending...' : `Send Payment Link to ${selectedGolfer.email}`}
+                    </button>
+                  </div>
+                )}
 
                 {/* Waitlist Actions */}
                 {selectedGolfer.registration_status === 'waitlist' && (

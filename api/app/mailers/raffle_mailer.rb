@@ -195,7 +195,7 @@ class RaffleMailer
   end
 
   def send_email(to:, subject:, html:)
-    return { error: 'RESEND_API_KEY not configured' } unless resend_configured?
+    return { success: false, error: 'RESEND_API_KEY not configured' } unless resend_configured?
     
     from_email = ENV.fetch("MAILER_FROM_EMAIL", "noreply@shimizu-technology.com")
     
@@ -206,11 +206,19 @@ class RaffleMailer
       html: html
     })
     
-    Rails.logger.info "Raffle email sent via Resend to #{to}: #{response.parsed_response}"
-    response.parsed_response
+    parsed = response.respond_to?(:parsed_response) ? response.parsed_response : response
+    
+    if parsed.is_a?(Hash) && (parsed["statusCode"] || parsed["error"] || parsed[:error])
+      error_msg = parsed["message"] || parsed["error"] || parsed[:error] || "Unknown error"
+      Rails.logger.error "Raffle email to #{to} failed: #{error_msg}"
+      { success: false, error: error_msg }
+    else
+      Rails.logger.info "Raffle email sent via Resend to #{to}: #{parsed}"
+      { success: true, data: parsed }
+    end
   rescue => e
     Rails.logger.error "Failed to send raffle email: #{e.message}"
-    { error: e.message }
+    { success: false, error: e.message }
   end
 
   def resend_configured?

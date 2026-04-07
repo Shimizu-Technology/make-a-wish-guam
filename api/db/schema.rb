@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_07_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_07_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -101,6 +101,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_07_140000) do
     t.text "refund_reason"
     t.datetime "refunded_at"
     t.integer "refunded_by_id"
+    t.string "registration_source", default: "public"
     t.string "registration_status"
     t.bigint "sponsor_id"
     t.string "sponsor_name"
