@@ -61,11 +61,8 @@ class RafflePrize < ApplicationRecord
       )
     end
 
-    # Broadcast winner
     broadcast_winner
-    
-    # Send winner notification email
-    send_winner_email
+    notify_winner
 
     true
   end
@@ -113,12 +110,13 @@ class RafflePrize < ApplicationRecord
     Rails.logger.error "Failed to broadcast raffle winner: #{e.message}"
   end
 
-  def send_winner_email
-    return unless winner_email.present?
-    
-    # Call mailer directly (Resend sends immediately)
-    RaffleMailer.winner_email(self)
+  def notify_winner
+    if winner_email.present?
+      RaffleMailer.winner_email(self)
+    end
+
+    RaffleSmsService.winner_notification(raffle_prize: self)
   rescue => e
-    Rails.logger.error "Failed to send raffle winner email: #{e.message}"
+    Rails.logger.error "Failed to send raffle winner notifications: #{e.message}"
   end
 end

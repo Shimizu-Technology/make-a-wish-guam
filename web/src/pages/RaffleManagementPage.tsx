@@ -95,8 +95,12 @@ interface SellTicketsTabProps {
   tournament: Tournament;
   sellBuyerName: string;
   onBuyerNameChange: (v: string) => void;
+  sellBuyerEmail: string;
+  onBuyerEmailChange: (v: string) => void;
+  sellBuyerPhone: string;
+  onBuyerPhoneChange: (v: string) => void;
   sellLoading: boolean;
-  lastSale: { quantity: number; total: string; buyer: string } | null;
+  lastSale: { quantity: number; total: string; buyer: string; ticketNumbers?: string[] } | null;
   onSellBundle: (bundle: RaffleBundleDef) => void;
   onSellCustom: (qty: number, priceCents: number) => void;
   stats: Stats | null;
@@ -106,6 +110,10 @@ function SellTicketsTab({
   tournament,
   sellBuyerName,
   onBuyerNameChange,
+  sellBuyerEmail,
+  onBuyerEmailChange,
+  sellBuyerPhone,
+  onBuyerPhoneChange,
   sellLoading,
   lastSale,
   onSellBundle,
@@ -116,6 +124,7 @@ function SellTicketsTab({
   const [customPrice, setCustomPrice] = useState('');
 
   const bundles = tournament.raffle_bundles?.length ? tournament.raffle_bundles : DEFAULT_BUNDLES;
+  const hasContact = sellBuyerEmail.trim() !== '' || sellBuyerPhone.trim() !== '';
 
   return (
     <div className="space-y-6">
@@ -143,18 +152,47 @@ function SellTicketsTab({
         </div>
       )}
 
-      {/* Buyer name */}
-      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Buyer name (optional)
-        </label>
-        <input
-          type="text"
-          value={sellBuyerName}
-          onChange={(e) => onBuyerNameChange(e.target.value)}
-          placeholder="Walk-up buyer"
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
-        />
+      {/* Buyer info */}
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Buyer name</label>
+          <input
+            type="text"
+            value={sellBuyerName}
+            onChange={(e) => onBuyerNameChange(e.target.value)}
+            placeholder="Walk-up buyer"
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email {!sellBuyerPhone.trim() && <span className="text-red-500">*</span>}
+            </label>
+            <input
+              type="email"
+              value={sellBuyerEmail}
+              onChange={(e) => onBuyerEmailChange(e.target.value)}
+              placeholder="buyer@email.com"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone {!sellBuyerEmail.trim() && <span className="text-red-500">*</span>}
+            </label>
+            <input
+              type="tel"
+              value={sellBuyerPhone}
+              onChange={(e) => onBuyerPhoneChange(e.target.value)}
+              placeholder="+1671..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-gray-500">
+          At least one is required — ticket numbers and winner notifications are sent via email and/or text.
+        </p>
       </div>
 
       {/* Quick-tap bundles */}
@@ -165,7 +203,7 @@ function SellTicketsTab({
             <button
               key={idx}
               onClick={() => onSellBundle(bundle)}
-              disabled={sellLoading}
+              disabled={sellLoading || !hasContact}
               className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-gray-200 bg-white hover:border-brand-500 hover:bg-brand-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="text-3xl font-bold text-brand-600">{bundle.quantity}</span>
@@ -219,7 +257,7 @@ function SellTicketsTab({
                   setCustomPrice('');
                 }
               }}
-              disabled={sellLoading || !customQty || !customPrice}
+              disabled={sellLoading || !customQty || !customPrice || !hasContact}
               className="px-5 py-2.5 bg-brand-600 text-white rounded-xl font-medium text-sm hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
             >
               {sellLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sell'}
@@ -230,14 +268,25 @@ function SellTicketsTab({
 
       {/* Last sale confirmation */}
       {lastSale && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-          <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-green-800">
-              Sold {lastSale.quantity} tickets for {lastSale.total}
-            </p>
-            <p className="text-xs text-green-600">Buyer: {lastSale.buyer}</p>
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-2">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-green-800">
+                Sold {lastSale.quantity} tickets for {lastSale.total}
+              </p>
+              <p className="text-xs text-green-600">Buyer: {lastSale.buyer}</p>
+            </div>
           </div>
+          {lastSale.ticketNumbers && lastSale.ticketNumbers.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {lastSale.ticketNumbers.map((num, i) => (
+                <span key={i} className="inline-flex items-center px-2 py-0.5 bg-green-100 text-green-800 font-mono text-xs rounded-md">
+                  #{num}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -258,13 +307,15 @@ export const RaffleManagementPage: React.FC = () => {
 
   // Sell tickets state
   const [sellBuyerName, setSellBuyerName] = useState('');
+  const [sellBuyerEmail, setSellBuyerEmail] = useState('');
+  const [sellBuyerPhone, setSellBuyerPhone] = useState('');
   const [sellLoading, setSellLoading] = useState(false);
-  const [lastSale, setLastSale] = useState<{ quantity: number; total: string; buyer: string } | null>(null);
+  const [lastSale, setLastSale] = useState<{ quantity: number; total: string; buyer: string; ticketNumbers?: string[] } | null>(null);
   
   // Modals
   const [showPrizeModal, setShowPrizeModal] = useState(false);
   const [editingPrize, setEditingPrize] = useState<Prize | null>(null);
-  const [showTicketModal, setShowTicketModal] = useState(false);
+  
   
   // Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -494,6 +545,10 @@ export const RaffleManagementPage: React.FC = () => {
 
   const handleSellBundle = async (bundle: RaffleBundleDef) => {
     if (!tournament) return;
+    if (!sellBuyerEmail.trim() && !sellBuyerPhone.trim()) {
+      toast.error('Please enter an email or phone number');
+      return;
+    }
     setSellLoading(true);
     try {
       const token = await getToken();
@@ -506,6 +561,8 @@ export const RaffleManagementPage: React.FC = () => {
             quantity: bundle.quantity,
             price_cents: bundle.price_cents,
             buyer_name: sellBuyerName.trim() || undefined,
+            buyer_email: sellBuyerEmail.trim() || undefined,
+            buyer_phone: sellBuyerPhone.trim() || undefined,
           }),
         }
       );
@@ -515,12 +572,16 @@ export const RaffleManagementPage: React.FC = () => {
       }
       const data = await res.json();
       const totalDollars = `$${(bundle.price_cents / 100).toFixed(0)}`;
+      const ticketNums = data.tickets?.map((t: any) => t.ticket_number) || [];
       setLastSale({
         quantity: bundle.quantity,
         total: totalDollars,
         buyer: sellBuyerName.trim() || 'Walk-up buyer',
+        ticketNumbers: ticketNums,
       });
       setSellBuyerName('');
+      setSellBuyerEmail('');
+      setSellBuyerPhone('');
       toast.success(`Sold ${bundle.quantity} tickets for ${totalDollars}`);
       fetchData();
     } catch (err) {
@@ -532,6 +593,10 @@ export const RaffleManagementPage: React.FC = () => {
 
   const handleSellCustom = async (quantity: number, priceCents: number) => {
     if (!tournament || quantity <= 0 || priceCents <= 0) return;
+    if (!sellBuyerEmail.trim() && !sellBuyerPhone.trim()) {
+      toast.error('Please enter an email or phone number');
+      return;
+    }
     setSellLoading(true);
     try {
       const token = await getToken();
@@ -544,6 +609,8 @@ export const RaffleManagementPage: React.FC = () => {
             quantity,
             price_cents: priceCents,
             buyer_name: sellBuyerName.trim() || undefined,
+            buyer_email: sellBuyerEmail.trim() || undefined,
+            buyer_phone: sellBuyerPhone.trim() || undefined,
           }),
         }
       );
@@ -551,13 +618,18 @@ export const RaffleManagementPage: React.FC = () => {
         const data = await res.json();
         throw new Error(data.error || 'Failed to sell tickets');
       }
+      const data = await res.json();
       const totalDollars = `$${(priceCents / 100).toFixed(0)}`;
+      const ticketNums = data.tickets?.map((t: any) => t.ticket_number) || [];
       setLastSale({
         quantity,
         total: totalDollars,
         buyer: sellBuyerName.trim() || 'Walk-up buyer',
+        ticketNumbers: ticketNums,
       });
       setSellBuyerName('');
+      setSellBuyerEmail('');
+      setSellBuyerPhone('');
       toast.success(`Sold ${quantity} tickets for ${totalDollars}`);
       fetchData();
     } catch (err) {
@@ -872,6 +944,10 @@ export const RaffleManagementPage: React.FC = () => {
             tournament={tournament}
             sellBuyerName={sellBuyerName}
             onBuyerNameChange={setSellBuyerName}
+            sellBuyerEmail={sellBuyerEmail}
+            onBuyerEmailChange={setSellBuyerEmail}
+            sellBuyerPhone={sellBuyerPhone}
+            onBuyerPhoneChange={setSellBuyerPhone}
             sellLoading={sellLoading}
             lastSale={lastSale}
             onSellBundle={handleSellBundle}
@@ -897,11 +973,11 @@ export const RaffleManagementPage: React.FC = () => {
                 Sync Registration Tickets
               </button>
               <button
-                onClick={() => setShowTicketModal(true)}
+                onClick={() => setActiveTab('sell')}
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
               >
                 <Plus className="w-5 h-5" />
-                Sell Extra Tickets
+                Sell Tickets
               </button>
             </div>
 
@@ -979,15 +1055,7 @@ export const RaffleManagementPage: React.FC = () => {
         />
       )}
 
-      {/* Ticket Modal - simplified for now */}
-      {showTicketModal && (
-        <TicketModal
-          tournamentId={tournament?.id || ''}
-          ticketPrice={tournament?.raffle_ticket_price_cents || 500}
-          onClose={() => setShowTicketModal(false)}
-          onSuccess={() => { setShowTicketModal(false); fetchData(); }}
-        />
-      )}
+      
     </div>
   );
 };
@@ -1197,217 +1265,3 @@ const PrizeModal: React.FC<{
   );
 };
 
-// Ticket Modal Component
-const TicketModal: React.FC<{
-  tournamentId: string;
-  ticketPrice: number;
-  onClose: () => void;
-  onSuccess: () => void;
-}> = ({ tournamentId, ticketPrice, onClose, onSuccess }) => {
-  const { getToken } = useAuth();
-  const [saving, setSaving] = useState(false);
-  const [soldTickets, setSoldTickets] = useState<{ ticket_number: string }[] | null>(null);
-  const [form, setForm] = useState({
-    purchaser_name: '',
-    purchaser_email: '',
-    purchaser_phone: '',
-    quantity: 1,
-    mark_paid: true,
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      const token = await getToken();
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournamentId}/raffle/tickets`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(form),
-        }
-      );
-
-      if (!res.ok) throw new Error('Failed to create tickets');
-      const data = await res.json();
-      setSoldTickets(data.tickets || []);
-      toast.success(data.message);
-    } catch (err) {
-      toast.error('Failed to create tickets');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDone = () => {
-    onSuccess();
-  };
-
-  const handleSellAnother = () => {
-    setSoldTickets(null);
-    setForm({ purchaser_name: '', purchaser_email: '', purchaser_phone: '', quantity: 1, mark_paid: true });
-  };
-
-  const total = (form.quantity * ticketPrice) / 100;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">
-            {soldTickets ? 'Tickets Sold' : 'Sell Raffle Tickets'}
-          </h2>
-          <button onClick={soldTickets ? handleDone : onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {soldTickets ? (
-          <div className="space-y-4">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-              <p className="text-green-800 font-semibold text-lg">
-                {soldTickets.length} ticket{soldTickets.length !== 1 ? 's' : ''} sold to {form.purchaser_name}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-neutral-700 mb-2">Ticket Numbers:</p>
-              <div className="flex flex-wrap gap-2">
-                {soldTickets.map((t, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center px-3 py-1.5 bg-brand-50 text-brand-700 font-mono font-semibold text-sm rounded-lg border border-brand-200"
-                  >
-                    #{t.ticket_number}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={handleSellAnother}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 font-medium"
-              >
-                Sell Another
-              </button>
-              <button
-                type="button"
-                onClick={handleDone}
-                className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 font-medium"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Purchaser Name *</label>
-              <input
-                type="text"
-                value={form.purchaser_name}
-                onChange={e => setForm({ ...form, purchaser_name: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Email *</label>
-              <input
-                type="email"
-                value={form.purchaser_email}
-                onChange={e => setForm({ ...form, purchaser_email: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Phone</label>
-              <input
-                type="tel"
-                value={form.purchaser_phone}
-                onChange={e => setForm({ ...form, purchaser_phone: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Quick Sell</label>
-              <div className="flex gap-2 mb-2">
-                {[1, 5, 10, 20].map(qty => (
-                  <button
-                    key={qty}
-                    type="button"
-                    onClick={() => setForm({ ...form, quantity: qty })}
-                    className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                      form.quantity === qty
-                        ? 'bg-brand-600 text-white border-brand-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-brand-400'
-                    }`}
-                  >
-                    {qty} — ${((qty * ticketPrice) / 100).toFixed(0)}
-                  </button>
-                ))}
-              </div>
-              <label className="block text-sm font-medium mb-1">Custom Quantity</label>
-              <input
-                type="number"
-                value={form.quantity}
-                onChange={e => setForm({ ...form, quantity: Math.max(1, Number(e.target.value)) })}
-                className="w-full border rounded-lg px-3 py-2"
-                min={1}
-                max={100}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="mark_paid"
-                checked={form.mark_paid}
-                onChange={e => setForm({ ...form, mark_paid: e.target.checked })}
-              />
-              <label htmlFor="mark_paid" className="text-sm">Mark as paid (cash sale)</label>
-            </div>
-
-            <div className="p-4 bg-brand-50 rounded-lg">
-              <div className="flex justify-between text-lg font-semibold">
-                <span>Total:</span>
-                <span>${total.toFixed(2)}</span>
-              </div>
-              <p className="text-sm text-brand-600">
-                {form.quantity} ticket(s) x ${(ticketPrice / 100).toFixed(2)}
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50"
-              >
-                {saving ? 'Creating...' : 'Sell Tickets'}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-};

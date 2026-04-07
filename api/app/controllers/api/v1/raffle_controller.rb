@@ -280,6 +280,12 @@ module Api
         quantity = params[:quantity].to_i
         price_cents = params[:price_cents].to_i
         buyer_name = params[:buyer_name].presence || 'Walk-up buyer'
+        buyer_email = params[:buyer_email]&.strip&.downcase.presence
+        buyer_phone = params[:buyer_phone]&.strip.presence
+
+        unless buyer_email.present? || buyer_phone.present?
+          return render json: { error: 'Email or phone number is required so the buyer can receive their ticket numbers' }, status: :unprocessable_entity
+        end
 
         if quantity <= 0
           return render json: { error: 'Quantity must be positive' }, status: :unprocessable_entity
@@ -298,8 +304,8 @@ module Api
             ticket_price = base_cents + (i == quantity - 1 ? remainder : 0)
             tickets << @tournament.raffle_tickets.create!(
               purchaser_name: buyer_name,
-              purchaser_email: params[:buyer_email]&.downcase,
-              purchaser_phone: params[:buyer_phone],
+              purchaser_email: buyer_email,
+              purchaser_phone: buyer_phone,
               price_cents: ticket_price,
               payment_status: 'paid',
               purchased_at: Time.current,
@@ -307,6 +313,8 @@ module Api
             )
           end
         end
+
+        send_purchase_notifications(tickets: tickets, buyer_email: buyer_email, buyer_phone: buyer_phone, buyer_name: buyer_name)
 
         render json: {
           tickets: tickets.map { |t| ticket_response(t) },
@@ -363,6 +371,28 @@ module Api
 
       def authorize_volunteer_or_admin!
         require_volunteer_or_admin!(@tournament.organization)
+      end
+
+      def send_purchase_notifications(tickets:, buyer_email:, buyer_phone:, buyer_name:)
+        if buyer_email.present?
+          RaffleMailer.purchase_confirmation_email(
+            tickets: tickets,
+            buyer_email: buyer_email,
+            buyer_name: buyer_name,
+            tournament: @tournament
+          )
+        end
+
+        if buyer_phone.present?
+          RaffleSmsService.purchase_confirmation(
+            tickets: tickets,
+            buyer_phone: buyer_phone,
+            buyer_name: buyer_name,
+            tournament: @tournament
+          )
+        end
+      rescue => e
+        Rails.logger.warn("Failed to send raffle purchase notifications: #{e.message}")
       end
 
       def prize_params
