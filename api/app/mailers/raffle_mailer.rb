@@ -179,7 +179,7 @@ class RaffleMailer
 
             <tr><td style="padding: 8px 32px 28px;">
               <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6;">
-                Winners will be notified by email. Thank you for supporting <strong style="color: #1a1a1a;">#{ERB::Util.html_escape(@org_name)}</strong>!
+                Winners will be notified by email or text. Thank you for supporting <strong style="color: #1a1a1a;">#{ERB::Util.html_escape(@org_name)}</strong>!
               </p>
             </td></tr>
 

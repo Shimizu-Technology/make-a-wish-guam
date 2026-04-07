@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_07_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_07_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -206,6 +206,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_07_120000) do
     t.string "ticket_number", null: false
     t.bigint "tournament_id", null: false
     t.datetime "updated_at", null: false
+    t.string "void_reason"
+    t.datetime "voided_at"
     t.index ["golfer_id"], name: "index_raffle_tickets_on_golfer_id"
     t.index ["raffle_prize_id"], name: "index_raffle_tickets_on_raffle_prize_id"
     t.index ["sold_by_user_id"], name: "index_raffle_tickets_on_sold_by_user_id"

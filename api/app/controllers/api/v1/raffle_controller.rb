@@ -8,7 +8,7 @@ module Api
       before_action :authorize_tournament_admin!, only: [
         :create_prize, :update_prize, :destroy_prize,
         :draw, :draw_all, :reset_prize, :claim_prize,
-        :mark_ticket_paid, :destroy_ticket,
+        :mark_ticket_paid, :void_ticket, :destroy_ticket,
         :sync_tickets
       ]
       before_action :authorize_volunteer_or_admin!, only: [
@@ -54,7 +54,7 @@ module Api
             total_prizes: prizes.count,
             prizes_won: prizes.won.count,
             prizes_remaining: prizes.available.count,
-            total_tickets_sold: @tournament.raffle_tickets.paid.count
+            total_tickets_sold: @tournament.raffle_tickets.active.paid.count
           },
           last_updated: Time.current.iso8601
         }
@@ -206,11 +206,13 @@ module Api
         # Filter by type: "purchased" or "complimentary"
         case params[:type]
         when 'purchased'
-          tickets = tickets.where('price_cents > 0')
+          tickets = tickets.where('price_cents > 0').where.not(payment_status: 'voided')
         when 'complimentary'
-          tickets = tickets.where(price_cents: [0, nil])
+          tickets = tickets.where(price_cents: [0, nil]).where.not(payment_status: 'voided')
         when 'winners'
           tickets = tickets.where(is_winner: true)
+        when 'voided'
+          tickets = tickets.where(payment_status: 'voided')
         end
 
         # Search by ticket number, name, email, or phone
@@ -222,10 +224,11 @@ module Api
           )
         end
 
-        # Stats (always computed on full set, not paginated)
+        # Stats (always computed on full set, not paginated; exclude voided)
         all_tickets = @tournament.raffle_tickets
-        complimentary = all_tickets.where(price_cents: [0, nil])
-        purchased = all_tickets.where('price_cents > 0')
+        active_tickets = all_tickets.active
+        complimentary = active_tickets.where(price_cents: [0, nil])
+        purchased = active_tickets.where('price_cents > 0')
 
         total_filtered = tickets.count
 
@@ -244,10 +247,11 @@ module Api
             total_pages: (total_filtered.to_f / per_page).ceil
           },
           stats: {
-            total: all_tickets.count,
-            paid: all_tickets.paid.count,
-            pending: all_tickets.pending.count,
-            winners: all_tickets.winners.count,
+            total: active_tickets.count,
+            paid: active_tickets.paid.count,
+            pending: active_tickets.pending.count,
+            winners: active_tickets.winners.count,
+            voided: all_tickets.voided.count,
             complimentary: complimentary.count,
             purchased: purchased.paid.count,
             additional_revenue_cents: purchased.paid.sum(:price_cents)
@@ -259,31 +263,37 @@ module Api
       # Admin - create tickets (manual sale)
       def create_tickets
         quantity = (params[:quantity] || 1).to_i
-        
+
         tickets = []
-        quantity.times do
-          ticket = @tournament.raffle_tickets.build(
-            purchaser_name: params[:purchaser_name],
-            purchaser_email: params[:purchaser_email]&.downcase,
-            purchaser_phone: params[:purchaser_phone],
-            golfer_id: params[:golfer_id],
-            price_cents: @tournament.raffle_ticket_price_cents,
-            payment_status: params[:mark_paid] ? 'paid' : 'pending',
-            purchased_at: params[:mark_paid] ? Time.current : nil
-          )
-          
-          if ticket.save
-            tickets << ticket
-          else
-            render json: { error: ticket.errors.full_messages.join(', ') }, status: :unprocessable_entity
-            return
+        ActiveRecord::Base.transaction do
+          @tournament.lock!
+          quantity.times do
+            ticket = @tournament.raffle_tickets.build(
+              purchaser_name: params[:purchaser_name],
+              purchaser_email: params[:purchaser_email]&.downcase,
+              purchaser_phone: params[:purchaser_phone],
+              golfer_id: params[:golfer_id],
+              price_cents: @tournament.raffle_ticket_price_cents,
+              payment_status: params[:mark_paid] ? 'paid' : 'pending',
+              purchased_at: params[:mark_paid] ? Time.current : nil
+            )
+
+            if ticket.save
+              tickets << ticket
+            else
+              raise ActiveRecord::Rollback, ticket.errors.full_messages.join(', ')
+            end
           end
         end
 
-        render json: {
-          tickets: tickets.map { |t| ticket_response(t) },
-          message: "#{tickets.count} ticket(s) created"
-        }, status: :created
+        if tickets.any?
+          render json: {
+            tickets: tickets.map { |t| ticket_response(t) },
+            message: "#{tickets.count} ticket(s) created"
+          }, status: :created
+        else
+          render json: { error: 'Failed to create tickets' }, status: :unprocessable_entity
+        end
       end
 
       # POST /api/v1/tournaments/:tournament_id/raffle/tickets/:id/mark_paid
@@ -306,6 +316,23 @@ module Api
           ticket.destroy
           render json: { message: 'Ticket deleted' }
         end
+      end
+
+      # POST /api/v1/tournaments/:tournament_id/raffle/tickets/:id/void
+      # Admin - void a ticket (keeps record but marks invalid)
+      def void_ticket
+        ticket = @tournament.raffle_tickets.find(params[:id])
+
+        if ticket.is_winner?
+          return render json: { error: 'Cannot void a winning ticket' }, status: :unprocessable_entity
+        end
+
+        if ticket.voided?
+          return render json: { error: 'Ticket is already voided' }, status: :unprocessable_entity
+        end
+
+        ticket.void!(reason: params[:reason])
+        render json: { ticket: ticket_response(ticket, admin: true), message: "Ticket #{ticket.display_number} voided" }
       end
 
       # POST /api/v1/tournaments/:tournament_id/raffle/sell
@@ -334,6 +361,7 @@ module Api
 
         tickets = []
         ActiveRecord::Base.transaction do
+          @tournament.lock!
           quantity.times do |i|
             ticket_price = base_cents + (i == quantity - 1 ? remainder : 0)
             tickets << @tournament.raffle_tickets.create!(
@@ -409,24 +437,26 @@ module Api
 
       def send_purchase_notifications(tickets:, buyer_email:, buyer_phone:, buyer_name:)
         if buyer_email.present?
-          RaffleMailer.purchase_confirmation_email(
-            tickets: tickets,
-            buyer_email: buyer_email,
-            buyer_name: buyer_name,
-            tournament: @tournament
-          )
+          begin
+            RaffleMailer.purchase_confirmation_email(
+              tickets: tickets, buyer_email: buyer_email,
+              buyer_name: buyer_name, tournament: @tournament
+            )
+          rescue => e
+            Rails.logger.warn("Raffle purchase email failed: #{e.message}")
+          end
         end
 
         if buyer_phone.present?
-          RaffleSmsService.purchase_confirmation(
-            tickets: tickets,
-            buyer_phone: buyer_phone,
-            buyer_name: buyer_name,
-            tournament: @tournament
-          )
+          begin
+            RaffleSmsService.purchase_confirmation(
+              tickets: tickets, buyer_phone: buyer_phone,
+              buyer_name: buyer_name, tournament: @tournament
+            )
+          rescue => e
+            Rails.logger.warn("Raffle purchase SMS failed: #{e.message}")
+          end
         end
-      rescue => e
-        Rails.logger.warn("Failed to send raffle purchase notifications: #{e.message}")
       end
 
       def prize_params
@@ -491,6 +521,8 @@ module Api
           response[:price_cents] = ticket.price_cents
           response[:stripe_payment_intent_id] = ticket.stripe_payment_intent_id
           response[:prize_won] = ticket.raffle_prize&.name if ticket.is_winner?
+          response[:voided_at] = ticket.voided_at&.iso8601
+          response[:void_reason] = ticket.void_reason
         end
 
         response

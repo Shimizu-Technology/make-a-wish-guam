@@ -164,8 +164,8 @@ class Golfer < ApplicationRecord
     return unless tournament&.raffle_enabled?
     return unless tournament.raffle_include_with_registration?
 
-    # Row-level lock prevents concurrent mark_paid/verify_payment races
-    with_lock do
+    ActiveRecord::Base.transaction do
+      tournament.lock!
       existing = tournament.raffle_tickets.where(golfer_id: id, price_cents: [0, nil]).order(:id)
       captain_ticket = existing.first
       partner_ticket = existing.second
@@ -208,12 +208,12 @@ class Golfer < ApplicationRecord
     end
   end
 
-  # Create pre-purchased raffle tickets (selected during registration)
   def create_purchased_raffle_tickets!
     return unless tournament&.raffle_enabled?
     return unless raffle_tickets_requested.to_i > 0
 
-    with_lock do
+    ActiveRecord::Base.transaction do
+      tournament.lock!
       existing_purchased = tournament.raffle_tickets
         .where(golfer_id: id)
         .where('price_cents > 0')

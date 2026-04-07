@@ -15,14 +15,13 @@ import {
   ArrowLeft,
   RefreshCw,
   Loader2,
-  AlertCircle,
-  Users,
   DollarSign,
   Search,
   X,
   PartyPopper,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Ban
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
@@ -58,6 +57,8 @@ interface RaffleTicket {
   purchased_at: string | null;
   prize_won?: string;
   price_cents?: number;
+  voided_at?: string | null;
+  void_reason?: string | null;
 }
 
 interface Stats {
@@ -314,7 +315,7 @@ export const RaffleManagementPage: React.FC = () => {
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [ticketSearchInput, setTicketSearchInput] = useState('');
   const [ticketSearch, setTicketSearch] = useState('');
-  const [ticketFilter, setTicketFilter] = useState<'' | 'purchased' | 'complimentary' | 'winners'>('');
+  const [ticketFilter, setTicketFilter] = useState<'' | 'purchased' | 'complimentary' | 'winners' | 'voided'>('');
   const [ticketPage, setTicketPage] = useState(1);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -597,6 +598,8 @@ export const RaffleManagementPage: React.FC = () => {
       toast.error('Please enter an email or phone number');
       return;
     }
+    const buyerLabel = sellBuyerName.trim() || 'Walk-up buyer';
+    if (!confirm(`Sell ${bundle.quantity} tickets for $${(bundle.price_cents / 100).toFixed(0)} to "${buyerLabel}"?`)) return;
     setSellLoading(true);
     try {
       const token = await getToken();
@@ -645,6 +648,8 @@ export const RaffleManagementPage: React.FC = () => {
       toast.error('Please enter an email or phone number');
       return;
     }
+    const buyerLabel = sellBuyerName.trim() || 'Walk-up buyer';
+    if (!confirm(`Sell ${quantity} tickets for $${(priceCents / 100).toFixed(2)} to "${buyerLabel}"?`)) return;
     setSellLoading(true);
     try {
       const token = await getToken();
@@ -684,6 +689,36 @@ export const RaffleManagementPage: React.FC = () => {
       toast.error(err instanceof Error ? err.message : 'Failed to sell tickets');
     } finally {
       setSellLoading(false);
+    }
+  };
+
+  const handleVoidTicket = async (ticket: RaffleTicket) => {
+    if (!tournament) return;
+    const reason = prompt(`Void ticket ${ticket.ticket_number}? Enter reason (optional):`);
+    if (reason === null) return;
+
+    setActionLoading(`void-${ticket.id}`);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}/raffle/tickets/${ticket.id}/void`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: reason || undefined }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to void ticket');
+      }
+      const data = await res.json();
+      toast.success(data.message);
+      fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to void ticket');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -1008,18 +1043,20 @@ export const RaffleManagementPage: React.FC = () => {
           <div className="space-y-4">
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={handleSyncTickets}
-                disabled={actionLoading === 'sync-tickets'}
-                className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50"
-              >
-                {actionLoading === 'sync-tickets' ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-                Sync Registration Tickets
-              </button>
+              {tournament?.raffle_include_with_registration && (
+                <button
+                  onClick={handleSyncTickets}
+                  disabled={actionLoading === 'sync-tickets'}
+                  className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {actionLoading === 'sync-tickets' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  Sync Registration Tickets
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('sell')}
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
@@ -1049,12 +1086,13 @@ export const RaffleManagementPage: React.FC = () => {
                   </button>
                 )}
               </div>
-              <div className="flex gap-1.5 bg-gray-100 rounded-xl p-1">
+              <div className="flex gap-1.5 bg-gray-100 rounded-xl p-1 overflow-x-auto">
                 {([
                   { key: '' as const, label: 'All' },
                   { key: 'purchased' as const, label: 'Purchased' },
                   { key: 'complimentary' as const, label: 'Included' },
                   { key: 'winners' as const, label: 'Winners' },
+                  { key: 'voided' as const, label: 'Voided' },
                 ] as const).map((f) => (
                   <button
                     key={f.key}
@@ -1079,19 +1117,25 @@ export const RaffleManagementPage: React.FC = () => {
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Ticket #</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Name</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Contact</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Type</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Winner</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Date</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-600 w-16"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {tickets.map((ticket) => {
+                    const isVoided = ticket.payment_status === 'voided';
                     const isComplimentary = !ticket.price_cents || ticket.price_cents === 0;
                     return (
-                    <tr key={ticket.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-sm font-semibold text-gray-800">{ticket.ticket_number}</td>
+                    <tr key={ticket.id} className={`hover:bg-gray-50 ${isVoided ? 'opacity-60' : ''}`}>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">{ticket.purchaser_name}</p>
+                        <span className={`font-mono text-sm font-semibold ${isVoided ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                          {ticket.ticket_number}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className={`font-medium ${isVoided ? 'text-gray-400' : 'text-gray-900'}`}>{ticket.purchaser_name}</p>
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
                         {ticket.purchaser_email && <p className="text-sm text-gray-500">{ticket.purchaser_email}</p>}
@@ -1099,13 +1143,20 @@ export const RaffleManagementPage: React.FC = () => {
                         {!ticket.purchaser_email && !ticket.purchaser_phone && <span className="text-gray-300">-</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          isComplimentary
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'bg-green-100 text-green-700'
-                        }`}>
-                          {isComplimentary ? 'Included' : `$${((ticket.price_cents || 0) / 100).toFixed(0)}`}
-                        </span>
+                        {isVoided ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-red-50 text-red-600">
+                            <Ban className="w-3 h-3" />
+                            Voided
+                          </span>
+                        ) : (
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            isComplimentary
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-green-100 text-green-700'
+                          }`}>
+                            {isComplimentary ? 'Included' : `$${((ticket.price_cents || 0) / 100).toFixed(0)}`}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
                         {ticket.is_winner ? (
@@ -1123,15 +1174,36 @@ export const RaffleManagementPage: React.FC = () => {
                           : '-'
                         }
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        {!isVoided && !ticket.is_winner && (
+                          <button
+                            onClick={() => handleVoidTicket(ticket)}
+                            disabled={actionLoading === `void-${ticket.id}`}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Void ticket"
+                          >
+                            {actionLoading === `void-${ticket.id}` ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Ban className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                        {isVoided && ticket.void_reason && (
+                          <span className="text-xs text-gray-400" title={ticket.void_reason}>
+                            {ticket.void_reason}
+                          </span>
+                        )}
+                      </td>
                     </tr>
                     );
                   })}
                   {tickets.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                      <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                         {ticketSearchInput || ticketFilter
                           ? 'No tickets match your search or filter.'
-                          : 'No tickets yet. Click "Sync Registration Tickets" to generate tickets for paid registrants.'
+                          : 'No tickets yet. Use the "Sell Tickets" tab to start selling raffle tickets.'
                         }
                       </td>
                     </tr>

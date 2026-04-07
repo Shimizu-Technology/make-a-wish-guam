@@ -140,6 +140,7 @@ Rails.application.routes.draw do
         post 'raffle/tickets' => 'raffle#create_tickets'
         post 'raffle/tickets/:id/mark_paid' => 'raffle#mark_ticket_paid'
         delete 'raffle/tickets/:id' => 'raffle#destroy_ticket'
+        post 'raffle/tickets/:id/void' => 'raffle#void_ticket'
         post 'raffle/sync_tickets' => 'raffle#sync_tickets'
         post 'raffle/sell' => 'raffle#sell_tickets'
 
