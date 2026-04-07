@@ -21,7 +21,11 @@ import {
   PartyPopper,
   ChevronLeft,
   ChevronRight,
-  Ban
+  ChevronDown,
+  Ban,
+  Send,
+  Clock,
+  User
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
@@ -59,6 +63,8 @@ interface RaffleTicket {
   price_cents?: number;
   voided_at?: string | null;
   void_reason?: string | null;
+  sold_by?: string | null;
+  created_at?: string | null;
 }
 
 interface Stats {
@@ -328,6 +334,9 @@ export const RaffleManagementPage: React.FC = () => {
   const [sellLoading, setSellLoading] = useState(false);
   const [lastSale, setLastSale] = useState<{ quantity: number; total: string; buyer: string; ticketNumbers?: string[] } | null>(null);
   
+  // Ticket detail expand
+  const [expandedTicketId, setExpandedTicketId] = useState<number | null>(null);
+
   // Modals
   const [showPrizeModal, setShowPrizeModal] = useState(false);
   const [editingPrize, setEditingPrize] = useState<Prize | null>(null);
@@ -692,6 +701,30 @@ export const RaffleManagementPage: React.FC = () => {
     }
   };
 
+  const handleResendNotification = async (prize: Prize) => {
+    if (!tournament) return;
+    if (!confirm(`Resend winner notification to ${prize.winner?.name}?`)) return;
+
+    setActionLoading(`resend-${prize.id}`);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}/raffle/prizes/${prize.id}/resend_notification`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to resend');
+      }
+      const data = await res.json();
+      toast.success(data.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resend notification');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleVoidTicket = async (ticket: RaffleTicket) => {
     if (!tournament) return;
     const reason = prompt(`Void ticket ${ticket.ticket_number}? Enter reason (optional):`);
@@ -1006,6 +1039,19 @@ export const RaffleManagementPage: React.FC = () => {
                             {prize.claimed && ' — Claimed'}
                           </p>
                         </div>
+                        <button
+                          onClick={() => handleResendNotification(prize)}
+                          disabled={actionLoading === `resend-${prize.id}`}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 shrink-0"
+                          title="Resend winner notification"
+                        >
+                          {actionLoading === `resend-${prize.id}` ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Send className="w-3.5 h-3.5" />
+                          )}
+                          <span className="hidden sm:inline">Resend</span>
+                        </button>
                       </div>
                     </div>
                   )}
@@ -1127,12 +1173,20 @@ export const RaffleManagementPage: React.FC = () => {
                   {tickets.map((ticket) => {
                     const isVoided = ticket.payment_status === 'voided';
                     const isComplimentary = !ticket.price_cents || ticket.price_cents === 0;
+                    const isExpanded = expandedTicketId === ticket.id;
                     return (
-                    <tr key={ticket.id} className={`hover:bg-gray-50 ${isVoided ? 'opacity-60' : ''}`}>
+                    <React.Fragment key={ticket.id}>
+                    <tr
+                      className={`hover:bg-gray-50 cursor-pointer ${isVoided ? 'opacity-60' : ''}`}
+                      onClick={() => setExpandedTicketId(isExpanded ? null : ticket.id)}
+                    >
                       <td className="px-4 py-3">
-                        <span className={`font-mono text-sm font-semibold ${isVoided ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                          {ticket.ticket_number}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                          <span className={`font-mono text-sm font-semibold ${isVoided ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                            {ticket.ticket_number}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <p className={`font-medium ${isVoided ? 'text-gray-400' : 'text-gray-900'}`}>{ticket.purchaser_name}</p>
@@ -1174,7 +1228,7 @@ export const RaffleManagementPage: React.FC = () => {
                           : '-'
                         }
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         {!isVoided && !ticket.is_winner && (
                           <button
                             onClick={() => handleVoidTicket(ticket)}
@@ -1189,13 +1243,68 @@ export const RaffleManagementPage: React.FC = () => {
                             )}
                           </button>
                         )}
-                        {isVoided && ticket.void_reason && (
-                          <span className="text-xs text-gray-400" title={ticket.void_reason}>
-                            {ticket.void_reason}
-                          </span>
-                        )}
                       </td>
                     </tr>
+                    {isExpanded && (
+                      <tr className="bg-gray-50">
+                        <td colSpan={7} className="px-4 py-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                            <div className="flex items-start gap-2">
+                              <Clock className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-xs font-medium text-gray-500">Created</p>
+                                <p className="text-gray-900">
+                                  {ticket.created_at
+                                    ? new Date(ticket.created_at).toLocaleString()
+                                    : ticket.purchased_at
+                                      ? new Date(ticket.purchased_at).toLocaleString()
+                                      : 'Unknown'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <User className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-xs font-medium text-gray-500">Sold by</p>
+                                <p className="text-gray-900">{ticket.sold_by || (isComplimentary ? 'System (registration)' : 'Unknown')}</p>
+                              </div>
+                            </div>
+                            {/* Mobile-only contact info */}
+                            <div className="sm:hidden flex items-start gap-2">
+                              <Send className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-xs font-medium text-gray-500">Contact</p>
+                                {ticket.purchaser_email && <p className="text-gray-900">{ticket.purchaser_email}</p>}
+                                {ticket.purchaser_phone && <p className="text-gray-600">{ticket.purchaser_phone}</p>}
+                                {!ticket.purchaser_email && !ticket.purchaser_phone && <p className="text-gray-400">None</p>}
+                              </div>
+                            </div>
+                            {isVoided && (
+                              <div className="flex items-start gap-2">
+                                <Ban className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500">Voided</p>
+                                  <p className="text-red-600">
+                                    {ticket.voided_at ? new Date(ticket.voided_at).toLocaleString() : 'Unknown'}
+                                    {ticket.void_reason && ` — ${ticket.void_reason}`}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                            {ticket.is_winner && ticket.prize_won && (
+                              <div className="flex items-start gap-2">
+                                <Trophy className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500">Prize won</p>
+                                  <p className="text-yellow-700">{ticket.prize_won}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                     );
                   })}
                   {tickets.length === 0 && (
