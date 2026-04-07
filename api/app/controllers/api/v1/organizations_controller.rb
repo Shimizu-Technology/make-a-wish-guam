@@ -609,7 +609,8 @@ module Api
         params.require(:golfer).permit(
           :name, :email, :phone, :mobile, :company, :address,
           :payment_type, :payment_status, :payment_method,
-          :registration_status, :notes, :waiver_accepted_at,
+          :registration_status, :registration_source, :notes, :waiver_accepted_at,
+          :is_team_captain,
           :partner_name, :partner_email, :partner_phone, :team_category
         )
       end

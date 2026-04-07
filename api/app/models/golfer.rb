@@ -16,7 +16,7 @@ class Golfer < ApplicationRecord
   validates :phone, presence: true, unless: :sponsored?
   validates :payment_type, presence: true, inclusion: { in: %w[stripe pay_on_day swipe_simple walk_in sponsor] }
   validates :payment_status, inclusion: { in: %w[paid unpaid pending refunded], allow_nil: true }
-  validates :registration_status, inclusion: { in: %w[confirmed waitlist cancelled], allow_nil: true }
+  validates :registration_status, inclusion: { in: %w[confirmed waitlist cancelled pending], allow_nil: true }
   validates :waiver_accepted_at, presence: true, unless: :sponsored?
   validates :tournament_id, presence: true
 
