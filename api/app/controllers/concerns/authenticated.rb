@@ -105,6 +105,16 @@ module Authenticated
     end
   end
 
+  # Allows admins AND volunteers (for check-in / raffle sales)
+  def require_volunteer_or_admin!(organization = nil)
+    org = organization || Current.organization
+    return if current_user&.super_admin?
+    return if current_user&.org_admin_for?(org)
+    return if current_user&.volunteer_for?(org)
+
+    render json: { error: 'Forbidden: You do not have access to this feature' }, status: :forbidden
+  end
+
   # Resolve user details via the Clerk Backend API when the session
   # token doesn't include email (same approach as Marianas Open / GIAA).
   def fetch_clerk_user(clerk_id)

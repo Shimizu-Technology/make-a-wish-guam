@@ -162,6 +162,7 @@ class Golfer < ApplicationRecord
 
   def create_raffle_tickets!
     return unless tournament&.raffle_enabled?
+    return unless tournament.raffle_include_with_registration?
 
     # Row-level lock prevents concurrent mark_paid/verify_payment races
     with_lock do

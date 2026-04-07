@@ -68,14 +68,181 @@ interface Stats {
   additional_revenue_cents: number;
 }
 
+interface RaffleBundleDef {
+  quantity: number;
+  price_cents: number;
+  label: string;
+}
+
 interface Tournament {
   id: string;
   name: string;
   raffle_enabled: boolean;
   raffle_ticket_price_cents: number;
+  raffle_include_with_registration: boolean;
+  raffle_bundles: RaffleBundleDef[];
 }
 
 const TIERS = ['grand', 'platinum', 'gold', 'silver', 'standard'];
+
+const DEFAULT_BUNDLES: RaffleBundleDef[] = [
+  { quantity: 8,  price_cents: 4000,  label: '$40 for 8 tickets' },
+  { quantity: 10, price_cents: 5000,  label: '$50 for 10 tickets' },
+  { quantity: 20, price_cents: 10000, label: '$100 for 20 tickets' },
+];
+
+interface SellTicketsTabProps {
+  tournament: Tournament;
+  sellBuyerName: string;
+  onBuyerNameChange: (v: string) => void;
+  sellLoading: boolean;
+  lastSale: { quantity: number; total: string; buyer: string } | null;
+  onSellBundle: (bundle: RaffleBundleDef) => void;
+  onSellCustom: (qty: number, priceCents: number) => void;
+  stats: Stats | null;
+}
+
+function SellTicketsTab({
+  tournament,
+  sellBuyerName,
+  onBuyerNameChange,
+  sellLoading,
+  lastSale,
+  onSellBundle,
+  onSellCustom,
+  stats,
+}: SellTicketsTabProps) {
+  const [customQty, setCustomQty] = useState('');
+  const [customPrice, setCustomPrice] = useState('');
+
+  const bundles = tournament.raffle_bundles?.length ? tournament.raffle_bundles : DEFAULT_BUNDLES;
+
+  return (
+    <div className="space-y-6">
+      {/* Revenue summary */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+            <p className="text-2xl font-bold text-brand-600">{stats.paid}</p>
+            <p className="text-xs text-gray-500 mt-1">Total tickets sold</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+            <p className="text-2xl font-bold text-green-600">
+              ${((stats.additional_revenue_cents || 0) / 100).toFixed(0)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Ticket revenue</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+            <p className="text-2xl font-bold text-gray-900">{stats.purchased || 0}</p>
+            <p className="text-xs text-gray-500 mt-1">Purchased tickets</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+            <p className="text-2xl font-bold text-gray-900">{stats.complimentary || 0}</p>
+            <p className="text-xs text-gray-500 mt-1">Complimentary</p>
+          </div>
+        </div>
+      )}
+
+      {/* Buyer name */}
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Buyer name (optional)
+        </label>
+        <input
+          type="text"
+          value={sellBuyerName}
+          onChange={(e) => onBuyerNameChange(e.target.value)}
+          placeholder="Walk-up buyer"
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+      </div>
+
+      {/* Quick-tap bundles */}
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">Quick sell</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {bundles.map((bundle, idx) => (
+            <button
+              key={idx}
+              onClick={() => onSellBundle(bundle)}
+              disabled={sellLoading}
+              className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-gray-200 bg-white hover:border-brand-500 hover:bg-brand-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="text-3xl font-bold text-brand-600">{bundle.quantity}</span>
+              <span className="text-sm text-gray-600">tickets</span>
+              <span className="text-lg font-bold text-gray-900">
+                ${(bundle.price_cents / 100).toFixed(0)}
+              </span>
+              {sellLoading && (
+                <Loader2 className="w-4 h-4 animate-spin text-brand-500" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Custom amount */}
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">Custom sale</h3>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Quantity</label>
+            <input
+              type="number"
+              min="1"
+              value={customQty}
+              onChange={(e) => setCustomQty(e.target.value)}
+              placeholder="10"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Total price ($)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={customPrice}
+              onChange={(e) => setCustomPrice(e.target.value)}
+              placeholder="50.00"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                const qty = parseInt(customQty) || 0;
+                const cents = Math.round(parseFloat(customPrice || '0') * 100);
+                if (qty > 0 && cents > 0) {
+                  onSellCustom(qty, cents);
+                  setCustomQty('');
+                  setCustomPrice('');
+                }
+              }}
+              disabled={sellLoading || !customQty || !customPrice}
+              className="px-5 py-2.5 bg-brand-600 text-white rounded-xl font-medium text-sm hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+            >
+              {sellLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sell'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Last sale confirmation */}
+      {lastSale && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+          <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-green-800">
+              Sold {lastSale.quantity} tickets for {lastSale.total}
+            </p>
+            <p className="text-xs text-green-600">Buyer: {lastSale.buyer}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export const RaffleManagementPage: React.FC = () => {
   const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
@@ -87,7 +254,12 @@ export const RaffleManagementPage: React.FC = () => {
   const [tickets, setTickets] = useState<RaffleTicket[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'prizes' | 'tickets'>('prizes');
+  const [activeTab, setActiveTab] = useState<'prizes' | 'tickets' | 'sell'>('prizes');
+
+  // Sell tickets state
+  const [sellBuyerName, setSellBuyerName] = useState('');
+  const [sellLoading, setSellLoading] = useState(false);
+  const [lastSale, setLastSale] = useState<{ quantity: number; total: string; buyer: string } | null>(null);
   
   // Modals
   const [showPrizeModal, setShowPrizeModal] = useState(false);
@@ -320,6 +492,81 @@ export const RaffleManagementPage: React.FC = () => {
     }
   };
 
+  const handleSellBundle = async (bundle: RaffleBundleDef) => {
+    if (!tournament) return;
+    setSellLoading(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}/raffle/sell`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quantity: bundle.quantity,
+            price_cents: bundle.price_cents,
+            buyer_name: sellBuyerName.trim() || undefined,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to sell tickets');
+      }
+      const data = await res.json();
+      const totalDollars = `$${(bundle.price_cents / 100).toFixed(0)}`;
+      setLastSale({
+        quantity: bundle.quantity,
+        total: totalDollars,
+        buyer: sellBuyerName.trim() || 'Walk-up buyer',
+      });
+      setSellBuyerName('');
+      toast.success(`Sold ${bundle.quantity} tickets for ${totalDollars}`);
+      fetchData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to sell tickets');
+    } finally {
+      setSellLoading(false);
+    }
+  };
+
+  const handleSellCustom = async (quantity: number, priceCents: number) => {
+    if (!tournament || quantity <= 0 || priceCents <= 0) return;
+    setSellLoading(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}/raffle/sell`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quantity,
+            price_cents: priceCents,
+            buyer_name: sellBuyerName.trim() || undefined,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to sell tickets');
+      }
+      const totalDollars = `$${(priceCents / 100).toFixed(0)}`;
+      setLastSale({
+        quantity,
+        total: totalDollars,
+        buyer: sellBuyerName.trim() || 'Walk-up buyer',
+      });
+      setSellBuyerName('');
+      toast.success(`Sold ${quantity} tickets for ${totalDollars}`);
+      fetchData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to sell tickets');
+    } finally {
+      setSellLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center rounded-3xl bg-white">
@@ -452,6 +699,17 @@ export const RaffleManagementPage: React.FC = () => {
             >
               <Gift className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1.5 sm:mr-2" />
               Prizes ({prizes.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('sell')}
+              className={`pb-3 px-1 border-b-2 font-medium whitespace-nowrap text-sm sm:text-base ${
+                activeTab === 'sell'
+                  ? 'border-brand-600 text-brand-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1.5 sm:mr-2" />
+              Sell Tickets
             </button>
             <button
               onClick={() => setActiveTab('tickets')}
@@ -607,6 +865,19 @@ export const RaffleManagementPage: React.FC = () => {
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === 'sell' && tournament && (
+          <SellTicketsTab
+            tournament={tournament}
+            sellBuyerName={sellBuyerName}
+            onBuyerNameChange={setSellBuyerName}
+            sellLoading={sellLoading}
+            lastSale={lastSale}
+            onSellBundle={handleSellBundle}
+            onSellCustom={handleSellCustom}
+            stats={stats}
+          />
         )}
 
         {activeTab === 'tickets' && (

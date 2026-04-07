@@ -2,10 +2,12 @@ module Api
   module V1
     class GolfersController < BaseController
       skip_before_action :authenticate_user!, only: [:create, :registration_status]
-      before_action :authorize_collection_tournament_access!, only: [:index, :stats, :bulk_send_payment_links]
+      before_action :authorize_collection_volunteer_access!, only: [:index]
+      before_action :authorize_collection_tournament_access!, only: [:stats, :bulk_send_payment_links]
+      before_action :authorize_golfer_volunteer_access!, only: [:check_in, :undo_check_in]
       before_action :authorize_golfer_access!, only: [
         :show, :update, :destroy, :cancel, :refund, :mark_refunded,
-        :check_in, :undo_check_in, :payment_details, :promote, :demote,
+        :payment_details, :promote, :demote,
         :send_payment_link, :update_payment_status, :mark_paid, :verify_payment
       ]
 
@@ -881,6 +883,13 @@ module Api
 
       private
 
+      def authorize_collection_volunteer_access!
+        tournament = find_tournament
+        return render_tournament_required unless tournament
+
+        require_volunteer_or_admin!(tournament.organization)
+      end
+
       def authorize_collection_tournament_access!
         tournament = find_tournament
         return render_tournament_required unless tournament
@@ -891,6 +900,11 @@ module Api
       def authorize_golfer_access!
         golfer = Golfer.find(params[:id])
         require_tournament_admin!(golfer.tournament)
+      end
+
+      def authorize_golfer_volunteer_access!
+        golfer = Golfer.find(params[:id])
+        require_volunteer_or_admin!(golfer.tournament.organization)
       end
 
       def find_tournament

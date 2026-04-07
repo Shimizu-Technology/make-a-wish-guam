@@ -227,6 +227,7 @@ export interface Admin {
   email: string;
   role: 'super_admin' | 'admin' | null;
   is_super_admin: boolean;
+  org_role: 'admin' | 'member' | 'volunteer' | null;
 }
 
 export interface ActivityLog {

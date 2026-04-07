@@ -13,7 +13,6 @@ class RaffleTicket < ApplicationRecord
   validates :ticket_number, presence: true, uniqueness: true
   validates :payment_status, inclusion: { in: PAYMENT_STATUSES }
   validates :purchaser_name, presence: true
-  validates :purchaser_email, presence: true
 
   # Callbacks
   before_validation :generate_ticket_number, on: :create
