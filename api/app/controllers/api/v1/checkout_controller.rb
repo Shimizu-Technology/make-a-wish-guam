@@ -287,6 +287,13 @@ module Api
           }
 
           if should_send_emails
+            begin
+              golfer.create_raffle_tickets!
+              golfer.create_purchased_raffle_tickets!
+            rescue => e
+              Rails.logger.warn("Failed to create raffle tickets for #{golfer.name}: #{e.message}")
+            end
+
             GolferMailer.confirmation_with_payment_email(golfer).deliver_later
             AdminMailer.notify_new_registration_with_payment(golfer).deliver_later(wait: 2.seconds)
 
@@ -516,6 +523,13 @@ module Api
         }
 
         if emails_sent
+          begin
+            golfer.create_raffle_tickets!
+            golfer.create_purchased_raffle_tickets!
+          rescue => e
+            Rails.logger.warn("Failed to create raffle tickets for #{golfer.name}: #{e.message}")
+          end
+
           GolferMailer.confirmation_with_payment_email(golfer).deliver_later
           AdminMailer.notify_new_registration_with_payment(golfer).deliver_later(wait: 2.seconds)
         end

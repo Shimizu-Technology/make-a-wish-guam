@@ -557,7 +557,7 @@ module Api
         end
 
         # Don't let the last admin demote themselves
-        if membership.admin? && params[:role] == 'member' && org.organization_memberships.admins.count <= 1
+        if membership.admin? && params[:role] != 'admin' && org.organization_memberships.admins.count <= 1
           return render json: { error: "Cannot demote the last admin" }, status: :unprocessable_entity
         end
 

@@ -81,7 +81,7 @@ class User < ApplicationRecord
   def accessible_tournaments
     return Tournament.all if super_admin?
     
-    org_ids = organization_memberships.pluck(:organization_id)
+    org_ids = organization_memberships.where(role: %w[admin volunteer]).pluck(:organization_id)
     tournament_ids = tournament_assignments.pluck(:tournament_id)
     
     Tournament.where(organization_id: org_ids).or(Tournament.where(id: tournament_ids))

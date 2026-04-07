@@ -289,16 +289,18 @@ module Api
           return render json: { error: 'Price must be positive' }, status: :unprocessable_entity
         end
 
-        per_ticket_cents = (price_cents.to_f / quantity).round
+        base_cents = price_cents / quantity
+        remainder = price_cents % quantity
 
         tickets = []
         ActiveRecord::Base.transaction do
-          quantity.times do
+          quantity.times do |i|
+            ticket_price = base_cents + (i == quantity - 1 ? remainder : 0)
             tickets << @tournament.raffle_tickets.create!(
               purchaser_name: buyer_name,
               purchaser_email: params[:buyer_email]&.downcase,
               purchaser_phone: params[:buyer_phone],
-              price_cents: per_ticket_cents,
+              price_cents: ticket_price,
               payment_status: 'paid',
               purchased_at: Time.current,
               sold_by_user_id: current_user.id

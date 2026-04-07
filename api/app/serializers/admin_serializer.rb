@@ -8,7 +8,7 @@ class AdminSerializer < ActiveModel::Serializer
 
   def org_role
     return 'admin' if object.super_admin?
-    org = object.organizations.first
+    org = @instance_options[:scope_organization] || Current.organization || object.organizations.first
     return nil unless org
     object.organization_memberships.find_by(organization: org)&.role
   end
