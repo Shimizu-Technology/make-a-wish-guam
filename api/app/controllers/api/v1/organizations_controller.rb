@@ -181,16 +181,15 @@ module Api
         hole_labels = bulk_hole_position_labels(tournament.id, golfers)
 
         counts_by_registration = golfers.group_by(&:registration_status).transform_values(&:count)
-        counts_by_payment = golfers.group_by(&:payment_status).transform_values(&:count)
-        paid_count = counts_by_payment.fetch('paid', 0)
 
         active_golfers = golfers.reject { |g| g.registration_status == 'cancelled' }
         confirmed_golfers = active_golfers.select { |g| g.registration_status == 'confirmed' }
         confirmed_and_paid = confirmed_golfers.count { |g| g.payment_status == 'paid' || g.payment_type == 'sponsor' }
         confirmed_pending = confirmed_golfers.count { |g| g.payment_status != 'paid' && g.payment_type != 'sponsor' }
+        confirmed_paid = confirmed_golfers.count { |g| g.payment_status == 'paid' }
 
         confirmed_count = counts_by_registration.fetch('confirmed', 0)
-        sponsor_confirmed = golfers.count { |g| g.registration_status == 'confirmed' && g.payment_type == 'sponsor' }
+        sponsor_confirmed = confirmed_golfers.count { |g| g.payment_type == 'sponsor' }
         public_confirmed = confirmed_count - sponsor_confirmed
 
         # Pre-set stats so TournamentSerializer doesn't fire additional queries
@@ -198,7 +197,7 @@ module Api
           confirmed: confirmed_count,
           public_confirmed: public_confirmed,
           sponsor_confirmed: sponsor_confirmed,
-          paid: paid_count,
+          paid: confirmed_paid,
           pending_payment: confirmed_pending,
           waitlist: counts_by_registration.fetch('waitlist', 0),
           checked_in: golfers.count { |g| g.checked_in_at.present? }
@@ -213,7 +212,7 @@ module Api
           sponsor_confirmed: sponsor_confirmed,
           waitlisted: counts_by_registration.fetch('waitlist', 0),
           cancelled: counts_by_registration.fetch('cancelled', 0),
-          paid: paid_count,
+          paid: confirmed_paid,
           checked_in: golfers.count { |g| g.checked_in_at.present? },
           revenue: golfers.count { |g| g.payment_status == 'paid' && g.payment_type != 'sponsor' } * (tournament.entry_fee || 0),
           max_capacity: tournament.max_capacity,
@@ -610,10 +609,14 @@ module Api
 
       # Compute hole position labels for all golfers in one query instead of 2 per golfer
       def bulk_hole_position_labels(tournament_id, golfers)
-        group_ids = golfers.filter_map(&:group_id).uniq
-        return {} if group_ids.empty?
+        # Golfers are loaded with includes(:group), so use the preloaded associations
+        # instead of querying Group again. Only need one query for all tournament groups.
+        groups_by_id = {}
+        golfers.each do |g|
+          groups_by_id[g.group_id] = g.group if g.group
+        end
+        return {} if groups_by_id.empty?
 
-        groups_by_id = Group.where(id: group_ids).index_by(&:id)
         groups_by_hole = Group.where(tournament_id: tournament_id)
                               .where.not(hole_number: nil)
                               .order(:group_number)
