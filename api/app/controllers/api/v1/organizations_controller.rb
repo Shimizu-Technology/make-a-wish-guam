@@ -114,19 +114,20 @@ module Api
         require_volunteer_or_admin!(organization)
         return if performed?
 
-        tournaments = organization.tournaments
-                                .left_joins(:golfers)
-                                .select(
-                                  "tournaments.*",
-                                  "SUM(CASE WHEN golfers.registration_status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_count",
-                                  "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_count",
-                                  "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' AND COALESCE(golfers.payment_type, '') != 'sponsor' THEN 1 ELSE 0 END) AS paying_count",
-                                  "(SELECT COALESCE(SUM(sponsors.slot_count), 0) / 2 FROM sponsors WHERE sponsors.tournament_id = tournaments.id AND sponsors.active = true) AS sponsor_teams_count"
-                                )
-                                .group("tournaments.id")
-                                .order(event_date: :desc)
+        loaded = organization.tournaments
+                              .left_joins(:golfers)
+                              .select(
+                                "tournaments.*",
+                                "SUM(CASE WHEN golfers.registration_status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_count",
+                                "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_count",
+                                "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' AND COALESCE(golfers.payment_type, '') != 'sponsor' THEN 1 ELSE 0 END) AS paying_count",
+                                "(SELECT COALESCE(SUM(sponsors.slot_count), 0) / 2 FROM sponsors WHERE sponsors.tournament_id = tournaments.id AND sponsors.active = true) AS sponsor_teams_count"
+                              )
+                              .group("tournaments.id")
+                              .order(event_date: :desc)
+                              .to_a
 
-        tournament_data = tournaments.map do |t|
+        tournament_data = loaded.map do |t|
           confirmed_count = t.read_attribute(:confirmed_count).to_i
           paid_count = t.read_attribute(:paid_count).to_i
           paying_count = t.read_attribute(:paying_count).to_i
@@ -149,7 +150,6 @@ module Api
           }
         end
 
-        loaded = tournaments.to_a
         total_revenue = loaded.sum { |t| t.read_attribute(:paying_count).to_i * (t.entry_fee || 0) }
         total_registrations = loaded.sum { |t| t.read_attribute(:confirmed_count).to_i }
         active_count = loaded.count { |t| %w[open in_progress].include?(t.status) }
