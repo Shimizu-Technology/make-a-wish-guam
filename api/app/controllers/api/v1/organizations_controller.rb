@@ -119,7 +119,6 @@ module Api
                               .select(
                                 "tournaments.*",
                                 "SUM(CASE WHEN golfers.registration_status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_count",
-                                "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_count",
                                 "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status != 'paid' AND COALESCE(golfers.payment_type, '') != 'sponsor' THEN 1 ELSE 0 END) AS pending_count",
                                 "SUM(CASE WHEN golfers.registration_status = 'confirmed' AND golfers.payment_status = 'paid' AND COALESCE(golfers.payment_type, '') != 'sponsor' THEN 1 ELSE 0 END) AS paying_count",
                                 "(SELECT COALESCE(SUM(sponsors.slot_count), 0) / 2 FROM sponsors WHERE sponsors.tournament_id = tournaments.id AND sponsors.active = true) AS sponsor_teams_count"
@@ -130,7 +129,6 @@ module Api
 
         tournament_data = loaded.map do |t|
           confirmed_count = t.read_attribute(:confirmed_count).to_i
-          paid_count = t.read_attribute(:paid_count).to_i
           pending_count = t.read_attribute(:pending_count).to_i
           paying_count = t.read_attribute(:paying_count).to_i
           sponsor_teams = t.read_attribute(:sponsor_teams_count).to_i
