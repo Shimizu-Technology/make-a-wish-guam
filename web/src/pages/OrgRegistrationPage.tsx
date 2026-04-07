@@ -145,6 +145,7 @@ export const OrgRegistrationPage: React.FC = () => {
       if (formData.player2Email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.player2Email)) {
         newErrors.player2Email = 'Please enter a valid email address';
       }
+      if (!formData.teamCategory) newErrors.teamCategory = 'Please select a team category';
     }
 
     if (step === 3) {
@@ -495,18 +496,21 @@ export const OrgRegistrationPage: React.FC = () => {
                         <p className="text-xs text-neutral-400 mt-1">Optional — defaults to both player names</p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Team Category</label>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                          Team Category <span className="text-red-500">*</span>
+                        </label>
                         <select
                           name="teamCategory"
                           value={formData.teamCategory}
                           onChange={handleInputChange}
-                          className={`${inputClass} bg-white`}
+                          className={`${inputClass} bg-white ${errors.teamCategory ? 'border-red-400 ring-2 ring-red-100' : ''}`}
                         >
                           <option value="">Select…</option>
                           <option value="Male">Male</option>
                           <option value="Female">Female</option>
                           <option value="Co-Ed">Co-Ed</option>
                         </select>
+                        {errors.teamCategory && <p className="text-xs text-red-500 mt-1">{errors.teamCategory}</p>}
                       </div>
                     </div>
                   </div>

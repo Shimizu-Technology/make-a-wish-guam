@@ -10,15 +10,15 @@ class Golfer < ApplicationRecord
 
   # Validations
   validates :name, presence: true
-  validates :email, presence: true, 
-                    uniqueness: { scope: :tournament_id, message: "has already registered for this tournament" },
-                    format: { with: URI::MailTo::EMAIL_REGEXP }
+  validates :email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP }
+  validate :email_unique_for_active_registration
   validates :phone, presence: true, unless: :sponsored?
   validates :payment_type, presence: true, inclusion: { in: %w[stripe pay_on_day swipe_simple walk_in sponsor] }
   validates :payment_status, inclusion: { in: %w[paid unpaid pending refunded], allow_nil: true }
   validates :registration_status, inclusion: { in: %w[confirmed waitlist cancelled pending], allow_nil: true }
   validates :waiver_accepted_at, presence: true, unless: :sponsored?
   validates :tournament_id, presence: true
+  validates :team_category, presence: true, inclusion: { in: %w[Male Female Co-Ed] }, unless: :sponsored?
 
   # Scopes - Active golfers (not cancelled)
   scope :active, -> { where.not(registration_status: "cancelled") }
@@ -45,6 +45,22 @@ class Golfer < ApplicationRecord
   
   # Tournament scope
   scope :for_tournament, ->(tournament_id) { where(tournament_id: tournament_id) }
+
+  private
+
+  def email_unique_for_active_registration
+    return if email.blank? || tournament_id.blank?
+
+    existing = Golfer.where(tournament_id: tournament_id, email: email)
+                     .where.not(registration_status: 'cancelled')
+    existing = existing.where.not(id: id) if persisted?
+
+    if existing.exists?
+      errors.add(:email, 'has already registered for this tournament')
+    end
+  end
+
+  public
 
   # Set registration status based on capacity
   before_validation :set_registration_status, on: :create
