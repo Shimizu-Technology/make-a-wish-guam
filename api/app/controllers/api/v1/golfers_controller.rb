@@ -4,11 +4,11 @@ module Api
       skip_before_action :authenticate_user!, only: [:create, :registration_status]
       before_action :authorize_collection_volunteer_access!, only: [:index]
       before_action :authorize_collection_tournament_access!, only: [:stats, :bulk_send_payment_links]
-      before_action :authorize_golfer_volunteer_access!, only: [:check_in, :undo_check_in]
+      before_action :authorize_golfer_volunteer_access!, only: [:check_in, :undo_check_in, :verify_payment]
       before_action :authorize_golfer_access!, only: [
         :show, :update, :destroy, :cancel, :refund, :mark_refunded,
         :payment_details, :promote, :demote,
-        :send_payment_link, :update_payment_status, :mark_paid, :verify_payment
+        :send_payment_link, :update_payment_status, :mark_paid
       ]
 
       # GET /api/v1/golfers

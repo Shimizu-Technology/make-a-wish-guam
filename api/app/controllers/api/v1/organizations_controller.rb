@@ -518,7 +518,7 @@ module Api
         end
         membership = org.organization_memberships.create!(user: user, role: role)
 
-        SendUserInviteEmailJob.perform_later(user.id, current_user&.id)
+        SendUserInviteEmailJob.perform_later(user.id, current_user&.id, role)
 
         render json: {
           member: member_response(membership),

@@ -4,15 +4,16 @@ require "cgi"
 
 class UserInviteEmailService
   class << self
-    def send_invite(user:, invited_by:)
+    def send_invite(user:, invited_by:, role: nil)
       return false unless configured?
 
+      role_label = role == 'volunteer' ? 'volunteer' : 'admin'
       response = Resend::Emails.send(
         {
           from: from_email,
           to: user.email,
-          subject: "You're invited to the Make-A-Wish Guam admin",
-          html: invite_html(user: user, invited_by: invited_by)
+          subject: "You're invited to the Make-A-Wish Guam #{role_label == 'volunteer' ? 'team' : 'admin'}",
+          html: invite_html(user: user, invited_by: invited_by, role_label: role_label)
         }
       )
 
@@ -51,7 +52,7 @@ class UserInviteEmailService
       CGI.escapeHTML(value.to_s)
     end
 
-    def invite_html(user:, invited_by:)
+    def invite_html(user:, invited_by:, role_label: 'admin')
       inviter = escape(invited_by&.name.presence || invited_by&.email.presence || "an administrator")
       login_url = escape("#{frontend_url}/admin/login")
 
@@ -86,12 +87,12 @@ class UserInviteEmailService
                     <tr>
                       <td style="padding: 32px 28px;">
                         <h1 style="margin: 0 0 16px 0; color: #0f172a; font-size: 26px; font-weight: 800; text-align: center;">
-                          You&#8217;re invited to the admin portal
+                          You&#8217;re invited to the #{role_label == 'volunteer' ? 'event team' : 'admin portal'}
                         </h1>
 
                         <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.7; color: #475569;">
-                          #{inviter} has added you as an administrator for Make-A-Wish Guam &amp; CNMI.
-                          You can now manage events, registrations, sponsors, and more.
+                          #{inviter} has added you as #{role_label == 'volunteer' ? 'a volunteer' : 'an administrator'} for Make-A-Wish Guam &amp; CNMI.
+                          #{role_label == 'volunteer' ? 'You can now help with event check-in and raffle ticket sales.' : 'You can now manage events, registrations, sponsors, and more.'}
                         </p>
 
                         <!-- Sign-in note -->
