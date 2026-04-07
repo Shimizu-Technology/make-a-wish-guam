@@ -214,7 +214,7 @@ module Api
                    :paid_at, :payment_verified_by_name, :payment_verified_at,
                    :checked_in_by_name, :payment_notes,
                    :partner_name, :partner_email, :partner_phone,
-                   :team_name, :group_id],
+                   :team_name, :team_category, :group_id],
             methods: [:hole_position_label]
           ),
           stats: stats
@@ -609,7 +609,8 @@ module Api
         params.require(:golfer).permit(
           :name, :email, :phone, :mobile, :company, :address,
           :payment_type, :payment_status, :payment_method,
-          :registration_status, :notes, :waiver_accepted_at
+          :registration_status, :notes, :waiver_accepted_at,
+          :partner_name, :partner_email, :partner_phone, :team_category
         )
       end
 

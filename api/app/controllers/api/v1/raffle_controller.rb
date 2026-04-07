@@ -61,15 +61,33 @@ module Api
       end
 
       # GET /api/v1/tournaments/:tournament_id/raffle/tickets
-      # Public - get ticket count for a purchaser (by email)
+      # Public - look up tickets by email, phone, name, or ticket number
       def tickets
-        email = params[:email]
-        return render json: { error: 'Email required' }, status: :bad_request unless email.present?
+        query = params[:query].presence || params[:email].presence
+        return render json: { error: 'Search query required' }, status: :bad_request unless query.present?
 
-        tickets = @tournament.raffle_tickets.paid.where(purchaser_email: email.downcase)
+        q = query.strip
+        base = @tournament.raffle_tickets.active.paid
+
+        tickets = base.where(purchaser_email: q.downcase)
+                      .or(base.where(purchaser_phone: q))
+                      .or(base.where("LOWER(purchaser_name) = ?", q.downcase))
+                      .or(base.where("LOWER(ticket_number) = ?", q.downcase))
+
+        if tickets.empty?
+          phone_digits = q.gsub(/\D/, '')
+          if phone_digits.length >= 7
+            normalized = phone_digits.length == 10 ? "+1#{phone_digits}" : "+#{phone_digits}"
+            tickets = base.where(purchaser_phone: normalized)
+          end
+        end
+
+        if tickets.empty? && q.length >= 2
+          tickets = base.where("LOWER(purchaser_name) LIKE ?", "%#{q.downcase}%")
+        end
 
         render json: {
-          email: email,
+          query: q,
           ticket_count: tickets.count,
           tickets: tickets.map { |t| ticket_response(t) }
         }
@@ -229,8 +247,12 @@ module Api
 
         if prize.winner_email.present?
           begin
-            RaffleMailer.winner_email(prize)
-            channels << 'email'
+            result = RaffleMailer.winner_email(prize)
+            if result.is_a?(Hash) && result[:error]
+              Rails.logger.error "Resend winner email failed: #{result[:error]}"
+            else
+              channels << 'email'
+            end
           rescue => e
             Rails.logger.error "Resend winner email failed: #{e.message}"
           end
@@ -239,8 +261,12 @@ module Api
         winner_phone = prize.winner_phone.presence || prize.winning_ticket&.purchaser_phone
         if winner_phone.present?
           begin
-            RaffleSmsService.winner_notification(raffle_prize: prize)
-            channels << 'SMS'
+            result = RaffleSmsService.winner_notification(raffle_prize: prize)
+            if result.is_a?(Hash) && result[:success] == false
+              Rails.logger.error "Resend winner SMS failed: #{result[:error]}"
+            elsif result.is_a?(Hash) && result[:success]
+              channels << 'SMS'
+            end
           rescue => e
             Rails.logger.error "Resend winner SMS failed: #{e.message}"
           end
@@ -255,7 +281,7 @@ module Api
           )
           render json: { message: "Notification resent via #{channels.join(' and ')}" }
         else
-          render json: { error: 'No contact info available for this winner' }, status: :unprocessable_entity
+          render json: { error: 'No contact info available for this winner or delivery failed' }, status: :unprocessable_entity
         end
       end
 

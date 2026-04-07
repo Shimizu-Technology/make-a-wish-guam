@@ -181,7 +181,7 @@ export const RaffleBoardPage: React.FC = () => {
     setTicketLoading(true);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${data.tournament.id}/raffle/tickets?email=${encodeURIComponent(ticketEmail.trim())}`
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${data.tournament.id}/raffle/tickets?query=${encodeURIComponent(ticketEmail.trim())}`
       );
       if (res.ok) {
         const result = await res.json();
@@ -388,10 +388,10 @@ export const RaffleBoardPage: React.FC = () => {
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                   <input
-                    type="email"
+                    type="text"
                     value={ticketEmail}
                     onChange={(e) => setTicketEmail(e.target.value)}
-                    placeholder="Enter your email to find tickets..."
+                    placeholder="Search by email, phone, name, or ticket #..."
                     className="w-full pl-10 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#0057B8] focus:ring-2 focus:ring-[#0057B8]/20 transition-colors"
                     required
                   />
@@ -409,7 +409,7 @@ export const RaffleBoardPage: React.FC = () => {
               {myTickets !== null && (
                 <div className="mt-4 pt-4 border-t border-neutral-100">
                   {myTickets.length === 0 ? (
-                    <p className="text-sm text-neutral-500">No tickets found for that email.</p>
+                    <p className="text-sm text-neutral-500">No tickets found. Try searching by email, phone number, name, or ticket number.</p>
                   ) : (
                     <div>
                       <p className="text-sm text-neutral-600 mb-3">

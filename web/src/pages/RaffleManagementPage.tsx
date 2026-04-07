@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
+import { formatDate, formatDateTime } from '../utils/dates';
 
 interface Prize {
   id: number;
@@ -140,7 +141,8 @@ function SellTicketsTab({
   const [customPrice, setCustomPrice] = useState('');
 
   const bundles = tournament.raffle_bundles?.length ? tournament.raffle_bundles : DEFAULT_BUNDLES;
-  const hasContact = sellBuyerEmail.trim() !== '' || sellBuyerPhone.trim() !== '';
+  const phoneValue = sellBuyerPhone.trim().replace(/^\+1671$/, '');
+  const hasContact = sellBuyerEmail.trim() !== '' || phoneValue !== '';
 
   return (
     <div className="space-y-6">
@@ -325,22 +327,25 @@ export const RaffleManagementPage: React.FC = () => {
   const [ticketPage, setTicketPage] = useState(1);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'prizes' | 'tickets' | 'sell'>('prizes');
+  const [activeTab, setActiveTab] = useState<'prizes' | 'tickets' | 'sell' | 'activity'>('prizes');
 
   // Sell tickets state
   const [sellBuyerName, setSellBuyerName] = useState('');
   const [sellBuyerEmail, setSellBuyerEmail] = useState('');
-  const [sellBuyerPhone, setSellBuyerPhone] = useState('');
+  const [sellBuyerPhone, setSellBuyerPhone] = useState('+1671');
   const [sellLoading, setSellLoading] = useState(false);
   const [lastSale, setLastSale] = useState<{ quantity: number; total: string; buyer: string; ticketNumbers?: string[] } | null>(null);
   
   // Ticket detail expand
   const [expandedTicketId, setExpandedTicketId] = useState<number | null>(null);
 
+  // Activity log
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+
   // Modals
   const [showPrizeModal, setShowPrizeModal] = useState(false);
   const [editingPrize, setEditingPrize] = useState<Prize | null>(null);
-  
   
   // Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -420,6 +425,32 @@ export const RaffleManagementPage: React.FC = () => {
       fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
     }
   }, [ticketSearch, ticketFilter, ticketPage]);
+
+  const fetchActivityLogs = useCallback(async () => {
+    if (!tournament?.id) return;
+    setActivityLoading(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/activity_logs?tournament_id=${tournament.id}&action_type=raffle&per_page=50`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setActivityLogs(data.activity_logs || []);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [tournament?.id, getToken]);
+
+  useEffect(() => {
+    if (activeTab === 'activity') {
+      fetchActivityLogs();
+    }
+  }, [activeTab, fetchActivityLogs]);
 
   const handleDrawPrize = async (prize: Prize) => {
     if (!confirm(`Draw a winner for "${prize.name}"?`)) return;
@@ -604,7 +635,8 @@ export const RaffleManagementPage: React.FC = () => {
 
   const handleSellBundle = async (bundle: RaffleBundleDef) => {
     if (!tournament) return;
-    if (!sellBuyerEmail.trim() && !sellBuyerPhone.trim()) {
+    const phoneForValidation = sellBuyerPhone.trim().replace(/^\+1671$/, '').replace(/^\+1670$/, '');
+    if (!sellBuyerEmail.trim() && !phoneForValidation) {
       toast.error('Please enter an email or phone number');
       return;
     }
@@ -642,7 +674,7 @@ export const RaffleManagementPage: React.FC = () => {
       });
       setSellBuyerName('');
       setSellBuyerEmail('');
-      setSellBuyerPhone('');
+      setSellBuyerPhone('+1671');
       toast.success(`Sold ${bundle.quantity} tickets for ${totalDollars}`);
       fetchData();
     } catch (err) {
@@ -654,7 +686,8 @@ export const RaffleManagementPage: React.FC = () => {
 
   const handleSellCustom = async (quantity: number, priceCents: number) => {
     if (!tournament || quantity <= 0 || priceCents <= 0) return;
-    if (!sellBuyerEmail.trim() && !sellBuyerPhone.trim()) {
+    const phoneForValidation = sellBuyerPhone.trim().replace(/^\+1671$/, '').replace(/^\+1670$/, '');
+    if (!sellBuyerEmail.trim() && !phoneForValidation) {
       toast.error('Please enter an email or phone number');
       return;
     }
@@ -692,7 +725,7 @@ export const RaffleManagementPage: React.FC = () => {
       });
       setSellBuyerName('');
       setSellBuyerEmail('');
-      setSellBuyerPhone('');
+      setSellBuyerPhone('+1671');
       toast.success(`Sold ${quantity} tickets for ${totalDollars}`);
       fetchData();
     } catch (err) {
@@ -910,6 +943,17 @@ export const RaffleManagementPage: React.FC = () => {
             >
               <Ticket className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1.5 sm:mr-2" />
               Tickets ({stats?.paid || 0})
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`pb-3 px-1 border-b-2 font-medium whitespace-nowrap text-sm sm:text-base ${
+                activeTab === 'activity'
+                  ? 'border-brand-600 text-brand-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1.5 sm:mr-2" />
+              Activity
             </button>
           </div>
         </div>
@@ -1277,7 +1321,7 @@ export const RaffleManagementPage: React.FC = () => {
                       </td>
                       <td className="px-2 sm:px-4 py-3 text-sm text-gray-500 hidden sm:table-cell">
                         {ticket.purchased_at 
-                          ? new Date(ticket.purchased_at).toLocaleDateString()
+                          ? formatDate(ticket.purchased_at)
                           : '-'
                         }
                       </td>
@@ -1308,9 +1352,9 @@ export const RaffleManagementPage: React.FC = () => {
                                 <p className="text-xs font-medium text-gray-500">Created</p>
                                 <p className="text-gray-900">
                                   {ticket.created_at
-                                    ? new Date(ticket.created_at).toLocaleString()
+                                    ? formatDateTime(ticket.created_at)
                                     : ticket.purchased_at
-                                      ? new Date(ticket.purchased_at).toLocaleString()
+                                      ? formatDateTime(ticket.purchased_at)
                                       : 'Unknown'}
                                 </p>
                               </div>
@@ -1338,7 +1382,7 @@ export const RaffleManagementPage: React.FC = () => {
                                 <div>
                                   <p className="text-xs font-medium text-gray-500">Voided</p>
                                   <p className="text-red-600">
-                                    {ticket.voided_at ? new Date(ticket.voided_at).toLocaleString() : 'Unknown'}
+                                    {ticket.voided_at ? formatDateTime(ticket.voided_at) : 'Unknown'}
                                     {ticket.void_reason && ` — ${ticket.void_reason}`}
                                   </p>
                                 </div>
@@ -1398,6 +1442,71 @@ export const RaffleManagementPage: React.FC = () => {
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'activity' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Raffle Activity Log</h2>
+              <button
+                onClick={fetchActivityLogs}
+                disabled={activityLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${activityLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              {activityLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
+                </div>
+              ) : activityLogs.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                  <p>No raffle activity recorded yet.</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {activityLogs.map((log: any) => (
+                    <div key={log.id} className="px-4 py-3 sm:px-5 sm:py-4 hover:bg-gray-50">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                          log.action?.includes('sold') ? 'bg-green-100 text-green-600' :
+                          log.action?.includes('drawn') || log.action?.includes('draw') ? 'bg-yellow-100 text-yellow-600' :
+                          log.action?.includes('void') ? 'bg-red-100 text-red-600' :
+                          log.action?.includes('resend') ? 'bg-blue-100 text-blue-600' :
+                          log.action?.includes('claimed') ? 'bg-emerald-100 text-emerald-600' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {log.action?.includes('sold') ? <DollarSign className="w-4 h-4" /> :
+                           log.action?.includes('drawn') || log.action?.includes('draw') ? <Play className="w-3.5 h-3.5" /> :
+                           log.action?.includes('void') ? <Ban className="w-4 h-4" /> :
+                           log.action?.includes('resend') ? <Send className="w-4 h-4" /> :
+                           log.action?.includes('claimed') ? <CheckCircle className="w-4 h-4" /> :
+                           <Clock className="w-4 h-4" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-gray-900">{log.details || log.action?.replace(/_/g, ' ')}</p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                            <span className="text-xs text-gray-500">
+                              <User className="w-3 h-3 inline mr-1" />
+                              {log.admin_name || 'System'}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {formatDateTime(log.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

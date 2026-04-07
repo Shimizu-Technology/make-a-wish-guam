@@ -14,6 +14,7 @@ import * as XLSX from 'xlsx';
 import { api, Golfer, GolferStats, Group } from '../services/api';
 import { useGolferChannel } from '../hooks/useGolferChannel';
 import { useTournament } from '../contexts';
+import { formatDate, formatShortDate } from '../utils/dates';
 
 type ReportTab = 'registrations' | 'checkin' | 'payments' | 'groups' | 'contacts';
 
@@ -179,7 +180,7 @@ export function ReportsPage() {
           Company: g.company || '',
           Timing: g.payment_timing || '',
           Method: g.payment_channel || g.payment_type || '',
-          'Paid At': g.paid_at ? new Date(g.paid_at).toLocaleDateString() : '',
+          'Paid At': g.paid_at ? formatShortDate(g.paid_at) : '',
           Amount: g.payment_amount_cents ? `$${(g.payment_amount_cents / 100).toFixed(2)}` : '',
         }));
         const unpaidData = unpaidGolfers.map((g) => ({
@@ -657,7 +658,7 @@ function PaymentsTab({ paid, unpaid, stats, timingFilter, channelFilter, onTimin
                 </td>
                 <td className="px-4 py-2.5 text-gray-500">{formatChannel(g.payment_channel || g.payment_type)}</td>
                 <td className="px-4 py-2.5 text-gray-500">
-                  {g.paid_at ? new Date(g.paid_at).toLocaleDateString() : '-'}
+                  {g.paid_at ? formatDate(g.paid_at) : '-'}
                 </td>
                 <td className="px-4 py-2.5 text-right font-medium text-gray-900">
                   {g.payment_amount_cents ? `$${(g.payment_amount_cents / 100).toFixed(2)}` : '-'}

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
+import { formatDateTime } from '../utils/dates';
 
 interface Golfer {
   id: number;
@@ -61,16 +62,6 @@ const QUEUE_CONFIG: { key: QueueTab; label: string; activeColor: string }[] = [
   { key: 'checked_in', label: 'Checked In', activeColor: 'bg-brand-500 text-white' },
   { key: 'all', label: 'All', activeColor: 'bg-gray-700 text-white' },
 ];
-
-const formatDate = (dateString: string) =>
-  new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'Pacific/Guam',
-  });
 
 const formatCurrency = (cents: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -560,13 +551,13 @@ export const OrgCheckInPage: React.FC = () => {
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Timeline</p>
                   <div className="flex items-center gap-2">
                     <CalendarClock className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
-                    <span className="text-gray-500 text-xs">Registered: {formatDate(selectedGolfer.created_at)}</span>
+                    <span className="text-gray-500 text-xs">Registered: {formatDateTime(selectedGolfer.created_at)}</span>
                   </div>
                   {selectedGolfer.payment_verified_at && (
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                       <span className="text-gray-500 text-xs">
-                        Paid: {formatDate(selectedGolfer.payment_verified_at)}
+                        Paid: {formatDateTime(selectedGolfer.payment_verified_at)}
                         {selectedGolfer.payment_verified_by_name && ` by ${selectedGolfer.payment_verified_by_name}`}
                       </span>
                     </div>
@@ -575,7 +566,7 @@ export const OrgCheckInPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <UserCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                       <span className="text-gray-500 text-xs">
-                        Checked in: {formatDate(selectedGolfer.checked_in_at)}
+                        Checked in: {formatDateTime(selectedGolfer.checked_in_at)}
                         {selectedGolfer.checked_in_by_name && ` by ${selectedGolfer.checked_in_by_name}`}
                       </span>
                     </div>
@@ -775,13 +766,13 @@ export const OrgCheckInPage: React.FC = () => {
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Timeline</p>
               <div className="flex items-center gap-2">
                 <CalendarClock className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
-                <span className="text-gray-500 text-xs">Registered: {formatDate(selectedGolfer.created_at)}</span>
+                <span className="text-gray-500 text-xs">Registered: {formatDateTime(selectedGolfer.created_at)}</span>
               </div>
               {selectedGolfer.payment_verified_at && (
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                   <span className="text-gray-500 text-xs">
-                    Paid: {formatDate(selectedGolfer.payment_verified_at)}
+                    Paid: {formatDateTime(selectedGolfer.payment_verified_at)}
                     {selectedGolfer.payment_verified_by_name && ` by ${selectedGolfer.payment_verified_by_name}`}
                   </span>
                 </div>
@@ -790,7 +781,7 @@ export const OrgCheckInPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <UserCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                   <span className="text-gray-500 text-xs">
-                    Checked in: {formatDate(selectedGolfer.checked_in_at)}
+                    Checked in: {formatDateTime(selectedGolfer.checked_in_at)}
                     {selectedGolfer.checked_in_by_name && ` by ${selectedGolfer.checked_in_by_name}`}
                   </span>
                 </div>

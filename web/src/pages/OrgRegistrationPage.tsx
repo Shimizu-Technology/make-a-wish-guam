@@ -27,6 +27,7 @@ interface FormData {
   player2Email: string;
   player2Phone: string;
   teamName: string;
+  teamCategory: string;
   player1WaiverAccepted: boolean;
   player2WaiverAccepted: boolean;
   raffleTickets: number;
@@ -88,6 +89,7 @@ export const OrgRegistrationPage: React.FC = () => {
     player2Email: '',
     player2Phone: '+1671',
     teamName: '',
+    teamCategory: '',
     player1WaiverAccepted: false,
     player2WaiverAccepted: false,
     raffleTickets: 0,
@@ -188,6 +190,7 @@ export const OrgRegistrationPage: React.FC = () => {
           partner_phone: formData.player2Phone && formData.player2Phone !== '+1671' ? formData.player2Phone : undefined,
           partner_waiver_accepted_at: new Date().toISOString(),
           team_name: formData.teamName || undefined,
+          team_category: formData.teamCategory || undefined,
           raffle_tickets_requested: formData.raffleTickets > 0 ? formData.raffleTickets : undefined,
           raffle_bundle_label: formData.raffleBundleLabel || undefined,
         } as any,
@@ -496,6 +499,20 @@ export const OrgRegistrationPage: React.FC = () => {
                           className={inputClass}
                         />
                         <p className="text-xs text-neutral-400 mt-1">Optional — defaults to both player names</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">Team Category</label>
+                        <select
+                          name="teamCategory"
+                          value={formData.teamCategory}
+                          onChange={handleInputChange}
+                          className={`${inputClass} bg-white`}
+                        >
+                          <option value="">Select…</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Co-Ed">Co-Ed</option>
+                        </select>
                       </div>
                     </div>
                   </div>

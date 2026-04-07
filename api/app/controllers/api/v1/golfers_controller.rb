@@ -926,7 +926,7 @@ module Api
           :name, :company, :address, :phone, :mobile, :email,
           :payment_type, :payment_status, :notes, :is_team_captain,
           :partner_name, :partner_email, :partner_phone, :partner_waiver_accepted_at,
-          :team_name, :tshirt_size, :partner_tshirt_size,
+          :team_name, :team_category, :tshirt_size, :partner_tshirt_size,
           :raffle_tickets_requested, :raffle_bundle_label
         )
       end
@@ -938,7 +938,7 @@ module Api
           :group_id, :hole_number, :position, :notes,
           :payment_method, :receipt_number, :payment_notes,
           :partner_name, :partner_email, :partner_phone,
-          :sponsor_id, :sponsor_name
+          :team_category, :sponsor_id, :sponsor_name
         )
       end
 

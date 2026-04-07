@@ -27,6 +27,7 @@ import toast from 'react-hot-toast';
 import { AddGolferModal } from '../components/AddGolferModal';
 import { EditGolferModal } from '../components/EditGolferModal';
 import { adminEventPath, adminOrgRoutes } from '../utils/adminRoutes';
+import { formatDateTime, formatShortDate } from '../utils/dates';
 
 interface Golfer {
   id: number;
@@ -52,6 +53,7 @@ interface Golfer {
   sponsor_id: number | null;
   sponsor_name: string | null;
   sponsor_display_name: string | null;
+  team_category: string | null;
 }
 
 interface Tournament {
@@ -167,6 +169,9 @@ export const OrgTournamentAdmin: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [checkinFilter, setCheckinFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState<
+    'all' | 'male' | 'female' | 'co-ed' | 'unset'
+  >('all');
   
   const [sortColumn, setSortColumn] = useState<'name' | 'created_at'>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -275,6 +280,16 @@ export const OrgTournamentAdmin: React.FC = () => {
       filtered = filtered.filter(g => !g.checked_in_at);
     }
 
+    if (categoryFilter === 'male') {
+      filtered = filtered.filter(g => g.team_category === 'Male');
+    } else if (categoryFilter === 'female') {
+      filtered = filtered.filter(g => g.team_category === 'Female');
+    } else if (categoryFilter === 'co-ed') {
+      filtered = filtered.filter(g => g.team_category === 'Co-Ed');
+    } else if (categoryFilter === 'unset') {
+      filtered = filtered.filter(g => !g.team_category);
+    }
+
     filtered.sort((a, b) => {
       let comparison = 0;
       if (sortColumn === 'name') {
@@ -286,7 +301,7 @@ export const OrgTournamentAdmin: React.FC = () => {
     });
 
     return filtered;
-  }, [golfers, searchTerm, statusFilter, paymentFilter, checkinFilter, sortColumn, sortDirection]);
+  }, [golfers, searchTerm, statusFilter, paymentFilter, checkinFilter, categoryFilter, sortColumn, sortDirection]);
 
   const handleSort = (column: 'name' | 'created_at') => {
     if (sortColumn === column) {
@@ -414,17 +429,18 @@ export const OrgTournamentAdmin: React.FC = () => {
   };
 
   const exportCSV = () => {
-    const headers = ['Name', 'Email', 'Phone', 'Company', 'Partner Name', 'Status', 'Payment', 'Checked In', 'Registered'];
+    const headers = ['Name', 'Email', 'Phone', 'Company', 'Partner Name', 'Category', 'Status', 'Payment', 'Checked In', 'Registered'];
     const rows = filteredGolfers.map(g => [
       g.name,
       g.email,
       g.phone,
       g.company || '',
       g.partner_name || '',
+      g.team_category || '',
       g.payment_status === 'paid' ? 'Confirmed' : 'Pending Payment',
       g.payment_status,
       g.checked_in_at ? 'Yes' : 'No',
-      new Date(g.created_at).toLocaleDateString(),
+      formatShortDate(g.created_at),
     ]);
 
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
@@ -434,17 +450,6 @@ export const OrgTournamentAdmin: React.FC = () => {
     a.href = url;
     a.download = `${tournamentSlug}-registrations.csv`;
     a.click();
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      timeZone: 'Pacific/Guam',
-    });
   };
 
   const formatCurrency = (cents: number) => {
@@ -749,6 +754,20 @@ export const OrgTournamentAdmin: React.FC = () => {
                 <option value="not_checked_in">Not Checked In</option>
               </select>
 
+              <select
+                value={categoryFilter}
+                onChange={(e) =>
+                  setCategoryFilter(e.target.value as 'all' | 'male' | 'female' | 'co-ed' | 'unset')
+                }
+                className="flex-shrink-0 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="all">All Categories</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="co-ed">Co-Ed</option>
+                <option value="unset">Unset</option>
+              </select>
+
               <div className="flex-shrink-0 flex items-center gap-2 ml-auto">
                 <button onClick={fetchData} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg" title="Refresh">
                   <RefreshCw className="w-5 h-5" />
@@ -772,7 +791,7 @@ export const OrgTournamentAdmin: React.FC = () => {
         {/* Golfers Table */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px]">
+            <table className="w-full min-w-[980px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th 
@@ -786,6 +805,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                       )}
                     </div>
                   </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 min-w-[100px]">Category</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 min-w-[200px]">Contact</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 min-w-[140px]">Status</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 min-w-[100px]">Payment</th>
@@ -807,7 +827,7 @@ export const OrgTournamentAdmin: React.FC = () => {
               <tbody className="divide-y divide-gray-200">
                 {filteredGolfers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
+                    <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
                       {golfers.length === 0 ? 'No registrations yet' : 'No results match your filters'}
                     </td>
                   </tr>
@@ -840,6 +860,9 @@ export const OrgTournamentAdmin: React.FC = () => {
                             )}
                           </div>
                         </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {golfer.team_category || '—'}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="text-sm">
                             <p className="text-gray-900">{golfer.email}</p>
@@ -864,7 +887,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-500">
-                          {formatDate(golfer.created_at)}
+                          {formatDateTime(golfer.created_at)}
                         </td>
                         <td className="px-4 py-3">
                           {isPending && golfer.registration_status === 'confirmed' && (
@@ -929,6 +952,12 @@ export const OrgTournamentAdmin: React.FC = () => {
               </div>
 
               <div className="p-6 space-y-4">
+                {selectedGolfer.team_category && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Category</p>
+                    <p className="text-sm text-gray-900">{selectedGolfer.team_category}</p>
+                  </div>
+                )}
                 {/* Team Members */}
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team Members</p>
@@ -999,7 +1028,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                               : 'Registered'}
                           </p>
                           <p className="text-xs text-gray-400">
-                            {formatDate(selectedGolfer.created_at)}
+                            {formatDateTime(selectedGolfer.created_at)}
                             {selectedGolfer.sponsor_display_name && ` \u2022 Sponsor: ${selectedGolfer.sponsor_display_name}`}
                           </p>
                         </div>
@@ -1010,7 +1039,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                           <div className="flex-1 min-w-0">
                             <p className="text-gray-700 text-xs">Payment verified</p>
                             <p className="text-xs text-gray-400">
-                              {formatDate(selectedGolfer.payment_verified_at)}
+                              {formatDateTime(selectedGolfer.payment_verified_at)}
                               {selectedGolfer.payment_verified_by_name && ` \u2022 ${selectedGolfer.payment_verified_by_name}`}
                             </p>
                           </div>
@@ -1022,7 +1051,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                           <div className="flex-1 min-w-0">
                             <p className="text-gray-700 text-xs">Checked in</p>
                             <p className="text-xs text-gray-400">
-                              {formatDate(selectedGolfer.checked_in_at)}
+                              {formatDateTime(selectedGolfer.checked_in_at)}
                               {selectedGolfer.checked_in_by_name && ` \u2022 ${selectedGolfer.checked_in_by_name}`}
                             </p>
                           </div>
@@ -1042,14 +1071,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                           <div className="flex-1 min-w-0">
                             <p className="text-gray-700 text-xs">{log.details}</p>
                             <p className="text-xs text-gray-400">
-                              {new Date(log.created_at).toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true,
-                                timeZone: 'Pacific/Guam',
-                              })}
+                              {formatDateTime(log.created_at)}
                               {log.admin_name && ` \u2022 ${log.admin_name}`}
                             </p>
                           </div>

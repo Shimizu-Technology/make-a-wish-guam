@@ -19,9 +19,14 @@ module Api
           logs = logs.by_admin(params[:admin_id])
         end
 
-        # Filter by action
+        # Filter by action (exact match or prefix with LIKE)
         if params[:action_type].present?
-          logs = logs.by_action(params[:action_type])
+          action_filter = params[:action_type]
+          if action_filter.include?('%') || ActivityLog::ACTIONS.include?(action_filter)
+            logs = logs.by_action(action_filter)
+          else
+            logs = logs.where("action LIKE ?", "#{action_filter}%")
+          end
         end
 
         # Filter by target

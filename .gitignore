@@ -35,8 +35,10 @@ coverage/
 # Misc
 *.log
 
-# Imported legacy reference project (do not commit)
+# Imported legacy reference projects (do not commit)
 giaa-tournament/
+campaign-tracker/
+marianas-open/
 
 # Local Netlify folder
 .netlify

@@ -18,7 +18,7 @@ class GolferSerializer < ActiveModel::Serializer
              :checked_in_by_id, :checked_in_by_name,
              # Team fields
              :partner_name, :partner_email, :partner_phone, :partner_waiver_accepted_at,
-             :team_name, :tshirt_size, :partner_tshirt_size, :is_team_captain,
+             :team_name, :team_category, :tshirt_size, :partner_tshirt_size, :is_team_captain,
              # Sponsor fields
              :sponsor_id, :sponsor_name, :sponsor_display_name,
              # Raffle add-on
