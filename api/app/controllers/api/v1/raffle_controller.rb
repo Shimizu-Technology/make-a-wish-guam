@@ -61,7 +61,7 @@ module Api
       end
 
       # GET /api/v1/tournaments/:tournament_id/raffle/tickets
-      # Public - look up tickets by email, phone, name, or ticket number
+      # Public - look up tickets by email, phone, or ticket number
       def tickets
         query = params[:query].presence || params[:email].presence
         return render json: { error: 'Search query required' }, status: :bad_request unless query.present?
@@ -71,7 +71,6 @@ module Api
 
         tickets = base.where(purchaser_email: q.downcase)
                       .or(base.where(purchaser_phone: q))
-                      .or(base.where("LOWER(purchaser_name) = ?", q.downcase))
                       .or(base.where("LOWER(ticket_number) = ?", q.downcase))
 
         if tickets.empty?
@@ -80,10 +79,6 @@ module Api
             normalized = phone_digits.length == 10 ? "+1#{phone_digits}" : "+#{phone_digits}"
             tickets = base.where(purchaser_phone: normalized)
           end
-        end
-
-        if tickets.empty? && q.length >= 2
-          tickets = base.where("LOWER(purchaser_name) LIKE ?", "%#{q.downcase}%")
         end
 
         render json: {

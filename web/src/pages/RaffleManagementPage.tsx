@@ -424,7 +424,7 @@ export const RaffleManagementPage: React.FC = () => {
       setExpandedTicketId(null);
       fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
     }
-  }, [ticketSearch, ticketFilter, ticketPage]);
+  }, [tournament?.id, ticketSearch, ticketFilter, ticketPage]);
 
   const fetchActivityLogs = useCallback(async () => {
     if (!tournament?.id) return;

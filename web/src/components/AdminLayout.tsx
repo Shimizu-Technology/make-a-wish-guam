@@ -8,6 +8,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
+  Clock,
   CreditCard,
   Flag,
   HandCoins,
@@ -82,6 +83,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       path: adminOrgRoutes.sponsors,
       icon: Building2,
       match: (pathname) => pathname === adminOrgRoutes.sponsors,
+    },
+    {
+      label: 'Activity Log',
+      path: '/admin/activity',
+      icon: Clock,
+      match: (pathname) => pathname === '/admin/activity',
     },
     {
       label: 'Settings',

@@ -391,7 +391,7 @@ export const RaffleBoardPage: React.FC = () => {
                     type="text"
                     value={ticketEmail}
                     onChange={(e) => setTicketEmail(e.target.value)}
-                    placeholder="Search by email, phone, name, or ticket #..."
+                    placeholder="Enter your email, phone, or ticket #..."
                     className="w-full pl-10 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#0057B8] focus:ring-2 focus:ring-[#0057B8]/20 transition-colors"
                     required
                   />
@@ -409,7 +409,7 @@ export const RaffleBoardPage: React.FC = () => {
               {myTickets !== null && (
                 <div className="mt-4 pt-4 border-t border-neutral-100">
                   {myTickets.length === 0 ? (
-                    <p className="text-sm text-neutral-500">No tickets found. Try searching by email, phone number, name, or ticket number.</p>
+                    <p className="text-sm text-neutral-500">No tickets found. Try searching by email, phone number, or ticket number.</p>
                   ) : (
                     <div>
                       <p className="text-sm text-neutral-600 mb-3">
