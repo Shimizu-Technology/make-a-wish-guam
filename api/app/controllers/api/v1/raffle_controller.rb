@@ -343,7 +343,8 @@ module Api
               golfer_id: params[:golfer_id],
               price_cents: @tournament.raffle_ticket_price_cents,
               payment_status: params[:mark_paid] ? 'paid' : 'pending',
-              purchased_at: params[:mark_paid] ? Time.current : nil
+              purchased_at: params[:mark_paid] ? Time.current : nil,
+              sold_by_user_id: current_user.id
             )
 
             if ticket.save
@@ -355,6 +356,12 @@ module Api
         end
 
         if tickets.any?
+          ActivityLog.log(
+            admin: current_user, action: 'raffle_tickets_sold', target: @tournament,
+            details: "Created #{tickets.count} ticket(s) for #{params[:purchaser_name]}",
+            metadata: { quantity: tickets.count, purchaser_name: params[:purchaser_name] },
+            tournament: @tournament
+          )
           render json: {
             tickets: tickets.map { |t| ticket_response(t) },
             message: "#{tickets.count} ticket(s) created"

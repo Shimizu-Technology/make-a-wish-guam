@@ -399,7 +399,7 @@ export const RaffleManagementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [organization, tournamentSlug, getToken, fetchTickets, ticketSearch, ticketFilter, ticketPage]);
+  }, [organization, tournamentSlug, getToken, fetchTickets]);
 
   useEffect(() => {
     fetchData();
@@ -416,6 +416,7 @@ export const RaffleManagementPage: React.FC = () => {
 
   useEffect(() => {
     if (tournament?.id) {
+      setExpandedTicketId(null);
       fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
     }
   }, [ticketSearch, ticketFilter, ticketPage]);
@@ -952,76 +953,128 @@ export const RaffleManagementPage: React.FC = () => {
                     prize.won ? 'border border-green-200' : ''
                   }`}
                 >
-                  <div className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className="p-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center shrink-0 ${
                         prize.tier === 'grand' ? 'bg-yellow-100 text-yellow-600' :
                         prize.tier === 'platinum' ? 'bg-slate-100 text-slate-600' :
                         prize.tier === 'gold' ? 'bg-amber-100 text-amber-600' :
                         'bg-gray-100 text-gray-600'
                       }`}>
-                        <Trophy className="w-6 h-6" />
+                        <Trophy className="w-5 h-5 sm:w-6 sm:h-6" />
                       </div>
-                      <div className="min-w-0">
-                        <h3 className="font-semibold text-gray-900 truncate">{prize.name}</h3>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-gray-900">{prize.name}</h3>
                         <p className="text-sm text-gray-500">
                           {prize.tier_display}
                           {prize.value_dollars > 0 && ` • $${prize.value_dollars.toLocaleString()}`}
                           {prize.sponsor_name && ` • ${prize.sponsor_name}`}
                         </p>
                       </div>
+                      {/* Desktop action buttons inline */}
+                      <div className="hidden sm:flex items-center gap-2 shrink-0">
+                        {prize.won ? (
+                          <>
+                            {!prize.claimed && (
+                              <button
+                                onClick={() => handleClaimPrize(prize)}
+                                disabled={actionLoading === `claim-${prize.id}`}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                                title="Mark as claimed"
+                              >
+                                <CheckCircle className="w-5 h-5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleResetPrize(prize)}
+                              disabled={actionLoading === `reset-${prize.id}`}
+                              className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg"
+                              title="Reset (undo draw)"
+                            >
+                              <RotateCcw className="w-5 h-5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleDrawPrize(prize)}
+                              disabled={actionLoading === `draw-${prize.id}`}
+                              className="flex items-center gap-1 px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
+                            >
+                              {actionLoading === `draw-${prize.id}` ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Play className="w-4 h-4" />
+                              )}
+                              Draw
+                            </button>
+                            <button
+                              onClick={() => { setEditingPrize(prize); setShowPrizeModal(true); }}
+                              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                            >
+                              <Edit className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePrize(prize)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
+                    {/* Mobile action buttons on their own row */}
+                    <div className="flex sm:hidden items-center gap-2 mt-3 pt-3 border-t border-gray-100">
                       {prize.won ? (
                         <>
                           {!prize.claimed && (
                             <button
                               onClick={() => handleClaimPrize(prize)}
                               disabled={actionLoading === `claim-${prize.id}`}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                              title="Mark as claimed"
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-lg"
                             >
-                              <CheckCircle className="w-5 h-5" />
+                              <CheckCircle className="w-4 h-4" />
+                              Claim
                             </button>
                           )}
                           <button
                             onClick={() => handleResetPrize(prize)}
                             disabled={actionLoading === `reset-${prize.id}`}
-                            className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg"
-                            title="Reset (undo draw)"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-gray-500 bg-gray-100 rounded-lg"
                           >
-                            <RotateCcw className="w-5 h-5" />
+                            <RotateCcw className="w-4 h-4" />
+                            Reset
                           </button>
                         </>
                       ) : (
-                      <>
-                        <button
-                          onClick={() => handleDrawPrize(prize)}
-                          disabled={actionLoading === `draw-${prize.id}`}
-                          className="flex items-center gap-1 px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
-                        >
-                          {actionLoading === `draw-${prize.id}` ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Play className="w-4 h-4" />
-                          )}
-                          Draw
-                        </button>
-                        <button
-                          onClick={() => { setEditingPrize(prize); setShowPrizeModal(true); }}
-                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeletePrize(prize)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </>
-                    )}
+                        <>
+                          <button
+                            onClick={() => handleDrawPrize(prize)}
+                            disabled={actionLoading === `draw-${prize.id}`}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-white bg-yellow-500 rounded-lg"
+                          >
+                            {actionLoading === `draw-${prize.id}` ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Play className="w-4 h-4" />
+                            )}
+                            Draw
+                          </button>
+                          <button
+                            onClick={() => { setEditingPrize(prize); setShowPrizeModal(true); }}
+                            className="flex items-center justify-center gap-1.5 py-2 px-3 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePrize(prize)}
+                            className="flex items-center justify-center gap-1.5 py-2 px-3 text-sm font-medium text-red-600 bg-red-50 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -1125,7 +1178,7 @@ export const RaffleManagementPage: React.FC = () => {
                 />
                 {ticketSearchInput && (
                   <button
-                    onClick={() => { setTicketSearchInput(''); setTicketSearch(''); setTicketPage(1); }}
+                    onClick={() => { setTicketSearchInput(''); setTicketSearch(''); setTicketPage(1); setExpandedTicketId(null); }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600"
                   >
                     <X className="w-4 h-4" />
@@ -1160,13 +1213,13 @@ export const RaffleManagementPage: React.FC = () => {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Ticket #</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Name</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Contact</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Winner</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Date</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-600 w-16"></th>
+                    <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-600 whitespace-nowrap">Ticket #</th>
+                    <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-600">Name</th>
+                    <th className="px-2 sm:px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Contact</th>
+                    <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-600">Status</th>
+                    <th className="px-2 sm:px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Winner</th>
+                    <th className="px-2 sm:px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Date</th>
+                    <th className="px-1 sm:px-4 py-3 text-right text-sm font-medium text-gray-600 w-10 sm:w-16"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -1180,30 +1233,30 @@ export const RaffleManagementPage: React.FC = () => {
                       className={`hover:bg-gray-50 cursor-pointer ${isVoided ? 'opacity-60' : ''}`}
                       onClick={() => setExpandedTicketId(isExpanded ? null : ticket.id)}
                     >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
-                          <span className={`font-mono text-sm font-semibold ${isVoided ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                      <td className="px-2 sm:px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400 transition-transform shrink-0 ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                          <span className={`font-mono text-xs sm:text-sm font-semibold whitespace-nowrap ${isVoided ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                             {ticket.ticket_number}
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <p className={`font-medium ${isVoided ? 'text-gray-400' : 'text-gray-900'}`}>{ticket.purchaser_name}</p>
+                      <td className="px-2 sm:px-4 py-3">
+                        <p className={`font-medium text-sm ${isVoided ? 'text-gray-400' : 'text-gray-900'}`}>{ticket.purchaser_name}</p>
                       </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
+                      <td className="px-2 sm:px-4 py-3 hidden sm:table-cell">
                         {ticket.purchaser_email && <p className="text-sm text-gray-500">{ticket.purchaser_email}</p>}
                         {ticket.purchaser_phone && <p className="text-sm text-gray-400">{ticket.purchaser_phone}</p>}
                         {!ticket.purchaser_email && !ticket.purchaser_phone && <span className="text-gray-300">-</span>}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 sm:px-4 py-3">
                         {isVoided ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-red-50 text-red-600">
-                            <Ban className="w-3 h-3" />
+                          <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs bg-red-50 text-red-600">
+                            <Ban className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                             Voided
                           </span>
                         ) : (
-                          <span className={`px-2 py-1 rounded-full text-xs ${
+                          <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs ${
                             isComplimentary
                               ? 'bg-blue-50 text-blue-700'
                               : 'bg-green-100 text-green-700'
@@ -1212,7 +1265,7 @@ export const RaffleManagementPage: React.FC = () => {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
+                      <td className="px-2 sm:px-4 py-3 hidden sm:table-cell">
                         {ticket.is_winner ? (
                           <span className="flex items-center gap-1 text-yellow-600">
                             <Trophy className="w-4 h-4" />
@@ -1222,24 +1275,24 @@ export const RaffleManagementPage: React.FC = () => {
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-500 hidden sm:table-cell">
+                      <td className="px-2 sm:px-4 py-3 text-sm text-gray-500 hidden sm:table-cell">
                         {ticket.purchased_at 
                           ? new Date(ticket.purchased_at).toLocaleDateString()
                           : '-'
                         }
                       </td>
-                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-1 sm:px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         {!isVoided && !ticket.is_winner && (
                           <button
                             onClick={() => handleVoidTicket(ticket)}
                             disabled={actionLoading === `void-${ticket.id}`}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-1 sm:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Void ticket"
                           >
                             {actionLoading === `void-${ticket.id}` ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
                             ) : (
-                              <Ban className="w-4 h-4" />
+                              <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             )}
                           </button>
                         )}

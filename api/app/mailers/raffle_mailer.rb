@@ -170,8 +170,8 @@ class RaffleMailer
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 12px; margin-bottom: 20px;">
                 <tr><td style="padding: 20px;">
                   <p style="margin: 0 0 12px; color: #{brand}; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Your Ticket Numbers</p>
-                  <p style="margin: 0; color: #111827; font-size: 16px; font-weight: 700; font-family: 'Courier New', monospace; letter-spacing: 1px; line-height: 2;">
-                    #{ticket_numbers.map { |n| "##{ERB::Util.html_escape(n)}" }.join(' &nbsp;&middot;&nbsp; ')}
+                  <p style="margin: 0; color: #1e3a5f; font-size: 15px; font-weight: 700; font-family: 'Courier New', monospace; letter-spacing: 0.35px; line-height: 1.65;">
+                    #{ticket_numbers.map { |n| "##{ERB::Util.html_escape(n)}" }.join('<br>')}
                   </p>
                 </td></tr>
               </table>

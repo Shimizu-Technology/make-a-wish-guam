@@ -318,7 +318,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           </div>
 
           {/* Desktop collapse toggle */}
-          <div className="hidden lg:flex justify-end mb-2">
+          <div className={`hidden lg:flex mb-2 ${sidebarCollapsed ? 'justify-center' : 'justify-end'}`}>
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
