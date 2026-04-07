@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_06_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_07_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -94,6 +94,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_06_120000) do
     t.string "payment_verified_by_name"
     t.string "phone"
     t.integer "position"
+    t.string "raffle_bundle_label"
+    t.integer "raffle_tickets_requested", default: 0, null: false
     t.string "receipt_number"
     t.integer "refund_amount_cents"
     t.text "refund_reason"
@@ -198,12 +200,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_06_120000) do
     t.string "purchaser_name"
     t.string "purchaser_phone"
     t.bigint "raffle_prize_id"
+    t.bigint "sold_by_user_id"
     t.string "stripe_payment_intent_id"
     t.string "ticket_number", null: false
     t.bigint "tournament_id", null: false
     t.datetime "updated_at", null: false
     t.index ["golfer_id"], name: "index_raffle_tickets_on_golfer_id"
     t.index ["raffle_prize_id"], name: "index_raffle_tickets_on_raffle_prize_id"
+    t.index ["sold_by_user_id"], name: "index_raffle_tickets_on_sold_by_user_id"
     t.index ["ticket_number"], name: "index_raffle_tickets_on_ticket_number", unique: true
     t.index ["tournament_id", "is_winner"], name: "index_raffle_tickets_on_tournament_id_and_is_winner"
     t.index ["tournament_id", "payment_status"], name: "index_raffle_tickets_on_tournament_id_and_payment_status"

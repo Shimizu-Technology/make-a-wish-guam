@@ -104,10 +104,10 @@ module Api
       end
 
       # GET /api/v1/admin/organizations/:slug/tournaments
-      # Admin endpoint - returns all tournaments with stats
+      # Admin/volunteer endpoint - returns all tournaments with stats
       def admin_tournaments
         organization = Organization.find_by_slug!(params[:slug])
-        require_org_admin!(organization)
+        require_volunteer_or_admin!(organization)
         return if performed?
 
         tournaments = organization.tournaments
@@ -163,10 +163,10 @@ module Api
       end
 
       # GET /api/v1/admin/organizations/:slug/tournaments/:tournament_slug
-      # Admin endpoint - returns tournament details with all golfers
+      # Admin/volunteer endpoint - returns tournament details with all golfers
       def admin_tournament
         organization = Organization.find_by_slug!(params[:slug])
-        require_org_admin!(organization)
+        require_volunteer_or_admin!(organization)
         return if performed?
 
         tournament = organization.tournaments.find_by!(slug: params[:tournament_slug])
@@ -512,10 +512,13 @@ module Api
           return render json: { error: "This user is already a member of this organization." }, status: :unprocessable_entity
         end
 
-        role = params[:role] || 'admin'
+        role = params[:role].presence || 'admin'
+        unless OrganizationMembership::ROLES.include?(role)
+          return render json: { error: "Invalid role: #{role}" }, status: :unprocessable_entity
+        end
         membership = org.organization_memberships.create!(user: user, role: role)
 
-        SendUserInviteEmailJob.perform_later(user.id, current_user&.id)
+        SendUserInviteEmailJob.perform_later(user.id, current_user&.id, role)
 
         render json: {
           member: member_response(membership),
@@ -549,12 +552,12 @@ module Api
 
         membership = org.organization_memberships.find(params[:member_id])
 
-        unless %w[admin member].include?(params[:role])
+        unless OrganizationMembership::ROLES.include?(params[:role])
           return render json: { error: "Invalid role" }, status: :unprocessable_entity
         end
 
         # Don't let the last admin demote themselves
-        if membership.admin? && params[:role] == 'member' && org.organization_memberships.admins.count <= 1
+        if membership.admin? && params[:role] != 'admin' && org.organization_memberships.admins.count <= 1
           return render json: { error: "Cannot demote the last admin" }, status: :unprocessable_entity
         end
 

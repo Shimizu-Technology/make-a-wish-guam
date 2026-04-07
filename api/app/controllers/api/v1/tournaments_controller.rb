@@ -61,12 +61,26 @@ module Api
 
       # PATCH /api/v1/tournaments/:id
       def update
-        attrs = tournament_params.except(:organization_id, :sponsor_tiers)
+        attrs = tournament_params.except(:organization_id, :sponsor_tiers,
+                                         :raffle_include_with_registration, :raffle_bundles)
+
+        merged_config = (@tournament.config || {}).deep_dup
 
         if params.dig(:tournament, :sponsor_tiers).present?
           tiers = tournament_params[:sponsor_tiers]&.map(&:to_h)
-          attrs[:config] = (@tournament.config || {}).merge('sponsor_tiers' => tiers)
+          merged_config['sponsor_tiers'] = tiers
         end
+
+        if params[:tournament].key?(:raffle_include_with_registration)
+          merged_config['raffle_include_with_registration'] =
+            ActiveModel::Type::Boolean.new.cast(params[:tournament][:raffle_include_with_registration])
+        end
+
+        if params.dig(:tournament, :raffle_bundles).present?
+          merged_config['raffle_bundles'] = tournament_params[:raffle_bundles]&.map(&:to_h)
+        end
+
+        attrs[:config] = merged_config if merged_config != @tournament.config
 
         if @tournament.update(attrs)
           ActivityLog.log(
@@ -192,8 +206,10 @@ module Api
           :sponsor_edit_deadline,
           :event_schedule, :payment_instructions,
           :check_in_time,
+          :raffle_include_with_registration,
           config: {},
-          sponsor_tiers: [:key, :label, :sort_order]
+          sponsor_tiers: [:key, :label, :sort_order],
+          raffle_bundles: [:quantity, :price_cents, :label]
         )
       end
     end

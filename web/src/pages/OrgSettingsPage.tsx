@@ -80,6 +80,18 @@ interface SponsorTierDef {
   sort_order: number;
 }
 
+interface RaffleBundleDef {
+  quantity: number;
+  price_cents: number;
+  label: string;
+}
+
+const DEFAULT_RAFFLE_BUNDLES: RaffleBundleDef[] = [
+  { quantity: 4,  price_cents: 2000,  label: '$20 for 4 tickets' },
+  { quantity: 12, price_cents: 5000,  label: '$50 for 12 tickets' },
+  { quantity: 25, price_cents: 10000, label: '$100 for 25 tickets' },
+];
+
 interface TournamentSettings {
   id: string;
   name: string;
@@ -106,6 +118,8 @@ interface TournamentSettings {
   raffle_description: string;
   raffle_draw_time: string;
   raffle_ticket_price_cents: string;
+  raffle_include_with_registration: boolean;
+  raffle_bundles: RaffleBundleDef[];
   sponsor_edit_deadline: string;
   sponsor_tiers: SponsorTierDef[];
   event_schedule: string;
@@ -270,6 +284,7 @@ export const OrgSettingsPage: React.FC = () => {
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState<'admin' | 'volunteer'>('admin');
   const [addingMember, setAddingMember] = useState(false);
   const [tournamentSettings, setTournamentSettings] = useState<TournamentSettings | null>(null);
   const [sponsorReservedTeams, setSponsorReservedTeams] = useState(0);
@@ -366,6 +381,8 @@ export const OrgSettingsPage: React.FC = () => {
               raffle_description: t.raffle_description || '',
               raffle_draw_time: t.raffle_draw_time || '',
               raffle_ticket_price_cents: t.raffle_ticket_price_cents?.toString() || '500',
+              raffle_include_with_registration: t.raffle_include_with_registration ?? false,
+              raffle_bundles: t.raffle_bundles || DEFAULT_RAFFLE_BUNDLES,
               sponsor_edit_deadline: t.sponsor_edit_deadline || '',
               sponsor_tiers: t.sponsor_tiers || [
                 { key: 'title', label: 'Title Sponsor', sort_order: 0 },
@@ -429,6 +446,8 @@ export const OrgSettingsPage: React.FC = () => {
       raffle_description: tournamentSettings.raffle_description || null,
       raffle_draw_time: tournamentSettings.raffle_draw_time || null,
       raffle_ticket_price_cents: tournamentSettings.raffle_ticket_price_cents ? parseInt(tournamentSettings.raffle_ticket_price_cents) : 500,
+      raffle_include_with_registration: tournamentSettings.raffle_include_with_registration,
+      raffle_bundles: tournamentSettings.raffle_bundles,
       sponsor_edit_deadline: tournamentSettings.sponsor_edit_deadline || null,
       sponsor_tiers: tournamentSettings.sponsor_tiers,
       event_schedule: tournamentSettings.event_schedule || null,
@@ -462,19 +481,21 @@ export const OrgSettingsPage: React.FC = () => {
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: newMemberEmail.trim(), role: 'admin' }),
+          body: JSON.stringify({ email: newMemberEmail.trim(), role: newMemberRole }),
         }
       );
       const data = await res.json();
       if (res.ok) {
         setMembers(prev => [...prev, data.member]);
         setNewMemberEmail('');
-        toast.success(data.invitation_sent ? 'Admin added — invitation email sent!' : 'Admin added successfully');
+        setNewMemberRole('admin');
+        const roleLabel = newMemberRole === 'volunteer' ? 'Volunteer' : 'Admin';
+        toast.success(data.invitation_sent ? `${roleLabel} added — invitation email sent!` : `${roleLabel} added successfully`);
       } else {
-        toast.error(data.error || 'Failed to add admin');
+        toast.error(data.error || 'Failed to add member');
       }
     } catch (err) {
-      toast.error('Failed to add admin');
+      toast.error('Failed to add member');
     } finally {
       setAddingMember(false);
     }
@@ -1277,9 +1298,27 @@ export const OrgSettingsPage: React.FC = () => {
                       />
                     </div>
 
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="raffle_include_with_registration"
+                        checked={tournamentSettings.raffle_include_with_registration}
+                        onChange={(e) => handleTournamentChange('raffle_include_with_registration', e.target.checked)}
+                        className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                      />
+                      <label htmlFor="raffle_include_with_registration" className="text-sm font-medium text-gray-700">
+                        Include complimentary raffle tickets with registration
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500 -mt-2 ml-8">
+                      {tournamentSettings.raffle_include_with_registration
+                        ? 'Registrants automatically receive complimentary raffle tickets when they pay.'
+                        : 'No complimentary tickets with registration. Tickets can be purchased as an add-on during registration or at the event.'}
+                    </p>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Ticket Price ($)
+                        Individual Ticket Price ($)
                       </label>
                       <input
                         type="number"
@@ -1292,7 +1331,70 @@ export const OrgSettingsPage: React.FC = () => {
                         placeholder="5.00"
                         className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                       />
-                      <p className="mt-1 text-xs sm:text-sm text-gray-500">Price for extra raffle tickets sold at the event. Registrants get complimentary tickets included with registration.</p>
+                      <p className="mt-1 text-xs sm:text-sm text-gray-500">Default price per individual ticket (used for manual ticket creation).</p>
+                    </div>
+
+                    {/* Raffle Bundles Config */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Ticket Bundles (for point-of-sale)
+                      </label>
+                      <p className="text-xs text-gray-500 mb-3">Configure quick-tap bundle options for selling raffle tickets at the event.</p>
+                      <div className="space-y-2">
+                        {tournamentSettings.raffle_bundles.map((bundle, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              value={bundle.quantity}
+                              onChange={(e) => {
+                                const updated = [...tournamentSettings.raffle_bundles];
+                                updated[idx] = { ...bundle, quantity: parseInt(e.target.value) || 0 };
+                                handleTournamentChange('raffle_bundles', updated);
+                              }}
+                              placeholder="Qty"
+                              className="w-20 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            />
+                            <span className="text-sm text-gray-500">tickets for</span>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">$</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={(bundle.price_cents / 100).toFixed(2)}
+                                onChange={(e) => {
+                                  const updated = [...tournamentSettings.raffle_bundles];
+                                  const cents = Math.round(parseFloat(e.target.value || '0') * 100);
+                                  updated[idx] = { ...bundle, price_cents: cents };
+                                  handleTournamentChange('raffle_bundles', updated);
+                                }}
+                                placeholder="0.00"
+                                className="w-24 px-3 py-2 pl-7 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = tournamentSettings.raffle_bundles.filter((_, i) => i !== idx);
+                                handleTournamentChange('raffle_bundles', updated);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = [...tournamentSettings.raffle_bundles, { quantity: 10, price_cents: 5000, label: '' }];
+                            handleTournamentChange('raffle_bundles', updated);
+                          }}
+                          className="flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-medium mt-1"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add bundle
+                        </button>
+                      </div>
                     </div>
 
                     <div>
@@ -1377,12 +1479,12 @@ export const OrgSettingsPage: React.FC = () => {
               <Users className="w-5 h-5 text-brand-600" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-bold text-gray-900">Organization Admins</h2>
-              <p className="text-xs sm:text-sm text-gray-500">Invite admins by email. They'll receive a link to create their account.</p>
+              <h2 className="text-base sm:text-lg font-bold text-gray-900">Team Members</h2>
+              <p className="text-xs sm:text-sm text-gray-500">Invite admins or volunteers by email. Volunteers can only access Check-In and Raffle ticket sales.</p>
             </div>
           </div>
 
-          {/* Add admin */}
+          {/* Add member */}
           <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 mb-5 sm:mb-6">
             <input
               type="email"
@@ -1392,6 +1494,14 @@ export const OrgSettingsPage: React.FC = () => {
               className="flex-1 px-3 sm:px-4 py-2.5 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
               onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
             />
+            <select
+              value={newMemberRole}
+              onChange={(e) => setNewMemberRole(e.target.value as 'admin' | 'volunteer')}
+              className="px-3 py-2.5 border border-gray-300 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 flex-shrink-0"
+            >
+              <option value="admin">Admin</option>
+              <option value="volunteer">Volunteer</option>
+            </select>
             <button
               onClick={handleAddMember}
               disabled={addingMember || !newMemberEmail.trim()}
@@ -1402,14 +1512,14 @@ export const OrgSettingsPage: React.FC = () => {
               ) : (
                 <UserPlus className="w-4 h-4" />
               )}
-              Invite Admin
+              Invite {newMemberRole === 'volunteer' ? 'Volunteer' : 'Admin'}
             </button>
           </div>
 
           {/* Member list */}
           <div className="space-y-2.5 sm:space-y-3">
             {members.length === 0 ? (
-              <p className="text-gray-500 text-sm text-center py-4">No admins configured yet.</p>
+              <p className="text-gray-500 text-sm text-center py-4">No team members configured yet.</p>
             ) : (
               members.map((member) => (
                 <div
@@ -1420,6 +1530,8 @@ export const OrgSettingsPage: React.FC = () => {
                     <div className="p-1.5 sm:p-2 bg-white rounded-lg border border-gray-200 flex-shrink-0">
                       {member.role === 'admin' ? (
                         <Crown className="w-4 h-4 text-amber-500" />
+                      ) : member.role === 'volunteer' ? (
+                        <Users className="w-4 h-4 text-emerald-500" />
                       ) : (
                         <Shield className="w-4 h-4 text-gray-400" />
                       )}
@@ -1438,9 +1550,11 @@ export const OrgSettingsPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                    <span className={`text-[10px] sm:text-xs font-medium px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full ${
+                    <span className={`text-[10px] sm:text-xs font-medium px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full capitalize ${
                       member.role === 'admin'
                         ? 'bg-brand-100 text-brand-700'
+                        : member.role === 'volunteer'
+                        ? 'bg-emerald-100 text-emerald-700'
                         : 'bg-gray-200 text-gray-600'
                     }`}>
                       {member.role}

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useAuth, useClerk, useUser } from '@clerk/clerk-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAdmin } from '../contexts';
 import { ShieldX, Home, LogOut } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -15,6 +16,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { signOut } = useClerk();
   const { user } = useUser();
   const navigate = useNavigate();
+  const { setCurrentAdmin } = useAdmin();
   const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
   const authSetupRef = useRef(false);
 
@@ -50,6 +52,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         try {
           const admin = await api.getCurrentAdmin();
           console.log('Admin verified:', admin.email);
+          setCurrentAdmin(admin);
           setAuthStatus('authorized');
           return;
         } catch (error) {

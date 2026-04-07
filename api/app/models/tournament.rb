@@ -55,6 +55,24 @@ class Tournament < ApplicationRecord
     sponsor_tier_list.map { |t| t['key'] }
   end
 
+  # Whether complimentary raffle tickets are included with registration
+  def raffle_include_with_registration?
+    config&.dig('raffle_include_with_registration') == true
+  end
+
+  # Configurable raffle bundle options for point-of-sale UI
+  DEFAULT_RAFFLE_BUNDLES = [
+    { 'quantity' => 4,  'price_cents' => 2000,  'label' => '$20 for 4 tickets' },
+    { 'quantity' => 12, 'price_cents' => 5000,  'label' => '$50 for 12 tickets' },
+    { 'quantity' => 25, 'price_cents' => 10000, 'label' => '$100 for 25 tickets' }
+  ].freeze
+
+  def raffle_bundles
+    custom = config&.dig('raffle_bundles')
+    return DEFAULT_RAFFLE_BUNDLES if custom.blank?
+    custom
+  end
+
   # Format constants
   FORMATS = %w[scramble stroke stableford best_ball match captain_choice custom].freeze
   

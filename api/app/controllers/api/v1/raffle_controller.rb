@@ -8,8 +8,11 @@ module Api
       before_action :authorize_tournament_admin!, only: [
         :create_prize, :update_prize, :destroy_prize,
         :draw, :draw_all, :reset_prize, :claim_prize,
-        :admin_tickets, :create_tickets, :mark_ticket_paid, :destroy_ticket,
+        :mark_ticket_paid, :destroy_ticket,
         :sync_tickets
+      ]
+      before_action :authorize_volunteer_or_admin!, only: [
+        :admin_tickets, :create_tickets, :sell_tickets
       ]
 
       # ===========================================
@@ -271,6 +274,53 @@ module Api
         end
       end
 
+      # POST /api/v1/tournaments/:tournament_id/raffle/sell
+      # Volunteer/Admin - quick-sell raffle tickets using bundles or custom qty
+      def sell_tickets
+        quantity = params[:quantity].to_i
+        price_cents = params[:price_cents].to_i
+        buyer_name = params[:buyer_name].presence || 'Walk-up buyer'
+
+        if quantity <= 0
+          return render json: { error: 'Quantity must be positive' }, status: :unprocessable_entity
+        end
+
+        if price_cents <= 0
+          return render json: { error: 'Price must be positive' }, status: :unprocessable_entity
+        end
+
+        base_cents = price_cents / quantity
+        remainder = price_cents % quantity
+
+        tickets = []
+        ActiveRecord::Base.transaction do
+          quantity.times do |i|
+            ticket_price = base_cents + (i == quantity - 1 ? remainder : 0)
+            tickets << @tournament.raffle_tickets.create!(
+              purchaser_name: buyer_name,
+              purchaser_email: params[:buyer_email]&.downcase,
+              purchaser_phone: params[:buyer_phone],
+              price_cents: ticket_price,
+              payment_status: 'paid',
+              purchased_at: Time.current,
+              sold_by_user_id: current_user.id
+            )
+          end
+        end
+
+        render json: {
+          tickets: tickets.map { |t| ticket_response(t) },
+          sale_summary: {
+            quantity: tickets.size,
+            total_cents: price_cents,
+            buyer_name: buyer_name,
+            sold_by: current_user.name || current_user.email
+          }
+        }, status: :created
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+
       # POST /api/v1/tournaments/:tournament_id/raffle/sync_tickets
       # Admin - create missing raffle tickets for all paid/sponsored golfers
       def sync_tickets
@@ -309,6 +359,10 @@ module Api
 
       def authorize_tournament_admin!
         require_tournament_admin!(@tournament)
+      end
+
+      def authorize_volunteer_or_admin!
+        require_volunteer_or_admin!(@tournament.organization)
       end
 
       def prize_params

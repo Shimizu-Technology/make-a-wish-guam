@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { Button, Card, PageTransition } from '../components/ui';
 import { LiabilityWaiver } from '../components/LiabilityWaiver';
-import { Trophy, AlertCircle, Loader2, Calendar, MapPin, ChevronLeft, Check, DollarSign, ChevronRight } from 'lucide-react';
+import { Trophy, AlertCircle, Loader2, Calendar, MapPin, ChevronLeft, Check, DollarSign, ChevronRight, Ticket, Plus, Minus } from 'lucide-react';
 import { api, Tournament } from '../services/api';
 import { useOrganization } from '../components/OrganizationProvider';
 import { formatEventDate } from '../utils/dates';
@@ -29,6 +29,8 @@ interface FormData {
   teamName: string;
   player1WaiverAccepted: boolean;
   player2WaiverAccepted: boolean;
+  raffleTickets: number;
+  raffleBundleLabel: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,6 +90,8 @@ export const OrgRegistrationPage: React.FC = () => {
     teamName: '',
     player1WaiverAccepted: false,
     player2WaiverAccepted: false,
+    raffleTickets: 0,
+    raffleBundleLabel: '',
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -184,6 +188,8 @@ export const OrgRegistrationPage: React.FC = () => {
           partner_phone: formData.player2Phone && formData.player2Phone !== '+1671' ? formData.player2Phone : undefined,
           partner_waiver_accepted_at: new Date().toISOString(),
           team_name: formData.teamName || undefined,
+          raffle_tickets_requested: formData.raffleTickets > 0 ? formData.raffleTickets : undefined,
+          raffle_bundle_label: formData.raffleBundleLabel || undefined,
         } as any,
         waiver_accepted: true,
         tournament_id: tournament.id,
@@ -597,14 +603,155 @@ export const OrgRegistrationPage: React.FC = () => {
                         </div>
                         <div className="flex justify-between items-baseline">
                           <span className="text-sm text-neutral-500">Entry Fee</span>
-                          <span className="text-xl font-bold text-neutral-900">{(tournament as any).entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}</span>
+                          <span className="text-lg font-bold text-neutral-900">{(tournament as any).entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}</span>
                         </div>
                       </div>
+
+                      {/* Raffle ticket add-on */}
+                      {tournament.raffle_enabled && (() => {
+                        const bundles = tournament.raffle_bundles?.length
+                          ? tournament.raffle_bundles
+                          : [
+                              { quantity: 4,  price_cents: 2000,  label: '$20 for 4 tickets' },
+                              { quantity: 12, price_cents: 5000,  label: '$50 for 12 tickets' },
+                              { quantity: 25, price_cents: 10000, label: '$100 for 25 tickets' },
+                            ];
+                        const ticketPrice = tournament.raffle_ticket_price_cents || 500;
+                        const raffleCostCents = formData.raffleTickets > 0
+                          ? (bundles.find(b => b.quantity === formData.raffleTickets)?.price_cents ?? formData.raffleTickets * ticketPrice)
+                          : 0;
+
+                        return (
+                          <div className="p-4 bg-gradient-to-br from-[#F5A800]/5 to-[#F5A800]/10 rounded-2xl border border-[#F5A800]/20">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Ticket className="w-5 h-5 text-[#F5A800]" />
+                              <p className="text-sm font-semibold text-neutral-900">Add Raffle Tickets</p>
+                            </div>
+                            <p className="text-xs text-neutral-600 mb-4">
+                              Pre-purchase raffle tickets for a chance to win prizes at the event. ${(ticketPrice / 100).toFixed(0)} per ticket.
+                            </p>
+
+                            {/* Bundle options */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+                              {bundles.map((bundle, idx) => {
+                                const isSelected = formData.raffleTickets === bundle.quantity;
+                                return (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        setFormData(prev => ({ ...prev, raffleTickets: 0, raffleBundleLabel: '' }));
+                                      } else {
+                                        setFormData(prev => ({ ...prev, raffleTickets: bundle.quantity, raffleBundleLabel: bundle.label }));
+                                      }
+                                    }}
+                                    className={`flex flex-col items-center p-3 rounded-xl border-2 transition-all text-center ${
+                                      isSelected
+                                        ? 'border-[#F5A800] bg-[#F5A800]/10'
+                                        : 'border-neutral-200 bg-white hover:border-[#F5A800]/40'
+                                    }`}
+                                  >
+                                    <span className="text-lg font-bold text-neutral-900">{bundle.quantity}</span>
+                                    <span className="text-[11px] text-neutral-500">tickets</span>
+                                    <span className="text-sm font-bold text-[#F5A800] mt-1">${(bundle.price_cents / 100).toFixed(0)}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Custom quantity */}
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-neutral-500">Or custom:</span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({
+                                    ...prev,
+                                    raffleTickets: Math.max(0, prev.raffleTickets - 1),
+                                    raffleBundleLabel: '',
+                                  }))}
+                                  className="w-8 h-8 rounded-lg border border-neutral-300 flex items-center justify-center hover:bg-neutral-100 transition-colors"
+                                  disabled={formData.raffleTickets <= 0}
+                                >
+                                  <Minus className="w-3.5 h-3.5" />
+                                </button>
+                                <span className="w-10 text-center text-sm font-semibold text-neutral-900">
+                                  {formData.raffleTickets}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({
+                                    ...prev,
+                                    raffleTickets: prev.raffleTickets + 1,
+                                    raffleBundleLabel: '',
+                                  }))}
+                                  className="w-8 h-8 rounded-lg border border-neutral-300 flex items-center justify-center hover:bg-neutral-100 transition-colors"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                              {formData.raffleTickets > 0 && !bundles.find(b => b.quantity === formData.raffleTickets) && (
+                                <span className="text-xs font-medium text-[#F5A800]">
+                                  = ${((formData.raffleTickets * ticketPrice) / 100).toFixed(0)}
+                                </span>
+                              )}
+                            </div>
+
+                            {formData.raffleTickets > 0 && (
+                              <div className="mt-3 pt-3 border-t border-[#F5A800]/20 flex justify-between items-baseline">
+                                <span className="text-sm text-neutral-600">Raffle tickets ({formData.raffleTickets})</span>
+                                <span className="text-sm font-bold text-[#F5A800]">${(raffleCostCents / 100).toFixed(0)}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Order total */}
+                      {(() => {
+                        const entryFeeCents = tournament.entry_fee || 0;
+                        const bundles = tournament.raffle_bundles?.length
+                          ? tournament.raffle_bundles
+                          : [
+                              { quantity: 4,  price_cents: 2000,  label: '' },
+                              { quantity: 12, price_cents: 5000,  label: '' },
+                              { quantity: 25, price_cents: 10000, label: '' },
+                            ];
+                        const ticketPrice = tournament.raffle_ticket_price_cents || 500;
+                        const raffleCostCents = formData.raffleTickets > 0
+                          ? (bundles.find(b => b.quantity === formData.raffleTickets)?.price_cents ?? formData.raffleTickets * ticketPrice)
+                          : 0;
+                        const totalCents = entryFeeCents + raffleCostCents;
+
+                        return (
+                          <div className="p-4 bg-[#F5F5F5] rounded-2xl">
+                            {formData.raffleTickets > 0 && (
+                              <>
+                                <div className="flex justify-between items-baseline text-sm mb-1">
+                                  <span className="text-neutral-500">Entry fee</span>
+                                  <span className="text-neutral-700">${(entryFeeCents / 100).toFixed(0)}</span>
+                                </div>
+                                <div className="flex justify-between items-baseline text-sm mb-2">
+                                  <span className="text-neutral-500">Raffle tickets ({formData.raffleTickets})</span>
+                                  <span className="text-neutral-700">${(raffleCostCents / 100).toFixed(0)}</span>
+                                </div>
+                                <div className="border-t border-neutral-300 pt-2" />
+                              </>
+                            )}
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-sm font-medium text-neutral-700">Total</span>
+                              <span className="text-xl font-bold text-neutral-900">${(totalCents / 100).toFixed(0)}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Payment note */}
                       <div className="bg-[#0057B8]/5 rounded-2xl p-4">
                         <p className="text-sm text-neutral-600">
                           Payment processed via Bank of Guam SwipeSimple. You will be redirected to complete payment.
+                          {formData.raffleTickets > 0 && ' Your raffle tickets will be activated once payment is confirmed.'}
                         </p>
                       </div>
                     </div>

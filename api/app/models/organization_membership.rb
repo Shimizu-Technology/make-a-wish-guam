@@ -4,11 +4,14 @@ class OrganizationMembership < ApplicationRecord
   belongs_to :user
   belongs_to :organization
 
-  validates :role, presence: true, inclusion: { in: %w[admin member] }
+  ROLES = %w[admin member volunteer].freeze
+
+  validates :role, presence: true, inclusion: { in: ROLES }
   validates :user_id, uniqueness: { scope: :organization_id, message: 'is already a member of this organization' }
 
   scope :admins, -> { where(role: 'admin') }
   scope :members, -> { where(role: 'member') }
+  scope :volunteers, -> { where(role: 'volunteer') }
 
   def admin?
     role == 'admin'
@@ -16,6 +19,10 @@ class OrganizationMembership < ApplicationRecord
 
   def member?
     role == 'member'
+  end
+
+  def volunteer?
+    role == 'volunteer'
   end
 
   def promote_to_admin!

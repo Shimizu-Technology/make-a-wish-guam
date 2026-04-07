@@ -2,11 +2,13 @@ module Api
   module V1
     class GolfersController < BaseController
       skip_before_action :authenticate_user!, only: [:create, :registration_status]
-      before_action :authorize_collection_tournament_access!, only: [:index, :stats, :bulk_send_payment_links]
+      before_action :authorize_collection_volunteer_access!, only: [:index]
+      before_action :authorize_collection_tournament_access!, only: [:stats, :bulk_send_payment_links]
+      before_action :authorize_golfer_volunteer_access!, only: [:check_in, :undo_check_in, :verify_payment]
       before_action :authorize_golfer_access!, only: [
         :show, :update, :destroy, :cancel, :refund, :mark_refunded,
-        :check_in, :undo_check_in, :payment_details, :promote, :demote,
-        :send_payment_link, :update_payment_status, :mark_paid, :verify_payment
+        :payment_details, :promote, :demote,
+        :send_payment_link, :update_payment_status, :mark_paid
       ]
 
       # GET /api/v1/golfers
@@ -439,6 +441,7 @@ module Api
 
           begin
             golfer.create_raffle_tickets!
+            golfer.create_purchased_raffle_tickets!
           rescue => e
             Rails.logger.warn("Failed to create raffle tickets for #{golfer.name}: #{e.message}")
           end
@@ -660,6 +663,7 @@ module Api
 
         begin
           golfer.create_raffle_tickets!
+          golfer.create_purchased_raffle_tickets!
         rescue => e
           Rails.logger.warn("Failed to create raffle tickets for #{golfer.name}: #{e.message}")
         end
@@ -881,6 +885,13 @@ module Api
 
       private
 
+      def authorize_collection_volunteer_access!
+        tournament = find_tournament
+        return render_tournament_required unless tournament
+
+        require_volunteer_or_admin!(tournament.organization)
+      end
+
       def authorize_collection_tournament_access!
         tournament = find_tournament
         return render_tournament_required unless tournament
@@ -891,6 +902,11 @@ module Api
       def authorize_golfer_access!
         golfer = Golfer.find(params[:id])
         require_tournament_admin!(golfer.tournament)
+      end
+
+      def authorize_golfer_volunteer_access!
+        golfer = Golfer.find(params[:id])
+        require_volunteer_or_admin!(golfer.tournament.organization)
       end
 
       def find_tournament
@@ -910,7 +926,8 @@ module Api
           :name, :company, :address, :phone, :mobile, :email,
           :payment_type, :payment_status, :notes, :is_team_captain,
           :partner_name, :partner_email, :partner_phone, :partner_waiver_accepted_at,
-          :team_name, :tshirt_size, :partner_tshirt_size
+          :team_name, :tshirt_size, :partner_tshirt_size,
+          :raffle_tickets_requested, :raffle_bundle_label
         )
       end
 

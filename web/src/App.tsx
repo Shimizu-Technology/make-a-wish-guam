@@ -3,8 +3,9 @@ import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminLayout } from './components/AdminLayout';
+import { AdminOnlyRoute } from './components/AdminRouteGuard';
 import { OrganizationProvider } from './components/OrganizationProvider';
-import { TournamentProvider } from './contexts';
+import { TournamentProvider, AdminProvider } from './contexts';
 import { GolferAuthProvider } from './contexts';
 import {
   AdminLoginPage,
@@ -43,13 +44,15 @@ function MAWWrapper({ children }: { children: React.ReactNode }) {
 
 function AdminShellPage({ children }: { children: React.ReactNode }) {
   return (
-    <ProtectedRoute>
-      <TournamentProvider>
-        <MAWWrapper>
-          <AdminLayout>{children}</AdminLayout>
-        </MAWWrapper>
-      </TournamentProvider>
-    </ProtectedRoute>
+    <AdminProvider>
+      <ProtectedRoute>
+        <TournamentProvider>
+          <MAWWrapper>
+            <AdminLayout>{children}</AdminLayout>
+          </MAWWrapper>
+        </TournamentProvider>
+      </ProtectedRoute>
+    </AdminProvider>
   );
 }
 
@@ -72,19 +75,19 @@ function App() {
 
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/admin" element={<AdminShellPage><OrgAdminDashboard /></AdminShellPage>} />
-            <Route path="/admin/events" element={<AdminShellPage><EventsManagementPage /></AdminShellPage>} />
-            <Route path="/admin/events/new" element={<AdminShellPage><CreateTournamentPage /></AdminShellPage>} />
-            <Route path="/admin/events/:tournamentSlug" element={<AdminShellPage><OrgTournamentAdmin /></AdminShellPage>} />
-            <Route path="/admin/events/:tournamentSlug/registrations" element={<AdminShellPage><OrgTournamentAdmin /></AdminShellPage>} />
-            <Route path="/admin/events/:tournamentSlug/payments" element={<AdminShellPage><PaymentReconciliationPage /></AdminShellPage>} />
+            <Route path="/admin/events" element={<AdminShellPage><AdminOnlyRoute><EventsManagementPage /></AdminOnlyRoute></AdminShellPage>} />
+            <Route path="/admin/events/new" element={<AdminShellPage><AdminOnlyRoute><CreateTournamentPage /></AdminOnlyRoute></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug" element={<AdminShellPage><AdminOnlyRoute><OrgTournamentAdmin /></AdminOnlyRoute></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/registrations" element={<AdminShellPage><AdminOnlyRoute><OrgTournamentAdmin /></AdminOnlyRoute></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/payments" element={<AdminShellPage><AdminOnlyRoute><PaymentReconciliationPage /></AdminOnlyRoute></AdminShellPage>} />
             <Route path="/admin/events/:tournamentSlug/checkin" element={<AdminShellPage><OrgCheckInPage /></AdminShellPage>} />
-            <Route path="/admin/events/:tournamentSlug/groups" element={<AdminShellPage><GroupManagementPage /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/groups" element={<AdminShellPage><AdminOnlyRoute><GroupManagementPage /></AdminOnlyRoute></AdminShellPage>} />
             <Route path="/admin/events/:tournamentSlug/raffle" element={<AdminShellPage><RaffleManagementPage /></AdminShellPage>} />
-            <Route path="/admin/events/:tournamentSlug/sponsors" element={<AdminShellPage><SponsorManagementPage /></AdminShellPage>} />
-            <Route path="/admin/events/:tournamentSlug/settings" element={<AdminShellPage><OrgSettingsPage /></AdminShellPage>} />
-            <Route path="/admin/events/:tournamentSlug/reports" element={<AdminShellPage><ReportsPage /></AdminShellPage>} />
-            <Route path="/admin/sponsors" element={<AdminShellPage><SponsorsOverviewPage /></AdminShellPage>} />
-            <Route path="/admin/settings" element={<AdminShellPage><OrgSettingsPage /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/sponsors" element={<AdminShellPage><AdminOnlyRoute><SponsorManagementPage /></AdminOnlyRoute></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/settings" element={<AdminShellPage><AdminOnlyRoute><OrgSettingsPage /></AdminOnlyRoute></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/reports" element={<AdminShellPage><AdminOnlyRoute><ReportsPage /></AdminOnlyRoute></AdminShellPage>} />
+            <Route path="/admin/sponsors" element={<AdminShellPage><AdminOnlyRoute><SponsorsOverviewPage /></AdminOnlyRoute></AdminShellPage>} />
+            <Route path="/admin/settings" element={<AdminShellPage><AdminOnlyRoute><OrgSettingsPage /></AdminOnlyRoute></AdminShellPage>} />
 
             <Route path="/admin/tournaments/new" element={<Navigate to="/admin/events/new" replace />} />
             <Route path="/admin/tournaments/:tournamentSlug" element={<LegacyTournamentRedirect />} />

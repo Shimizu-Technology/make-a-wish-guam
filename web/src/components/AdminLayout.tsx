@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { useOrganization } from './OrganizationProvider';
-import { useTournament } from '../contexts';
+import { useTournament, useAdmin } from '../contexts';
 import { adminEventPath, adminOrgRoutes, getAdminEventSection, getAdminEventSlug } from '../utils/adminRoutes';
 
 interface AdminLayoutProps {
@@ -39,6 +39,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { user } = useUser();
   const { organization } = useOrganization();
   const { tournaments, currentTournament, setCurrentTournament, isLoading } = useTournament();
+  const { isVolunteer } = useAdmin();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const routeTournamentSlug = getAdminEventSlug(location.pathname);
@@ -56,7 +57,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const openTournaments = tournaments.filter((tournament) => tournament.status !== 'archived');
   const archivedTournaments = tournaments.filter((tournament) => tournament.status === 'archived');
 
-  const organizationNav: NavItem[] = [
+  const allOrganizationNav: NavItem[] = [
     {
       label: 'Dashboard',
       path: adminOrgRoutes.dashboard,
@@ -87,7 +88,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     },
   ];
 
-  const eventNav: NavItem[] = activeTournament
+  const organizationNav = isVolunteer
+    ? allOrganizationNav.filter((item) => item.label === 'Dashboard')
+    : allOrganizationNav;
+
+  const VOLUNTEER_SECTIONS = new Set(['Check-In', 'Raffle']);
+
+  const allEventNav: NavItem[] = activeTournament
     ? [
         {
           label: 'Registrations',
@@ -133,6 +140,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         },
       ]
     : [];
+
+  const eventNav = isVolunteer
+    ? allEventNav.filter((item) => VOLUNTEER_SECTIONS.has(item.label))
+    : allEventNav;
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -259,7 +270,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 <p className="max-w-[180px] truncate text-sm font-medium text-white">
                   {user.firstName || user.emailAddresses[0]?.emailAddress}
                 </p>
-                <p className="text-xs text-brand-200">{organization?.name || 'Organization admin'}</p>
+                <p className="text-xs text-brand-200">
+                  {isVolunteer ? 'Volunteer' : organization?.name || 'Organization admin'}
+                </p>
               </div>
             )}
             <UserButton
