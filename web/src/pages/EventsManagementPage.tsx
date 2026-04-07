@@ -14,6 +14,7 @@ import {
 import { useOrganization } from '../components/OrganizationProvider';
 import { useTournament } from '../contexts';
 import { adminEventPath, adminOrgRoutes } from '../utils/adminRoutes';
+import { formatShortDate } from '../utils/dates';
 import type { Tournament } from '../services/api';
 
 export const EventsManagementPage: React.FC = () => {
@@ -45,13 +46,6 @@ export const EventsManagementPage: React.FC = () => {
     }),
     [activeTournaments.length, tournaments]
   );
-
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
 
   const formatCurrency = (cents: number) =>
     new Intl.NumberFormat('en-US', {
@@ -188,7 +182,7 @@ export const EventsManagementPage: React.FC = () => {
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm text-neutral-500">
                       <span className="inline-flex items-center gap-1.5">
                         <Calendar className="h-4 w-4" />
-                        {tournament.event_date ? formatDate(tournament.event_date) : 'Date TBD'}
+                        {tournament.event_date ? formatShortDate(tournament.event_date) : 'Date TBD'}
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <Users className="h-4 w-4" />
@@ -257,7 +251,7 @@ export const EventsManagementPage: React.FC = () => {
               >
                 <div className="min-w-0">
                   <p className="font-medium text-sm sm:text-base text-neutral-900 truncate">{tournament.name}</p>
-                  <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-neutral-500">{tournament.event_date ? formatDate(tournament.event_date) : 'Date TBD'}</p>
+                  <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-neutral-500">{tournament.event_date ? formatShortDate(tournament.event_date) : 'Date TBD'}</p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
               </Link>

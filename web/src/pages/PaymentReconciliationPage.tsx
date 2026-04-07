@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
+import { formatDateTime } from '../utils/dates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -59,15 +60,6 @@ type TabKey = 'pending' | 'paid' | 'summary';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const formatDateTime = (dateString: string) =>
-  new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
 
 const formatCurrency = (cents: number) =>
   new Intl.NumberFormat('en-US', {

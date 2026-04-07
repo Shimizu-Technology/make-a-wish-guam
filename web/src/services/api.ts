@@ -155,7 +155,7 @@ export interface Golfer {
   waiver_accepted_at: string | null;
   waiver_signed: boolean;
   checked_in_at: string | null;
-  registration_status: 'confirmed' | 'waitlist' | 'cancelled';
+  registration_status: 'confirmed' | 'waitlist' | 'cancelled' | 'pending';
   group_id: number | null;
   hole_number: number | null;
   position: number | null;
@@ -196,6 +196,16 @@ export interface Golfer {
   sponsor_id: number | null;
   sponsor_name: string | null;
   sponsor_display_name: string | null;
+  // Team fields
+  partner_name: string | null;
+  partner_email: string | null;
+  partner_phone: string | null;
+  team_category: string | null;
+  registration_source: 'admin' | 'public' | null;
+  // Verification fields
+  payment_verified_at: string | null;
+  payment_verified_by_name: string | null;
+  checked_in_by_name: string | null;
 }
 
 export interface Group {

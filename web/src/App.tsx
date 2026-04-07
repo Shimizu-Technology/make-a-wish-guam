@@ -35,6 +35,7 @@ import {
   ReportsPage,
 } from './pages';
 import { PaymentReconciliationPage } from './pages/PaymentReconciliationPage';
+import { ActivityLogPage } from './pages/ActivityLogPage';
 
 const MAW_SLUG = 'make-a-wish-guam';
 
@@ -88,6 +89,7 @@ function App() {
             <Route path="/admin/events/:tournamentSlug/reports" element={<AdminShellPage><AdminOnlyRoute><ReportsPage /></AdminOnlyRoute></AdminShellPage>} />
             <Route path="/admin/sponsors" element={<AdminShellPage><AdminOnlyRoute><SponsorsOverviewPage /></AdminOnlyRoute></AdminShellPage>} />
             <Route path="/admin/settings" element={<AdminShellPage><AdminOnlyRoute><OrgSettingsPage /></AdminOnlyRoute></AdminShellPage>} />
+            <Route path="/admin/activity" element={<AdminShellPage><AdminOnlyRoute><ActivityLogPage /></AdminOnlyRoute></AdminShellPage>} />
 
             <Route path="/admin/tournaments/new" element={<Navigate to="/admin/events/new" replace />} />
             <Route path="/admin/tournaments/:tournamentSlug" element={<LegacyTournamentRedirect />} />

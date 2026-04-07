@@ -21,10 +21,15 @@ import {
   PartyPopper,
   ChevronLeft,
   ChevronRight,
-  Ban
+  ChevronDown,
+  Ban,
+  Send,
+  Clock,
+  User
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
+import { formatDate, formatDateTime } from '../utils/dates';
 
 interface Prize {
   id: number;
@@ -59,6 +64,8 @@ interface RaffleTicket {
   price_cents?: number;
   voided_at?: string | null;
   void_reason?: string | null;
+  sold_by?: string | null;
+  created_at?: string | null;
 }
 
 interface Stats {
@@ -134,7 +141,8 @@ function SellTicketsTab({
   const [customPrice, setCustomPrice] = useState('');
 
   const bundles = tournament.raffle_bundles?.length ? tournament.raffle_bundles : DEFAULT_BUNDLES;
-  const hasContact = sellBuyerEmail.trim() !== '' || sellBuyerPhone.trim() !== '';
+  const phoneValue = sellBuyerPhone.trim().replace(/^\+1671$/, '');
+  const hasContact = sellBuyerEmail.trim() !== '' || phoneValue !== '';
 
   return (
     <div className="space-y-6">
@@ -319,19 +327,25 @@ export const RaffleManagementPage: React.FC = () => {
   const [ticketPage, setTicketPage] = useState(1);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'prizes' | 'tickets' | 'sell'>('prizes');
+  const [activeTab, setActiveTab] = useState<'prizes' | 'tickets' | 'sell' | 'activity'>('prizes');
 
   // Sell tickets state
   const [sellBuyerName, setSellBuyerName] = useState('');
   const [sellBuyerEmail, setSellBuyerEmail] = useState('');
-  const [sellBuyerPhone, setSellBuyerPhone] = useState('');
+  const [sellBuyerPhone, setSellBuyerPhone] = useState('+1671');
   const [sellLoading, setSellLoading] = useState(false);
   const [lastSale, setLastSale] = useState<{ quantity: number; total: string; buyer: string; ticketNumbers?: string[] } | null>(null);
   
+  // Ticket detail expand
+  const [expandedTicketId, setExpandedTicketId] = useState<number | null>(null);
+
+  // Activity log
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+
   // Modals
   const [showPrizeModal, setShowPrizeModal] = useState(false);
   const [editingPrize, setEditingPrize] = useState<Prize | null>(null);
-  
   
   // Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -390,7 +404,7 @@ export const RaffleManagementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [organization, tournamentSlug, getToken, fetchTickets, ticketSearch, ticketFilter, ticketPage]);
+  }, [organization, tournamentSlug, getToken, fetchTickets]);
 
   useEffect(() => {
     fetchData();
@@ -407,9 +421,36 @@ export const RaffleManagementPage: React.FC = () => {
 
   useEffect(() => {
     if (tournament?.id) {
+      setExpandedTicketId(null);
       fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
     }
-  }, [ticketSearch, ticketFilter, ticketPage]);
+  }, [tournament?.id, ticketSearch, ticketFilter, ticketPage]);
+
+  const fetchActivityLogs = useCallback(async () => {
+    if (!tournament?.id) return;
+    setActivityLoading(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/activity_logs?tournament_id=${tournament.id}&action_type=raffle&per_page=50`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setActivityLogs(data.activity_logs || []);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [tournament?.id, getToken]);
+
+  useEffect(() => {
+    if (activeTab === 'activity') {
+      fetchActivityLogs();
+    }
+  }, [activeTab, fetchActivityLogs]);
 
   const handleDrawPrize = async (prize: Prize) => {
     if (!confirm(`Draw a winner for "${prize.name}"?`)) return;
@@ -594,7 +635,8 @@ export const RaffleManagementPage: React.FC = () => {
 
   const handleSellBundle = async (bundle: RaffleBundleDef) => {
     if (!tournament) return;
-    if (!sellBuyerEmail.trim() && !sellBuyerPhone.trim()) {
+    const phoneForValidation = sellBuyerPhone.trim().replace(/^\+1671$/, '').replace(/^\+1670$/, '');
+    if (!sellBuyerEmail.trim() && !phoneForValidation) {
       toast.error('Please enter an email or phone number');
       return;
     }
@@ -632,7 +674,7 @@ export const RaffleManagementPage: React.FC = () => {
       });
       setSellBuyerName('');
       setSellBuyerEmail('');
-      setSellBuyerPhone('');
+      setSellBuyerPhone('+1671');
       toast.success(`Sold ${bundle.quantity} tickets for ${totalDollars}`);
       fetchData();
     } catch (err) {
@@ -644,7 +686,8 @@ export const RaffleManagementPage: React.FC = () => {
 
   const handleSellCustom = async (quantity: number, priceCents: number) => {
     if (!tournament || quantity <= 0 || priceCents <= 0) return;
-    if (!sellBuyerEmail.trim() && !sellBuyerPhone.trim()) {
+    const phoneForValidation = sellBuyerPhone.trim().replace(/^\+1671$/, '').replace(/^\+1670$/, '');
+    if (!sellBuyerEmail.trim() && !phoneForValidation) {
       toast.error('Please enter an email or phone number');
       return;
     }
@@ -682,13 +725,37 @@ export const RaffleManagementPage: React.FC = () => {
       });
       setSellBuyerName('');
       setSellBuyerEmail('');
-      setSellBuyerPhone('');
+      setSellBuyerPhone('+1671');
       toast.success(`Sold ${quantity} tickets for ${totalDollars}`);
       fetchData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to sell tickets');
     } finally {
       setSellLoading(false);
+    }
+  };
+
+  const handleResendNotification = async (prize: Prize) => {
+    if (!tournament) return;
+    if (!confirm(`Resend winner notification to ${prize.winner?.name}?`)) return;
+
+    setActionLoading(`resend-${prize.id}`);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}/raffle/prizes/${prize.id}/resend_notification`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to resend');
+      }
+      const data = await res.json();
+      toast.success(data.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resend notification');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -877,6 +944,17 @@ export const RaffleManagementPage: React.FC = () => {
               <Ticket className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1.5 sm:mr-2" />
               Tickets ({stats?.paid || 0})
             </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`pb-3 px-1 border-b-2 font-medium whitespace-nowrap text-sm sm:text-base ${
+                activeTab === 'activity'
+                  ? 'border-brand-600 text-brand-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1.5 sm:mr-2" />
+              Activity
+            </button>
           </div>
         </div>
       </div>
@@ -919,76 +997,128 @@ export const RaffleManagementPage: React.FC = () => {
                     prize.won ? 'border border-green-200' : ''
                   }`}
                 >
-                  <div className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className="p-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center shrink-0 ${
                         prize.tier === 'grand' ? 'bg-yellow-100 text-yellow-600' :
                         prize.tier === 'platinum' ? 'bg-slate-100 text-slate-600' :
                         prize.tier === 'gold' ? 'bg-amber-100 text-amber-600' :
                         'bg-gray-100 text-gray-600'
                       }`}>
-                        <Trophy className="w-6 h-6" />
+                        <Trophy className="w-5 h-5 sm:w-6 sm:h-6" />
                       </div>
-                      <div className="min-w-0">
-                        <h3 className="font-semibold text-gray-900 truncate">{prize.name}</h3>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-gray-900">{prize.name}</h3>
                         <p className="text-sm text-gray-500">
                           {prize.tier_display}
                           {prize.value_dollars > 0 && ` • $${prize.value_dollars.toLocaleString()}`}
                           {prize.sponsor_name && ` • ${prize.sponsor_name}`}
                         </p>
                       </div>
+                      {/* Desktop action buttons inline */}
+                      <div className="hidden sm:flex items-center gap-2 shrink-0">
+                        {prize.won ? (
+                          <>
+                            {!prize.claimed && (
+                              <button
+                                onClick={() => handleClaimPrize(prize)}
+                                disabled={actionLoading === `claim-${prize.id}`}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                                title="Mark as claimed"
+                              >
+                                <CheckCircle className="w-5 h-5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleResetPrize(prize)}
+                              disabled={actionLoading === `reset-${prize.id}`}
+                              className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg"
+                              title="Reset (undo draw)"
+                            >
+                              <RotateCcw className="w-5 h-5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleDrawPrize(prize)}
+                              disabled={actionLoading === `draw-${prize.id}`}
+                              className="flex items-center gap-1 px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
+                            >
+                              {actionLoading === `draw-${prize.id}` ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Play className="w-4 h-4" />
+                              )}
+                              Draw
+                            </button>
+                            <button
+                              onClick={() => { setEditingPrize(prize); setShowPrizeModal(true); }}
+                              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                            >
+                              <Edit className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePrize(prize)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
+                    {/* Mobile action buttons on their own row */}
+                    <div className="flex sm:hidden items-center gap-2 mt-3 pt-3 border-t border-gray-100">
                       {prize.won ? (
                         <>
                           {!prize.claimed && (
                             <button
                               onClick={() => handleClaimPrize(prize)}
                               disabled={actionLoading === `claim-${prize.id}`}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                              title="Mark as claimed"
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-lg"
                             >
-                              <CheckCircle className="w-5 h-5" />
+                              <CheckCircle className="w-4 h-4" />
+                              Claim
                             </button>
                           )}
                           <button
                             onClick={() => handleResetPrize(prize)}
                             disabled={actionLoading === `reset-${prize.id}`}
-                            className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg"
-                            title="Reset (undo draw)"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-gray-500 bg-gray-100 rounded-lg"
                           >
-                            <RotateCcw className="w-5 h-5" />
+                            <RotateCcw className="w-4 h-4" />
+                            Reset
                           </button>
                         </>
                       ) : (
-                      <>
-                        <button
-                          onClick={() => handleDrawPrize(prize)}
-                          disabled={actionLoading === `draw-${prize.id}`}
-                          className="flex items-center gap-1 px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
-                        >
-                          {actionLoading === `draw-${prize.id}` ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Play className="w-4 h-4" />
-                          )}
-                          Draw
-                        </button>
-                        <button
-                          onClick={() => { setEditingPrize(prize); setShowPrizeModal(true); }}
-                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeletePrize(prize)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </>
-                    )}
+                        <>
+                          <button
+                            onClick={() => handleDrawPrize(prize)}
+                            disabled={actionLoading === `draw-${prize.id}`}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-white bg-yellow-500 rounded-lg"
+                          >
+                            {actionLoading === `draw-${prize.id}` ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Play className="w-4 h-4" />
+                            )}
+                            Draw
+                          </button>
+                          <button
+                            onClick={() => { setEditingPrize(prize); setShowPrizeModal(true); }}
+                            className="flex items-center justify-center gap-1.5 py-2 px-3 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePrize(prize)}
+                            className="flex items-center justify-center gap-1.5 py-2 px-3 text-sm font-medium text-red-600 bg-red-50 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -1006,6 +1136,19 @@ export const RaffleManagementPage: React.FC = () => {
                             {prize.claimed && ' — Claimed'}
                           </p>
                         </div>
+                        <button
+                          onClick={() => handleResendNotification(prize)}
+                          disabled={actionLoading === `resend-${prize.id}`}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 shrink-0"
+                          title="Resend winner notification"
+                        >
+                          {actionLoading === `resend-${prize.id}` ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Send className="w-3.5 h-3.5" />
+                          )}
+                          <span className="hidden sm:inline">Resend</span>
+                        </button>
                       </div>
                     </div>
                   )}
@@ -1079,7 +1222,7 @@ export const RaffleManagementPage: React.FC = () => {
                 />
                 {ticketSearchInput && (
                   <button
-                    onClick={() => { setTicketSearchInput(''); setTicketSearch(''); setTicketPage(1); }}
+                    onClick={() => { setTicketSearchInput(''); setTicketSearch(''); setTicketPage(1); setExpandedTicketId(null); }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600"
                   >
                     <X className="w-4 h-4" />
@@ -1111,15 +1254,16 @@ export const RaffleManagementPage: React.FC = () => {
 
             {/* Tickets Table */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px]">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Ticket #</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 whitespace-nowrap">Ticket #</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Name</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Contact</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Contact</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Winner</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Date</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Winner</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Date</th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-gray-600 w-16"></th>
                   </tr>
                 </thead>
@@ -1127,17 +1271,25 @@ export const RaffleManagementPage: React.FC = () => {
                   {tickets.map((ticket) => {
                     const isVoided = ticket.payment_status === 'voided';
                     const isComplimentary = !ticket.price_cents || ticket.price_cents === 0;
+                    const isExpanded = expandedTicketId === ticket.id;
                     return (
-                    <tr key={ticket.id} className={`hover:bg-gray-50 ${isVoided ? 'opacity-60' : ''}`}>
+                    <React.Fragment key={ticket.id}>
+                    <tr
+                      className={`hover:bg-gray-50 cursor-pointer ${isVoided ? 'opacity-60' : ''}`}
+                      onClick={() => setExpandedTicketId(isExpanded ? null : ticket.id)}
+                    >
                       <td className="px-4 py-3">
-                        <span className={`font-mono text-sm font-semibold ${isVoided ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                          {ticket.ticket_number}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform shrink-0 ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                          <span className={`font-mono text-sm font-semibold whitespace-nowrap ${isVoided ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                            {ticket.ticket_number}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
-                        <p className={`font-medium ${isVoided ? 'text-gray-400' : 'text-gray-900'}`}>{ticket.purchaser_name}</p>
+                        <p className={`font-medium text-sm ${isVoided ? 'text-gray-400' : 'text-gray-900'}`}>{ticket.purchaser_name}</p>
                       </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
+                      <td className="px-4 py-3">
                         {ticket.purchaser_email && <p className="text-sm text-gray-500">{ticket.purchaser_email}</p>}
                         {ticket.purchaser_phone && <p className="text-sm text-gray-400">{ticket.purchaser_phone}</p>}
                         {!ticket.purchaser_email && !ticket.purchaser_phone && <span className="text-gray-300">-</span>}
@@ -1158,7 +1310,7 @@ export const RaffleManagementPage: React.FC = () => {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
+                      <td className="px-4 py-3">
                         {ticket.is_winner ? (
                           <span className="flex items-center gap-1 text-yellow-600">
                             <Trophy className="w-4 h-4" />
@@ -1168,13 +1320,13 @@ export const RaffleManagementPage: React.FC = () => {
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-500 hidden sm:table-cell">
+                      <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                         {ticket.purchased_at 
-                          ? new Date(ticket.purchased_at).toLocaleDateString()
+                          ? formatDate(ticket.purchased_at)
                           : '-'
                         }
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         {!isVoided && !ticket.is_winner && (
                           <button
                             onClick={() => handleVoidTicket(ticket)}
@@ -1189,13 +1341,68 @@ export const RaffleManagementPage: React.FC = () => {
                             )}
                           </button>
                         )}
-                        {isVoided && ticket.void_reason && (
-                          <span className="text-xs text-gray-400" title={ticket.void_reason}>
-                            {ticket.void_reason}
-                          </span>
-                        )}
                       </td>
                     </tr>
+                    {isExpanded && (
+                      <tr className="bg-gray-50">
+                        <td colSpan={7} className="px-4 py-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                            <div className="flex items-start gap-2">
+                              <Clock className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-xs font-medium text-gray-500">Created</p>
+                                <p className="text-gray-900">
+                                  {ticket.created_at
+                                    ? formatDateTime(ticket.created_at)
+                                    : ticket.purchased_at
+                                      ? formatDateTime(ticket.purchased_at)
+                                      : 'Unknown'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <User className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-xs font-medium text-gray-500">Sold by</p>
+                                <p className="text-gray-900">{ticket.sold_by || (isComplimentary ? 'System (registration)' : 'Unknown')}</p>
+                              </div>
+                            </div>
+                            {/* Mobile-only contact info */}
+                            <div className="sm:hidden flex items-start gap-2">
+                              <Send className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-xs font-medium text-gray-500">Contact</p>
+                                {ticket.purchaser_email && <p className="text-gray-900">{ticket.purchaser_email}</p>}
+                                {ticket.purchaser_phone && <p className="text-gray-600">{ticket.purchaser_phone}</p>}
+                                {!ticket.purchaser_email && !ticket.purchaser_phone && <p className="text-gray-400">None</p>}
+                              </div>
+                            </div>
+                            {isVoided && (
+                              <div className="flex items-start gap-2">
+                                <Ban className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500">Voided</p>
+                                  <p className="text-red-600">
+                                    {ticket.voided_at ? formatDateTime(ticket.voided_at) : 'Unknown'}
+                                    {ticket.void_reason && ` — ${ticket.void_reason}`}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                            {ticket.is_winner && ticket.prize_won && (
+                              <div className="flex items-start gap-2">
+                                <Trophy className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500">Prize won</p>
+                                  <p className="text-yellow-700">{ticket.prize_won}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                     );
                   })}
                   {tickets.length === 0 && (
@@ -1210,6 +1417,7 @@ export const RaffleManagementPage: React.FC = () => {
                   )}
                 </tbody>
               </table>
+              </div>
 
               {/* Pagination */}
               {pagination && pagination.total_pages > 1 && (
@@ -1236,6 +1444,71 @@ export const RaffleManagementPage: React.FC = () => {
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'activity' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Raffle Activity Log</h2>
+              <button
+                onClick={fetchActivityLogs}
+                disabled={activityLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${activityLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              {activityLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
+                </div>
+              ) : activityLogs.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                  <p>No raffle activity recorded yet.</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {activityLogs.map((log: any) => (
+                    <div key={log.id} className="px-4 py-3 sm:px-5 sm:py-4 hover:bg-gray-50">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                          log.action?.includes('sold') ? 'bg-green-100 text-green-600' :
+                          log.action?.includes('drawn') || log.action?.includes('draw') ? 'bg-yellow-100 text-yellow-600' :
+                          log.action?.includes('void') ? 'bg-red-100 text-red-600' :
+                          log.action?.includes('resend') ? 'bg-blue-100 text-blue-600' :
+                          log.action?.includes('claimed') ? 'bg-emerald-100 text-emerald-600' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {log.action?.includes('sold') ? <DollarSign className="w-4 h-4" /> :
+                           log.action?.includes('drawn') || log.action?.includes('draw') ? <Play className="w-3.5 h-3.5" /> :
+                           log.action?.includes('void') ? <Ban className="w-4 h-4" /> :
+                           log.action?.includes('resend') ? <Send className="w-4 h-4" /> :
+                           log.action?.includes('claimed') ? <CheckCircle className="w-4 h-4" /> :
+                           <Clock className="w-4 h-4" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-gray-900">{log.details || log.action?.replace(/_/g, ' ')}</p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                            <span className="text-xs text-gray-500">
+                              <User className="w-3 h-3 inline mr-1" />
+                              {log.admin_name || 'System'}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {formatDateTime(log.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

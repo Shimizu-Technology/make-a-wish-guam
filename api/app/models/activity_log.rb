@@ -35,6 +35,14 @@ class ActivityLog < ApplicationRecord
     tournament_updated
     tournament_archived
     bulk_payment_links_sent
+    raffle_tickets_sold
+    raffle_ticket_voided
+    raffle_prize_drawn
+    raffle_prize_reset
+    raffle_prize_claimed
+    raffle_draw_all
+    raffle_winner_notification_resent
+    raffle_tickets_synced
   ].freeze
 
   validates :action, presence: true, inclusion: { in: ACTIONS }

@@ -9,7 +9,7 @@ module Api
         :create_prize, :update_prize, :destroy_prize,
         :draw, :draw_all, :reset_prize, :claim_prize,
         :mark_ticket_paid, :void_ticket, :destroy_ticket,
-        :sync_tickets
+        :sync_tickets, :resend_winner_notification
       ]
       before_action :authorize_volunteer_or_admin!, only: [
         :admin_tickets, :create_tickets, :sell_tickets
@@ -61,15 +61,28 @@ module Api
       end
 
       # GET /api/v1/tournaments/:tournament_id/raffle/tickets
-      # Public - get ticket count for a purchaser (by email)
+      # Public - look up tickets by email, phone, or ticket number
       def tickets
-        email = params[:email]
-        return render json: { error: 'Email required' }, status: :bad_request unless email.present?
+        query = params[:query].presence || params[:email].presence
+        return render json: { error: 'Search query required' }, status: :bad_request unless query.present?
 
-        tickets = @tournament.raffle_tickets.paid.where(purchaser_email: email.downcase)
+        q = query.strip
+        base = @tournament.raffle_tickets.active.paid
+
+        tickets = base.where(purchaser_email: q.downcase)
+                      .or(base.where(purchaser_phone: q))
+                      .or(base.where("LOWER(ticket_number) = ?", q.downcase))
+
+        if tickets.empty?
+          phone_digits = q.gsub(/\D/, '')
+          if phone_digits.length >= 7
+            normalized = phone_digits.length == 10 ? "+1#{phone_digits}" : "+#{phone_digits}"
+            tickets = base.where(purchaser_phone: normalized)
+          end
+        end
 
         render json: {
-          email: email,
+          query: q,
           ticket_count: tickets.count,
           tickets: tickets.map { |t| ticket_response(t) }
         }
@@ -133,6 +146,12 @@ module Api
         end
 
         if prize.draw_winner!
+          ActivityLog.log(
+            admin: current_user, action: 'raffle_prize_drawn', target: prize,
+            details: "Drew winner #{prize.winner_name} (ticket #{prize.winning_ticket&.display_number}) for #{prize.name}",
+            metadata: { winner_name: prize.winner_name, ticket_number: prize.winning_ticket&.ticket_number },
+            tournament: @tournament
+          )
           render json: {
             prize: prize_response(prize, include_winner: true),
             message: "#{prize.winner_name} won #{prize.name}!"
@@ -161,9 +180,16 @@ module Api
           end
         end
 
+        won_count = results.count { |r| r[:success] }
+        ActivityLog.log(
+          admin: current_user, action: 'raffle_draw_all', target: @tournament,
+          details: "Drew #{won_count} winners from #{results.size} remaining prizes",
+          metadata: { results: results },
+          tournament: @tournament
+        )
         render json: {
           results: results,
-          message: "Drew #{results.count { |r| r[:success] }} winners"
+          message: "Drew #{won_count} winners"
         }
       end
 
@@ -171,8 +197,15 @@ module Api
       # Admin - reset a prize (undo draw)
       def reset_prize
         prize = @tournament.raffle_prizes.find(params[:id])
+        previous_winner = prize.winner_name
 
         if prize.reset!
+          ActivityLog.log(
+            admin: current_user, action: 'raffle_prize_reset', target: prize,
+            details: "Reset prize #{prize.name} (previous winner: #{previous_winner})",
+            metadata: { previous_winner: previous_winner },
+            tournament: @tournament
+          )
           render json: { prize: prize_response(prize), message: 'Prize reset' }
         else
           render json: { error: 'Cannot reset prize' }, status: :unprocessable_entity
@@ -185,9 +218,65 @@ module Api
         prize = @tournament.raffle_prizes.find(params[:id])
 
         if prize.claim!
+          ActivityLog.log(
+            admin: current_user, action: 'raffle_prize_claimed', target: prize,
+            details: "Marked #{prize.name} as claimed by #{prize.winner_name}",
+            tournament: @tournament
+          )
           render json: { prize: prize_response(prize), message: 'Prize marked as claimed' }
         else
           render json: { error: 'Cannot claim prize' }, status: :unprocessable_entity
+        end
+      end
+
+      # POST /api/v1/tournaments/:tournament_id/raffle/prizes/:id/resend_notification
+      # Admin - resend winner notification email/SMS
+      def resend_winner_notification
+        prize = @tournament.raffle_prizes.find(params[:id])
+
+        unless prize.won?
+          return render json: { error: 'Prize has not been won yet' }, status: :unprocessable_entity
+        end
+
+        channels = []
+
+        if prize.winner_email.present?
+          begin
+            result = RaffleMailer.winner_email(prize)
+            if result.is_a?(Hash) && result[:error]
+              Rails.logger.error "Resend winner email failed: #{result[:error]}"
+            else
+              channels << 'email'
+            end
+          rescue => e
+            Rails.logger.error "Resend winner email failed: #{e.message}"
+          end
+        end
+
+        winner_phone = prize.winner_phone.presence || prize.winning_ticket&.purchaser_phone
+        if winner_phone.present?
+          begin
+            result = RaffleSmsService.winner_notification(raffle_prize: prize)
+            if result.is_a?(Hash) && result[:success] == false
+              Rails.logger.error "Resend winner SMS failed: #{result[:error]}"
+            elsif result.is_a?(Hash) && result[:success]
+              channels << 'SMS'
+            end
+          rescue => e
+            Rails.logger.error "Resend winner SMS failed: #{e.message}"
+          end
+        end
+
+        if channels.any?
+          ActivityLog.log(
+            admin: current_user, action: 'raffle_winner_notification_resent', target: prize,
+            details: "Resent winner notification for #{prize.name} to #{prize.winner_name} via #{channels.join(' and ')}",
+            metadata: { channels: channels, winner_name: prize.winner_name },
+            tournament: @tournament
+          )
+          render json: { message: "Notification resent via #{channels.join(' and ')}" }
+        else
+          render json: { error: 'No contact info available for this winner or delivery failed' }, status: :unprocessable_entity
         end
       end
 
@@ -198,7 +287,7 @@ module Api
       # GET /api/v1/tournaments/:tournament_id/raffle/admin/tickets
       # Admin - list all tickets with search, filter, pagination
       def admin_tickets
-        tickets = @tournament.raffle_tickets.includes(:golfer, :raffle_prize).recent
+        tickets = @tournament.raffle_tickets.includes(:golfer, :raffle_prize, :sold_by_user).recent
 
         # Filter by payment status
         tickets = tickets.where(payment_status: params[:status]) if params[:status].present?
@@ -275,7 +364,8 @@ module Api
               golfer_id: params[:golfer_id],
               price_cents: @tournament.raffle_ticket_price_cents,
               payment_status: params[:mark_paid] ? 'paid' : 'pending',
-              purchased_at: params[:mark_paid] ? Time.current : nil
+              purchased_at: params[:mark_paid] ? Time.current : nil,
+              sold_by_user_id: current_user.id
             )
 
             if ticket.save
@@ -287,6 +377,12 @@ module Api
         end
 
         if tickets.any?
+          ActivityLog.log(
+            admin: current_user, action: 'raffle_tickets_sold', target: @tournament,
+            details: "Created #{tickets.count} ticket(s) for #{params[:purchaser_name]}",
+            metadata: { quantity: tickets.count, purchaser_name: params[:purchaser_name] },
+            tournament: @tournament
+          )
           render json: {
             tickets: tickets.map { |t| ticket_response(t) },
             message: "#{tickets.count} ticket(s) created"
@@ -332,6 +428,12 @@ module Api
         end
 
         ticket.void!(reason: params[:reason])
+        ActivityLog.log(
+          admin: current_user, action: 'raffle_ticket_voided', target: ticket,
+          details: "Voided ticket #{ticket.display_number} (#{ticket.purchaser_display})#{params[:reason].present? ? " — #{params[:reason]}" : ''}",
+          metadata: { ticket_number: ticket.ticket_number, reason: params[:reason] },
+          tournament: @tournament
+        )
         render json: { ticket: ticket_response(ticket, admin: true), message: "Ticket #{ticket.display_number} voided" }
       end
 
@@ -378,6 +480,15 @@ module Api
 
         send_purchase_notifications(tickets: tickets, buyer_email: buyer_email, buyer_phone: buyer_phone, buyer_name: buyer_name)
 
+        ticket_numbers = tickets.map(&:ticket_number)
+        ActivityLog.log(
+          admin: current_user, action: 'raffle_tickets_sold', target: @tournament,
+          details: "Sold #{tickets.size} ticket(s) for $#{(price_cents / 100.0).round(2)} to #{buyer_name}",
+          metadata: { quantity: tickets.size, total_cents: price_cents, buyer_name: buyer_name,
+                      buyer_email: buyer_email, buyer_phone: buyer_phone, ticket_numbers: ticket_numbers },
+          tournament: @tournament
+        )
+
         render json: {
           tickets: tickets.map { |t| ticket_response(t) },
           sale_summary: {
@@ -411,6 +522,13 @@ module Api
 
         after_count = @tournament.raffle_tickets.count
         created_count = [after_count - before_count, 0].max
+
+        ActivityLog.log(
+          admin: current_user, action: 'raffle_tickets_synced', target: @tournament,
+          details: "Synced registration tickets: #{created_count} created (#{after_count} total for #{paid_golfers.count} teams)",
+          metadata: { created: created_count, total: after_count, teams: paid_golfers.count },
+          tournament: @tournament
+        )
 
         render json: {
           message: "Synced: #{created_count} ticket#{'s' unless created_count == 1} created (#{after_count} total for #{paid_golfers.count} teams)",
@@ -523,6 +641,8 @@ module Api
           response[:prize_won] = ticket.raffle_prize&.name if ticket.is_winner?
           response[:voided_at] = ticket.voided_at&.iso8601
           response[:void_reason] = ticket.void_reason
+          response[:sold_by] = ticket.sold_by_user&.name
+          response[:created_at] = ticket.created_at&.iso8601
         end
 
         response

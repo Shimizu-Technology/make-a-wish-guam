@@ -170,8 +170,8 @@ class RaffleMailer
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 12px; margin-bottom: 20px;">
                 <tr><td style="padding: 20px;">
                   <p style="margin: 0 0 12px; color: #{brand}; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Your Ticket Numbers</p>
-                  <p style="margin: 0; color: #111827; font-size: 16px; font-weight: 700; font-family: 'Courier New', monospace; letter-spacing: 1px; line-height: 2;">
-                    #{ticket_numbers.map { |n| "##{ERB::Util.html_escape(n)}" }.join(' &nbsp;&middot;&nbsp; ')}
+                  <p style="margin: 0; color: #1e3a5f; font-size: 15px; font-weight: 700; font-family: 'Courier New', monospace; letter-spacing: 0.35px; line-height: 1.65;">
+                    #{ticket_numbers.map { |n| "##{ERB::Util.html_escape(n)}" }.join('<br>')}
                   </p>
                 </td></tr>
               </table>
@@ -195,7 +195,7 @@ class RaffleMailer
   end
 
   def send_email(to:, subject:, html:)
-    return { error: 'RESEND_API_KEY not configured' } unless resend_configured?
+    return { success: false, error: 'RESEND_API_KEY not configured' } unless resend_configured?
     
     from_email = ENV.fetch("MAILER_FROM_EMAIL", "noreply@shimizu-technology.com")
     
@@ -206,11 +206,19 @@ class RaffleMailer
       html: html
     })
     
-    Rails.logger.info "Raffle email sent via Resend to #{to}: #{response.parsed_response}"
-    response.parsed_response
+    parsed = response.respond_to?(:parsed_response) ? response.parsed_response : response
+    
+    if parsed.is_a?(Hash) && (parsed["statusCode"] || parsed["error"] || parsed[:error])
+      error_msg = parsed["message"] || parsed["error"] || parsed[:error] || "Unknown error"
+      Rails.logger.error "Raffle email to #{to} failed: #{error_msg}"
+      { success: false, error: error_msg }
+    else
+      Rails.logger.info "Raffle email sent via Resend to #{to}: #{parsed}"
+      { success: true, data: parsed }
+    end
   rescue => e
     Rails.logger.error "Failed to send raffle email: #{e.message}"
-    { error: e.message }
+    { success: false, error: e.message }
   end
 
   def resend_configured?

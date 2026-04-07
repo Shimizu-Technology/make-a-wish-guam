@@ -21,6 +21,7 @@ import { useOrganization } from '../components/OrganizationProvider';
 import { useTournament, useAdmin } from '../contexts';
 import { useAuthToken } from '../hooks/useAuthToken';
 import { adminEventPath, adminOrgRoutes } from '../utils/adminRoutes';
+import { formatShortDate } from '../utils/dates';
 
 interface TournamentSummary {
   id: string;
@@ -251,13 +252,6 @@ export const OrgAdminDashboard: React.FC = () => {
     activeTournaments[0] ??
     null;
 
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-
   const formatCurrency = (cents: number) =>
     new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -371,7 +365,7 @@ export const OrgAdminDashboard: React.FC = () => {
                     <div className="mt-2 sm:mt-3 flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1.5 text-xs sm:text-sm text-neutral-500">
                       <span className="inline-flex items-center gap-1.5">
                         <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        {formatDate(nextTournament.date)}
+                        {formatShortDate(nextTournament.date)}
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -493,7 +487,7 @@ export const OrgAdminDashboard: React.FC = () => {
                 <Link key={tournament.id} to={adminEventPath(tournament.slug)} className="flex items-center justify-between gap-4 px-5 sm:px-6 py-3.5 sm:py-4 transition hover:bg-neutral-50">
                   <div className="min-w-0">
                     <p className="font-medium text-sm sm:text-base text-neutral-900 truncate">{tournament.name}</p>
-                    <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-neutral-500">{formatDate(tournament.date)}</p>
+                    <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-neutral-500">{formatShortDate(tournament.date)}</p>
                   </div>
                   <ArrowRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
                 </Link>

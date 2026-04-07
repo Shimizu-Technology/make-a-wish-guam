@@ -4,6 +4,7 @@ class RaffleTicket < ApplicationRecord
   belongs_to :tournament
   belongs_to :golfer, optional: true
   belongs_to :raffle_prize, optional: true
+  belongs_to :sold_by_user, class_name: 'User', optional: true
 
   PAYMENT_STATUSES = %w[pending paid refunded voided].freeze
 

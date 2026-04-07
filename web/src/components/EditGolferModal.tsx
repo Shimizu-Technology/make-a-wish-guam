@@ -22,6 +22,7 @@ interface Golfer {
   sponsor_id?: number | null;
   sponsor_name?: string | null;
   sponsor_display_name?: string | null;
+  team_category?: string | null;
 }
 
 interface EditGolferModalProps {
@@ -42,6 +43,7 @@ interface FormData {
   partner_name: string;
   partner_email: string;
   partner_phone: string;
+  team_category: string;
   payment_status: 'paid' | 'unpaid' | 'refunded';
   payment_method: string;
   notes: string;
@@ -65,6 +67,7 @@ export const EditGolferModal: React.FC<EditGolferModalProps> = ({
     partner_name: '',
     partner_email: '',
     partner_phone: '',
+    team_category: '',
     payment_status: 'unpaid',
     payment_method: '',
     notes: '',
@@ -83,6 +86,7 @@ export const EditGolferModal: React.FC<EditGolferModalProps> = ({
         partner_name: golfer.partner_name || '',
         partner_email: golfer.partner_email || '',
         partner_phone: golfer.partner_phone || '',
+        team_category: golfer.team_category || '',
         payment_status: golfer.payment_status || 'unpaid',
         payment_method: golfer.payment_method || '',
         notes: golfer.notes || '',
@@ -144,7 +148,12 @@ export const EditGolferModal: React.FC<EditGolferModalProps> = ({
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ golfer: formData }),
+          body: JSON.stringify({
+            golfer: {
+              ...formData,
+              team_category: formData.team_category || null,
+            },
+          }),
         }
       );
 
@@ -335,6 +344,21 @@ export const EditGolferModal: React.FC<EditGolferModalProps> = ({
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
               />
             </div>
+          </div>
+
+          <div className="pt-4 border-t border-gray-200">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Team Category</label>
+            <select
+              name="team_category"
+              value={formData.team_category}
+              onChange={handleChange}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+            >
+              <option value="">—</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Co-Ed">Co-Ed</option>
+            </select>
           </div>
 
           {/* Payment Section */}

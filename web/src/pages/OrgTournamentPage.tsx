@@ -13,7 +13,7 @@ import {
 // ---------------------------------------------------------------------------
 
 import { hexToRgba } from '../utils/colors';
-import { formatEventDate } from '../utils/dates';
+import { formatDate, formatEventDate } from '../utils/dates';
 import { SignedInAdminBar } from '../components/SignedInAdminBar';
 
 // ---------------------------------------------------------------------------
@@ -330,7 +330,7 @@ export function OrgTournamentPage() {
                   {tournament.early_bird_active && tournament.early_bird_deadline && (
                     <div className="text-sm p-2.5 rounded-xl bg-emerald-50 text-emerald-700 flex items-center gap-1.5">
                       <Check className="w-4 h-4" />
-                      Early bird pricing active until {new Date(tournament.early_bird_deadline).toLocaleDateString()}
+                      Early bird pricing active until {formatDate(tournament.early_bird_deadline)}
                     </div>
                   )}
 
@@ -385,7 +385,7 @@ export function OrgTournamentPage() {
 
                 {tournament.registration_deadline && (
                   <p className="text-xs text-neutral-400 mt-3 text-center">
-                    Registration deadline: {new Date(tournament.registration_deadline).toLocaleDateString()}
+                    Registration deadline: {formatDate(tournament.registration_deadline)}
                   </p>
                 )}
               </div>

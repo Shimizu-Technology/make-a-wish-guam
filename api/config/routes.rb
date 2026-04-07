@@ -135,6 +135,7 @@ Rails.application.routes.draw do
         post 'raffle/prizes/:id/draw' => 'raffle#draw'
         post 'raffle/prizes/:id/reset' => 'raffle#reset_prize'
         post 'raffle/prizes/:id/claim' => 'raffle#claim_prize'
+        post 'raffle/prizes/:id/resend_notification' => 'raffle#resend_winner_notification'
         post 'raffle/draw_all' => 'raffle#draw_all'
         get 'raffle/admin/tickets' => 'raffle#admin_tickets'
         post 'raffle/tickets' => 'raffle#create_tickets'

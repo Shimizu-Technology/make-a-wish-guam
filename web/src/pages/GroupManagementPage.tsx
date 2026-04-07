@@ -432,7 +432,7 @@ export const GroupManagementPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Two-column layout: 1/3 sidebar + 2/3 groups (GIAA pattern) */}
+        {/* Two-column layout: 1/3 sidebar + 2/3 groups */}
         <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Left: Unassigned Teams */}
           <div className="lg:col-span-1 lg:sticky lg:top-24 lg:self-start">
@@ -458,7 +458,7 @@ export const GroupManagementPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="p-3 space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto">
+              <div className="p-3 space-y-2 max-h-60 lg:max-h-[calc(100vh-280px)] overflow-y-auto">
                 {unassigned.length === 0 ? (
                   <p className="text-sm text-neutral-400 text-center py-6">All teams assigned</p>
                 ) : (
@@ -475,7 +475,7 @@ export const GroupManagementPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Right: Groups — vertical scrollable list (GIAA pattern) */}
+          {/* Right: Groups */}
           <div className="lg:col-span-2 space-y-3 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto lg:pr-1">
             {groups.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-2xl border border-neutral-200">
@@ -501,56 +501,58 @@ export const GroupManagementPage: React.FC = () => {
                   }`}
                 >
                   {/* Group Header */}
-                  <div className="flex items-center justify-between px-4 py-3 lg:px-5 lg:py-4 bg-neutral-50 border-b border-neutral-200">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
-                        group.hole_number
-                          ? 'bg-brand-600 text-white'
-                          : 'bg-amber-100 text-amber-600 border-2 border-dashed border-amber-300'
-                      }`}>
-                        {group.hole_number ?? group.group_number}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-base font-semibold text-neutral-900">
-                            {group.hole_position_label && group.hole_position_label !== 'Unassigned'
-                              ? `Hole ${group.hole_position_label}`
-                              : `Group ${group.group_number}`}
-                          </p>
-                          {group.is_full && (
-                            <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Complete</span>
-                          )}
-                          {!group.hole_number && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-full font-medium border border-amber-200">Needs hole</span>
-                          )}
+                  <div className="px-4 py-3 lg:px-5 lg:py-4 bg-neutral-50 border-b border-neutral-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${
+                          group.hole_number
+                            ? 'bg-brand-600 text-white'
+                            : 'bg-amber-100 text-amber-600 border-2 border-dashed border-amber-300'
+                        }`}>
+                          {group.hole_number ?? group.group_number}
                         </div>
-                        <p className="text-sm text-neutral-500">
-                          {group.player_count ?? group.golfer_count} / {group.max_golfers || 2} players
-                        </p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <p className="text-sm sm:text-base font-semibold text-neutral-900">
+                              {group.hole_position_label && group.hole_position_label !== 'Unassigned'
+                                ? `Hole ${group.hole_position_label}`
+                                : `Group ${group.group_number}`}
+                            </p>
+                            {group.is_full && (
+                              <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Complete</span>
+                            )}
+                            {!group.hole_number && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-full font-medium border border-amber-200">Needs hole</span>
+                            )}
+                          </div>
+                          <p className="text-xs sm:text-sm text-neutral-500">
+                            {group.player_count ?? group.golfer_count} / {group.max_golfers || 2} players
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={group.hole_number ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          updateGroupHole(group.id, val ? parseInt(val, 10) : null);
-                        }}
-                        className="text-sm border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-brand-500"
-                      >
-                        <option value="">No hole</option>
-                        {Array.from({ length: 18 }, (_, i) => i + 1).map((h) => (
-                          <option key={h} value={h}>Hole {h}</option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => deleteGroup(group.id)}
-                        disabled={actionLoading === `del-${group.id}`}
-                        className="p-2 rounded-lg text-neutral-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
-                        title="Delete group"
-                      >
-                        {actionLoading === `del-${group.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                      </button>
+                      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-2">
+                        <select
+                          value={group.hole_number ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateGroupHole(group.id, val ? parseInt(val, 10) : null);
+                          }}
+                          className="text-xs sm:text-sm border border-neutral-200 rounded-lg px-2 sm:px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-brand-500 max-w-[100px] sm:max-w-none"
+                        >
+                          <option value="">No hole</option>
+                          {Array.from({ length: 18 }, (_, i) => i + 1).map((h) => (
+                            <option key={h} value={h}>Hole {h}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => deleteGroup(group.id)}
+                          disabled={actionLoading === `del-${group.id}`}
+                          className="p-1.5 sm:p-2 rounded-lg text-neutral-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
+                          title="Delete group"
+                        >
+                          {actionLoading === `del-${group.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
 

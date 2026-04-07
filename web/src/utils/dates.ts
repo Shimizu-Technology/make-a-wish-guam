@@ -1,3 +1,5 @@
+const GUAM_TZ = 'Pacific/Guam';
+
 /**
  * Format a YYYY-MM-DD date string to a human-readable format.
  * e.g. "2026-05-02" → "May 2, 2026"
@@ -8,7 +10,6 @@
  */
 export function formatEventDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '';
-  // Expect YYYY-MM-DD
   const parts = dateStr.split('-');
   if (parts.length !== 3) return dateStr;
   const [year, month, day] = parts.map(Number);
@@ -18,5 +19,53 @@ export function formatEventDate(dateStr: string | null | undefined): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+  });
+}
+
+/**
+ * Format an ISO datetime string to "April 7, 2026" (date only).
+ */
+export function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: GUAM_TZ,
+  });
+}
+
+/**
+ * Format an ISO datetime string to "April 7, 2026, 4:45 PM" (date + time).
+ */
+export function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: GUAM_TZ,
+  });
+}
+
+/**
+ * Format an ISO datetime string to "April 7, 2026" (short, for tables).
+ */
+export function formatShortDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: GUAM_TZ,
   });
 }
