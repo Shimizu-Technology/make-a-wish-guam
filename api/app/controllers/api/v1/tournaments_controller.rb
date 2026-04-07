@@ -8,12 +8,13 @@ module Api
       # GET /api/v1/tournaments
       # List all tournaments (for admin dropdown)
       def index
-        tournaments = current_user.accessible_tournaments.recent
-        
-        # Filter by status if provided
+        tournaments = current_user.accessible_tournaments.includes(:organization, :sponsors).recent
         tournaments = tournaments.where(status: params[:status]) if params[:status].present?
-        
-        render json: tournaments, each_serializer: TournamentSerializer
+
+        loaded = tournaments.to_a
+        preload_tournament_stats(loaded)
+
+        render json: loaded, each_serializer: TournamentSerializer
       end
 
       # GET /api/v1/tournaments/current

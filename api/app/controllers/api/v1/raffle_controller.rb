@@ -313,15 +313,20 @@ module Api
           )
         end
 
-        # Stats (always computed on full set, not paginated; exclude voided)
-        all_tickets = @tournament.raffle_tickets
-        active_tickets = all_tickets.active
-        complimentary = active_tickets.where(price_cents: [0, nil])
-        purchased = active_tickets.where('price_cents > 0')
+        # Compute all stats in a single query instead of 8 separate COUNT queries
+        stat_row = @tournament.raffle_tickets.pick(
+          Arel.sql("COUNT(*) FILTER (WHERE payment_status != 'voided')"),
+          Arel.sql("COUNT(*) FILTER (WHERE payment_status = 'paid')"),
+          Arel.sql("COUNT(*) FILTER (WHERE payment_status = 'pending')"),
+          Arel.sql("COUNT(*) FILTER (WHERE is_winner = true AND payment_status != 'voided')"),
+          Arel.sql("COUNT(*) FILTER (WHERE payment_status = 'voided')"),
+          Arel.sql("COUNT(*) FILTER (WHERE payment_status != 'voided' AND COALESCE(price_cents, 0) = 0)"),
+          Arel.sql("COUNT(*) FILTER (WHERE payment_status = 'paid' AND price_cents > 0)"),
+          Arel.sql("COALESCE(SUM(price_cents) FILTER (WHERE payment_status = 'paid' AND price_cents > 0), 0)")
+        )
 
         total_filtered = tickets.count
 
-        # Pagination
         page = [params[:page].to_i, 1].max
         per_page = [[params[:per_page].to_i, 1].max, 200].min
         per_page = 50 if params[:per_page].blank?
@@ -336,14 +341,14 @@ module Api
             total_pages: (total_filtered.to_f / per_page).ceil
           },
           stats: {
-            total: active_tickets.count,
-            paid: active_tickets.paid.count,
-            pending: active_tickets.pending.count,
-            winners: active_tickets.winners.count,
-            voided: all_tickets.voided.count,
-            complimentary: complimentary.count,
-            purchased: purchased.paid.count,
-            additional_revenue_cents: purchased.paid.sum(:price_cents)
+            total: stat_row[0].to_i,
+            paid: stat_row[1].to_i,
+            pending: stat_row[2].to_i,
+            winners: stat_row[3].to_i,
+            voided: stat_row[4].to_i,
+            complimentary: stat_row[5].to_i,
+            purchased: stat_row[6].to_i,
+            additional_revenue_cents: stat_row[7].to_i
           }
         }
       end
