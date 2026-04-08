@@ -214,25 +214,39 @@ module Api
       # Admin - create tickets (manual sale)
       def create_tickets
         quantity = (params[:quantity] || 1).to_i
-        
+
+        if quantity <= 0 || quantity > 100
+          render json: { error: 'Quantity must be between 1 and 100 tickets' }, status: :unprocessable_entity
+          return
+        end
+
         tickets = []
-        quantity.times do
-          ticket = @tournament.raffle_tickets.build(
-            purchaser_name: params[:purchaser_name],
-            purchaser_email: params[:purchaser_email]&.downcase,
-            purchaser_phone: params[:purchaser_phone],
-            golfer_id: params[:golfer_id],
-            price_cents: @tournament.raffle_ticket_price_cents,
-            payment_status: params[:mark_paid] ? 'paid' : 'pending',
-            purchased_at: params[:mark_paid] ? Time.current : nil
-          )
-          
-          if ticket.save
-            tickets << ticket
-          else
-            render json: { error: ticket.errors.full_messages.join(', ') }, status: :unprocessable_entity
-            return
+        error_message = nil
+
+        ActiveRecord::Base.transaction do
+          quantity.times do
+            ticket = @tournament.raffle_tickets.build(
+              purchaser_name: params[:purchaser_name],
+              purchaser_email: params[:purchaser_email]&.downcase,
+              purchaser_phone: params[:purchaser_phone],
+              golfer_id: params[:golfer_id],
+              price_cents: @tournament.raffle_ticket_price_cents,
+              payment_status: params[:mark_paid] ? 'paid' : 'pending',
+              purchased_at: params[:mark_paid] ? Time.current : nil
+            )
+
+            if ticket.save
+              tickets << ticket
+            else
+              error_message = ticket.errors.full_messages.join(', ')
+              raise ActiveRecord::Rollback
+            end
           end
+        end
+
+        if tickets.count != quantity
+          render json: { error: error_message || 'Unable to create all requested tickets. No tickets were saved.' }, status: :unprocessable_entity
+          return
         end
 
         render json: {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useOrganization } from '../components/OrganizationProvider';
@@ -63,6 +63,11 @@ interface Stats {
   winners: number;
 }
 
+interface FetchState {
+  error: string | null;
+  lastLoadedAt: string | null;
+}
+
 interface Tournament {
   id: string;
   name: string;
@@ -82,7 +87,10 @@ export const RaffleManagementPage: React.FC = () => {
   const [tickets, setTickets] = useState<RaffleTicket[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fetchState, setFetchState] = useState<FetchState>({ error: null, lastLoadedAt: null });
   const [activeTab, setActiveTab] = useState<'prizes' | 'tickets'>('prizes');
+  const [ticketSearch, setTicketSearch] = useState('');
   
   // Modals
   const [showPrizeModal, setShowPrizeModal] = useState(false);
@@ -92,47 +100,89 @@ export const RaffleManagementPage: React.FC = () => {
   // Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (options?: { background?: boolean }) => {
     if (!organization || !tournamentSlug) return;
 
+    const isBackground = options?.background ?? false;
+
     try {
+      if (isBackground) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       const token = await getToken();
-      
-      // Get tournament via admin endpoint so raffle_enabled is always present
+      if (!token) {
+        throw new Error('You need to be signed in to manage raffle data.');
+      }
+
       const tournamentRes = await fetch(
         `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments/${tournamentSlug}`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
+
+      if (!tournamentRes.ok) {
+        throw new Error('Unable to load tournament details.');
+      }
+
       const tournamentData = await tournamentRes.json();
       const tid = tournamentData.id || tournamentData.tournament?.id;
+      if (!tid) {
+        throw new Error('Missing tournament ID for raffle management.');
+      }
       setTournament({ ...tournamentData, id: tid });
 
-      // Get prizes
-      const prizesRes = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tid}/raffle/prizes`
-      );
-      const prizesData = await prizesRes.json();
-      setPrizes(prizesData.prizes || []);
+      const [prizesRes, ticketsRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tid}/raffle/prizes`),
+        fetch(
+          `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tid}/raffle/admin/tickets`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        ),
+      ]);
 
-      // Get tickets (admin)
-      const ticketsRes = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tid}/raffle/admin/tickets`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
+      if (!prizesRes.ok) {
+        throw new Error('Unable to load raffle prizes.');
+      }
+
+      if (!ticketsRes.ok) {
+        throw new Error('Unable to load raffle ticket sales.');
+      }
+
+      const prizesData = await prizesRes.json();
       const ticketsData = await ticketsRes.json();
+
+      setPrizes(prizesData.prizes || []);
       setTickets(ticketsData.tickets || []);
       setStats(ticketsData.stats || null);
-
+      setFetchState({ error: null, lastLoadedAt: new Date().toISOString() });
     } catch (err) {
-      toast.error('Failed to load raffle data');
+      const message = err instanceof Error ? err.message : 'Failed to load raffle data';
+      setFetchState((prev) => ({ ...prev, error: message }));
+      toast.error(message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [organization, tournamentSlug, getToken]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
+
+  const filteredTickets = useMemo(() => {
+    const term = ticketSearch.trim().toLowerCase();
+    if (!term) return tickets;
+
+    return tickets.filter((ticket) =>
+      [ticket.ticket_number, ticket.purchaser_name, ticket.purchaser_email, ticket.purchaser_phone || '', ticket.prize_won || '']
+        .some((value) => value.toLowerCase().includes(term))
+    );
+  }, [ticketSearch, tickets]);
+
+  const lastLoadedLabel = fetchState.lastLoadedAt
+    ? new Date(fetchState.lastLoadedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : null;
 
   const handleDrawPrize = async (prize: Prize) => {
     if (!confirm(`Draw a winner for "${prize.name}"?`)) return;
@@ -155,7 +205,7 @@ export const RaffleManagementPage: React.FC = () => {
 
       const data = await res.json();
       toast.success(data.message);
-      fetchData();
+      void fetchData({ background: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to draw');
     } finally {
@@ -179,7 +229,7 @@ export const RaffleManagementPage: React.FC = () => {
 
       if (!res.ok) throw new Error('Failed to reset');
       toast.success('Prize reset');
-      fetchData();
+      void fetchData({ background: true });
     } catch (err) {
       toast.error('Failed to reset prize');
     } finally {
@@ -201,7 +251,7 @@ export const RaffleManagementPage: React.FC = () => {
 
       if (!res.ok) throw new Error('Failed to claim');
       toast.success('Prize marked as claimed');
-      fetchData();
+      void fetchData({ background: true });
     } catch (err) {
       toast.error('Failed to claim prize');
     } finally {
@@ -228,7 +278,7 @@ export const RaffleManagementPage: React.FC = () => {
       }
 
       toast.success('Prize deleted');
-      fetchData();
+      void fetchData({ background: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete');
     }
@@ -256,7 +306,7 @@ export const RaffleManagementPage: React.FC = () => {
 
       const data = await res.json();
       toast.success(data.message);
-      fetchData();
+      void fetchData({ background: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to draw');
     } finally {
@@ -294,8 +344,12 @@ export const RaffleManagementPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-[50vh] flex items-center justify-center rounded-3xl bg-white">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+      <div className="flex min-h-[50vh] items-center justify-center rounded-3xl bg-white">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-purple-600" />
+          <p className="mt-3 text-sm font-medium text-gray-600">Loading raffle dashboard…</p>
+          <p className="mt-1 text-sm text-gray-400">Fetching prize inventory and ticket sales.</p>
+        </div>
       </div>
     );
   }
@@ -307,19 +361,30 @@ export const RaffleManagementPage: React.FC = () => {
         style={{ backgroundColor: organization?.primary_color || '#7c3aed' }}
       >
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <Link
                 to={adminEventPath(tournamentSlug || '')}
-                className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-2"
+                className="mb-2 inline-flex items-center gap-2 text-white/80 hover:text-white"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Tournament
               </Link>
-              <h1 className="text-2xl font-bold flex items-center gap-3">
+              <h1 className="flex gap-3 text-2xl font-bold">
                 <Gift className="w-8 h-8" />
                 Raffle Management
               </h1>
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-white/80">
+                <span>
+                  {refreshing ? 'Refreshing raffle data…' : lastLoadedLabel ? `Updated ${lastLoadedLabel}` : 'Live raffle controls'}
+                </span>
+                {fetchState.error && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-white">
+                    <AlertCircle className="h-4 w-4" />
+                    Last refresh hit an issue
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Link
@@ -330,20 +395,42 @@ export const RaffleManagementPage: React.FC = () => {
                 View Public Board
               </Link>
               <button
-                onClick={fetchData}
-                className="p-2 bg-white/10 rounded-lg hover:bg-white/20"
+                onClick={() => void fetchData({ background: true })}
+                disabled={refreshing}
+                className="rounded-lg bg-white/10 p-2 hover:bg-white/20 disabled:opacity-60"
               >
-                <RefreshCw className="w-5 h-5" />
+                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
         </div>
       </section>
 
+      {fetchState.error && (
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-red-800 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div>
+                <p className="font-medium">Some raffle data did not load cleanly.</p>
+                <p className="text-sm text-red-700">{fetchState.error}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => void fetchData({ background: true })}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Try again
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       {stats && (
         <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
               <Gift className="w-8 h-8 text-purple-500" />
               <div>
@@ -356,6 +443,7 @@ export const RaffleManagementPage: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-500">Tickets Sold</p>
                 <p className="text-xl font-bold">{stats.paid}</p>
+                {stats.pending > 0 && <p className="text-xs text-amber-600">{stats.pending} pending payment</p>}
               </div>
             </div>
             <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
@@ -381,7 +469,7 @@ export const RaffleManagementPage: React.FC = () => {
       {/* Raffle Enabled Toggle */}
       {tournament && (
         <div className="max-w-6xl mx-auto px-4 pb-2">
-          <div className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between">
+          <div className="bg-white rounded-xl shadow-sm p-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-semibold text-gray-900">Raffle Active</p>
               <p className="text-sm text-gray-500">
@@ -389,6 +477,12 @@ export const RaffleManagementPage: React.FC = () => {
                   ? 'Raffle is visible on the public page'
                   : 'Raffle is hidden from the public page'}
               </p>
+              {!tournament.raffle_enabled && (
+                <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                  <Users className="h-3.5 w-3.5" />
+                  Guests will not see ticket sales or prize board updates until this is turned back on.
+                </p>
+              )}
             </div>
             <button
               onClick={handleToggleRaffle}
@@ -468,6 +562,12 @@ export const RaffleManagementPage: React.FC = () => {
 
             {/* Prizes List */}
             <div className="space-y-3">
+              {prizes.length > 0 && stats?.paid === 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  Prizes are ready, but there are no paid tickets yet. Winners cannot be selected until tickets are sold.
+                </div>
+              )}
+
               {prizes.map((prize) => (
                 <div
                   key={prize.id}
@@ -564,7 +664,7 @@ export const RaffleManagementPage: React.FC = () => {
         {activeTab === 'tickets' && (
           <div>
             {/* Actions */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <button
                 onClick={() => setShowTicketModal(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
@@ -572,64 +672,119 @@ export const RaffleManagementPage: React.FC = () => {
                 <Plus className="w-5 h-5" />
                 Sell Tickets
               </button>
+
+              <div className="relative w-full lg:max-w-sm">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={ticketSearch}
+                  onChange={(event) => setTicketSearch(event.target.value)}
+                  placeholder="Search tickets, buyer, email…"
+                  className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm text-gray-900 outline-none transition focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
+                />
+              </div>
             </div>
 
             {/* Tickets Table */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Ticket #</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Purchaser</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Winner</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Purchased</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {tickets.map((ticket) => (
-                    <tr key={ticket.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-sm">{ticket.ticket_number}</td>
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">{ticket.purchaser_name}</p>
-                        <p className="text-sm text-gray-500">{ticket.purchaser_email}</p>
-                      </td>
-                      <td className="px-4 py-3">
+            <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+              <div className="border-b border-gray-100 px-4 py-3 text-sm text-gray-500">
+                Showing {filteredTickets.length} of {tickets.length} tickets
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Ticket #</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Purchaser</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Winner</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Purchased</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredTickets.map((ticket) => (
+                      <tr key={ticket.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-mono text-sm">{ticket.ticket_number}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900">{ticket.purchaser_name}</p>
+                          <p className="text-sm text-gray-500">{ticket.purchaser_email}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            ticket.payment_status === 'paid'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {ticket.payment_status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {ticket.is_winner ? (
+                            <span className="flex items-center gap-1 text-yellow-600">
+                              <Trophy className="w-4 h-4" />
+                              {ticket.prize_won || 'Yes'}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {ticket.purchased_at
+                            ? new Date(ticket.purchased_at).toLocaleDateString()
+                            : '-'
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredTickets.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-12 text-center text-gray-500">
+                          {tickets.length === 0 ? 'No tickets sold yet' : 'No tickets match this search'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="divide-y md:hidden">
+                {filteredTickets.length === 0 ? (
+                  <div className="px-4 py-10 text-center text-sm text-gray-500">
+                    {tickets.length === 0 ? 'No tickets sold yet' : 'No tickets match this search'}
+                  </div>
+                ) : (
+                  filteredTickets.map((ticket) => (
+                    <div key={ticket.id} className="space-y-3 px-4 py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-mono text-sm text-gray-700">{ticket.ticket_number}</p>
+                          <p className="mt-1 font-medium text-gray-900">{ticket.purchaser_name}</p>
+                          <p className="break-all text-sm text-gray-500">{ticket.purchaser_email}</p>
+                        </div>
                         <span className={`px-2 py-1 rounded-full text-xs ${
-                          ticket.payment_status === 'paid' 
+                          ticket.payment_status === 'paid'
                             ? 'bg-green-100 text-green-700'
                             : 'bg-yellow-100 text-yellow-700'
                         }`}>
                           {ticket.payment_status}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {ticket.is_winner ? (
-                          <span className="flex items-center gap-1 text-yellow-600">
-                            <Trophy className="w-4 h-4" />
-                            {ticket.prize_won || 'Yes'}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {ticket.purchased_at 
-                          ? new Date(ticket.purchased_at).toLocaleDateString()
-                          : '-'
-                        }
-                      </td>
-                    </tr>
-                  ))}
-                  {tickets.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-12 text-center text-gray-500">
-                        No tickets sold yet
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm text-gray-500">
+                        <span>
+                          {ticket.purchased_at
+                            ? new Date(ticket.purchased_at).toLocaleDateString()
+                            : 'Purchase pending'}
+                        </span>
+                        <span className="text-right">
+                          {ticket.is_winner ? `Winner • ${ticket.prize_won || 'Prize assigned'}` : 'Not drawn'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -641,7 +796,7 @@ export const RaffleManagementPage: React.FC = () => {
           prize={editingPrize}
           tournamentId={tournament?.id || ''}
           onClose={() => { setShowPrizeModal(false); setEditingPrize(null); }}
-          onSuccess={() => { setShowPrizeModal(false); setEditingPrize(null); fetchData(); }}
+          onSuccess={() => { setShowPrizeModal(false); setEditingPrize(null); void fetchData({ background: true }); }}
         />
       )}
 
@@ -651,7 +806,7 @@ export const RaffleManagementPage: React.FC = () => {
           tournamentId={tournament?.id || ''}
           ticketPrice={tournament?.raffle_ticket_price_cents || 500}
           onClose={() => setShowTicketModal(false)}
-          onSuccess={() => { fetchData(); }}
+          onSuccess={() => { void fetchData({ background: true }); }}
         />
       )}
     </div>

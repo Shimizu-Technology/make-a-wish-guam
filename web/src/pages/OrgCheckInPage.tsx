@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuthToken } from '../hooks/useAuthToken';
 import { useOrganization } from '../components/OrganizationProvider';
@@ -10,7 +10,6 @@ import {
   ArrowLeft,
   RefreshCw,
   CheckCircle,
-  XCircle,
   DollarSign,
   Users,
   Clock,
@@ -47,9 +46,11 @@ export const OrgCheckInPage: React.FC = () => {
   const { getToken } = useAuthToken();
 
   const [golfers, setGolfers] = useState<Golfer[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
   const [tournamentName, setTournamentName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastLoadedAt, setLastLoadedAt] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCheckedIn, setShowCheckedIn] = useState(false);
   const [checkingIn, setCheckingIn] = useState<number | null>(null);
@@ -71,12 +72,20 @@ export const OrgCheckInPage: React.FC = () => {
     },
   });
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (options?: { background?: boolean; silent?: boolean }) => {
     if (!organization || !tournamentSlug) return;
 
+    const background = options?.background ?? false;
+
     try {
+      if (background) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       const token = await getToken();
-      if (!token) return;
+      if (!token) throw new Error('You need to be signed in to access check-in.');
 
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments/${tournamentSlug}`,
@@ -85,40 +94,53 @@ export const OrgCheckInPage: React.FC = () => {
         }
       );
 
-      if (!response.ok) throw new Error('Failed to fetch data');
+      if (!response.ok) throw new Error('Failed to load check-in roster');
 
       const data = await response.json();
       setTournamentName(data.tournament?.name || '');
-      
-      // Filter to only confirmed golfers
+
       const confirmed = (data.golfers || []).filter(
         (g: Golfer) => g.registration_status === 'confirmed'
       );
       setGolfers(confirmed);
-
-      // Calculate stats
-      const checkedIn = confirmed.filter((g: Golfer) => g.checked_in_at).length;
-      const paid = confirmed.filter((g: Golfer) => g.payment_status === 'paid').length;
-      setStats({
-        total: confirmed.length,
-        checked_in: checkedIn,
-        remaining: confirmed.length - checkedIn,
-        paid,
-        unpaid: confirmed.length - paid,
-      });
+      setError(null);
+      setLastLoadedAt(new Date().toISOString());
     } catch (err) {
-      toast.error('Failed to load golfers');
+      const message = err instanceof Error ? err.message : 'Failed to load golfers';
+      setError(message);
+      if (!options?.silent) {
+        toast.error(message);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [organization, tournamentSlug, getToken]);
 
   useEffect(() => {
-    fetchData();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchData, 30000);
+    void fetchData();
+    const interval = setInterval(() => {
+      void fetchData({ background: true, silent: true });
+    }, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  const stats = useMemo<Stats>(() => {
+    const checkedIn = golfers.filter((golfer) => golfer.checked_in_at).length;
+    const paid = golfers.filter((golfer) => golfer.payment_status === 'paid').length;
+
+    return {
+      total: golfers.length,
+      checked_in: checkedIn,
+      remaining: golfers.length - checkedIn,
+      paid,
+      unpaid: golfers.length - paid,
+    };
+  }, [golfers]);
+
+  const lastLoadedLabel = lastLoadedAt
+    ? new Date(lastLoadedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : null;
 
   const handleCheckIn = async (golfer: Golfer) => {
     if (golfer.checked_in_at) return;
@@ -153,8 +175,7 @@ export const OrgCheckInPage: React.FC = () => {
         duration: 2000,
       });
 
-      // Refresh data
-      await fetchData();
+      await fetchData({ background: true });
     } catch (err) {
       toast.error(`Failed to check in ${golfer.name}`);
     } finally {
@@ -190,8 +211,12 @@ export const OrgCheckInPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-[50vh] flex items-center justify-center rounded-[28px] bg-gray-900">
-        <Loader2 className="w-12 h-12 animate-spin text-green-500" />
+      <div className="flex min-h-[50vh] items-center justify-center rounded-[28px] bg-gray-900">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-green-500" />
+          <p className="mt-4 text-sm font-medium text-white">Loading check-in roster…</p>
+          <p className="mt-1 text-sm text-gray-400">Pulling the latest confirmed golfers.</p>
+        </div>
       </div>
     );
   }
@@ -202,30 +227,43 @@ export const OrgCheckInPage: React.FC = () => {
       <section className="overflow-hidden rounded-[28px] bg-gray-900 shadow-sm">
         <div className="border-b border-gray-700 bg-gray-800 px-4 py-4">
           <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex items-center justify-between">
             <Link
               to={adminEventPath(tournamentSlug || '')}
-              className="flex items-center gap-2 text-gray-400 hover:text-white transition"
+              className="flex items-center gap-2 text-gray-400 transition hover:text-white"
             >
               <ArrowLeft className="w-5 h-5" />
               <span>Back to Admin</span>
             </Link>
             <button
-              onClick={fetchData}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+              onClick={() => void fetchData({ background: true })}
+              disabled={refreshing}
+              className="flex items-center gap-2 rounded-lg bg-gray-700 px-3 py-2 transition hover:bg-gray-600 disabled:opacity-60"
             >
-              <RefreshCw className="w-4 h-4" />
-              <span>Refresh</span>
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>{refreshing ? 'Refreshing' : 'Refresh'}</span>
             </button>
           </div>
 
-          <h1 className="text-2xl font-bold text-center mb-1">{tournamentName}</h1>
-          <p className="text-gray-400 text-center">Check-In Station</p>
+          <h1 className="mb-1 text-center text-2xl font-bold">{tournamentName}</h1>
+          <p className="text-center text-gray-400">Check-In Station</p>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-sm text-gray-400">
+            <span>{refreshing ? 'Syncing roster…' : lastLoadedLabel ? `Updated ${lastLoadedLabel}` : 'Live roster'}</span>
+            <span>Auto-refreshes every 30s</span>
+          </div>
           </div>
         </div>
 
-      {/* Stats Bar */}
-      {stats && (
+        {error && (
+          <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+            <div className="mx-auto flex max-w-4xl items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Stats Bar */}
         <div className="bg-gray-800 border-b border-gray-700 px-4 py-4">
           <div className="max-w-4xl mx-auto grid grid-cols-4 gap-4">
             <div className="text-center">
@@ -276,7 +314,6 @@ export const OrgCheckInPage: React.FC = () => {
             </p>
           </div>
         </div>
-      )}
       </section>
 
       {/* Search & Filters */}
@@ -399,10 +436,10 @@ export const OrgCheckInPage: React.FC = () => {
       </main>
 
       {/* Footer Stats */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 px-4 py-3">
-        <div className="max-w-4xl mx-auto flex justify-between text-sm text-gray-400">
+      <footer className="fixed bottom-0 left-0 right-0 border-t border-gray-700 bg-gray-800 px-4 py-3">
+        <div className="mx-auto flex max-w-4xl flex-wrap justify-between gap-2 text-sm text-gray-400">
           <span>Showing {sortedGolfers.length} of {golfers.length} golfers</span>
-          <span>Auto-refreshes every 30s</span>
+          <span>{stats.unpaid > 0 ? `${stats.unpaid} unpaid team${stats.unpaid === 1 ? '' : 's'} need attention` : 'All visible teams are paid'}</span>
         </div>
       </footer>
     </div>

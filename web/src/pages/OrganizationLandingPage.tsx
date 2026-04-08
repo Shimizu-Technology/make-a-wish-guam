@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganization } from '../components/OrganizationProvider';
 import { SignedInAdminBar } from '../components/SignedInAdminBar';
 import { api, Tournament } from '../services/api';
 import { motion, MotionConfig, useInView } from 'framer-motion';
 import {
+  AlertCircle,
   Calendar,
   MapPin,
   Users,
@@ -16,6 +17,7 @@ import {
   Globe,
   Flag,
   DollarSign,
+  RefreshCw,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -89,37 +91,49 @@ export function OrganizationLandingPage() {
   const orgSlug = organization?.slug || 'make-a-wish-guam';
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = 'Make-A-Wish Guam & CNMI — Events';
   }, []);
 
-  useEffect(() => {
-    async function fetchTournaments() {
-      if (!orgSlug) return;
+  const fetchTournaments = useCallback(async (options?: { background?: boolean }) => {
+    if (!orgSlug) return;
+
+    const background = options?.background ?? false;
+    if (background) {
+      setRefreshing(true);
+    } else {
       setIsLoading(true);
-      try {
-        const data = await api.getOrganizationTournaments(orgSlug);
-        setTournaments(data);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Failed to load tournaments';
-        console.error('Failed to fetch tournaments:', err);
-        setError(message);
-      } finally {
-        setIsLoading(false);
-      }
     }
-    fetchTournaments();
+
+    try {
+      const data = await api.getOrganizationTournaments(orgSlug);
+      setTournaments(data);
+      setError(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load tournaments';
+      console.error('Failed to fetch tournaments:', err);
+      setError(message);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
   }, [orgSlug]);
+
+  useEffect(() => {
+    void fetchTournaments();
+  }, [fetchTournaments]);
 
   // Loading state
   if (orgLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#0057B8]/20 border-t-[#0057B8] mx-auto" />
-          <p className="mt-5 text-sm text-neutral-500 tracking-wide uppercase">Loading</p>
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-[#0057B8]/20 border-t-[#0057B8]" />
+          <p className="mt-5 text-sm uppercase tracking-wide text-neutral-500">Loading</p>
+          <p className="mt-2 text-sm text-neutral-400">Finding upcoming events and registration links.</p>
         </div>
       </div>
     );
@@ -236,8 +250,24 @@ export function OrganizationLandingPage() {
         </ScrollReveal>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl mb-8 text-sm">
-            {error}
+          <div className="mb-8 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="font-medium">We couldn’t refresh the event list.</p>
+                  <p>{error}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void fetchTournaments({ background: true })}
+                className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2 font-medium text-red-700 transition hover:bg-red-100"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Retrying…' : 'Try again'}
+              </button>
+            </div>
           </div>
         )}
 

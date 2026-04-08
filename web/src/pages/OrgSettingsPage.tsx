@@ -86,7 +86,11 @@ export const OrgSettingsPage: React.FC = () => {
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [addingMember, setAddingMember] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
   const [tournamentSettings, setTournamentSettings] = useState<TournamentSettings | null>(null);
+  const [loadingTournamentSettings, setLoadingTournamentSettings] = useState(false);
+  const [tournamentSettingsError, setTournamentSettingsError] = useState<string | null>(null);
   const [savingTournament, setSavingTournament] = useState(false);
 
   useEffect(() => {
@@ -111,17 +115,21 @@ export const OrgSettingsPage: React.FC = () => {
   const fetchMembers = async () => {
     if (!organization?.slug) return;
     try {
+      setLoadingMembers(true);
       const token = await getToken();
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/members`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (res.ok) {
-        const data = await res.json();
-        setMembers(data.members || []);
-      }
+      if (!res.ok) throw new Error('Failed to load organization admins');
+      const data = await res.json();
+      setMembers(data.members || []);
+      setMembersError(null);
     } catch (err) {
       console.error('Failed to fetch members:', err);
+      setMembersError(err instanceof Error ? err.message : 'Failed to load organization admins');
+    } finally {
+      setLoadingMembers(false);
     }
   };
 
@@ -136,45 +144,53 @@ export const OrgSettingsPage: React.FC = () => {
   const fetchTournamentSettings = async () => {
     if (!organization?.slug) return;
     try {
+      setLoadingTournamentSettings(true);
       const token = await getToken();
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (res.ok) {
-        const data = await res.json();
-        const tournaments = data.tournaments || [];
-        // Find the first active (non-archived) tournament
-        const active = tournaments.find((t: any) => t.status !== 'archived') || tournaments[0];
-        if (active) {
-          // Fetch full tournament details
-          const detailRes = await fetch(
-            `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments/${active.slug}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          if (detailRes.ok) {
-            const detail = await detailRes.json();
-            const t = detail.tournament || detail;
-            setTournamentSettings({
-              id: t.id?.toString() || '',
-              name: t.name || '',
-              registration_open: t.registration_open ?? false,
-              registration_deadline: t.registration_deadline || '',
-              walkin_fee: t.walkin_fee != null ? (t.walkin_fee / 100).toString() : '',
-              max_capacity: t.max_capacity?.toString() || '',
-              swipe_simple_url: t.swipe_simple_url || '',
-              walkin_swipe_simple_url: t.walkin_swipe_simple_url || '',
-              entry_fee_display: t.entry_fee_display || '$300/team',
-              raffle_enabled: t.raffle_enabled ?? false,
-              raffle_description: t.raffle_description || '',
-              raffle_draw_time: t.raffle_draw_time || '',
-              raffle_auto_draw: t.raffle_auto_draw ?? false,
-            });
-          }
-        }
+      if (!res.ok) throw new Error('Failed to load tournament settings');
+
+      const data = await res.json();
+      const tournaments = data.tournaments || [];
+      const active = tournaments.find((t: any) => t.status !== 'archived') || tournaments[0];
+
+      if (!active) {
+        setTournamentSettings(null);
+        setTournamentSettingsError(null);
+        return;
       }
+
+      const detailRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments/${active.slug}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!detailRes.ok) throw new Error('Failed to load selected tournament settings');
+
+      const detail = await detailRes.json();
+      const t = detail.tournament || detail;
+      setTournamentSettings({
+        id: t.id?.toString() || '',
+        name: t.name || '',
+        registration_open: t.registration_open ?? false,
+        registration_deadline: t.registration_deadline || '',
+        walkin_fee: t.walkin_fee != null ? (t.walkin_fee / 100).toString() : '',
+        max_capacity: t.max_capacity?.toString() || '',
+        swipe_simple_url: t.swipe_simple_url || '',
+        walkin_swipe_simple_url: t.walkin_swipe_simple_url || '',
+        entry_fee_display: t.entry_fee_display || '$300/team',
+        raffle_enabled: t.raffle_enabled ?? false,
+        raffle_description: t.raffle_description || '',
+        raffle_draw_time: t.raffle_draw_time || '',
+        raffle_auto_draw: t.raffle_auto_draw ?? false,
+      });
+      setTournamentSettingsError(null);
     } catch (err) {
       console.error('Failed to fetch tournament settings:', err);
+      setTournamentSettingsError(err instanceof Error ? err.message : 'Failed to load tournament settings');
+    } finally {
+      setLoadingTournamentSettings(false);
     }
   };
 
@@ -625,6 +641,25 @@ export const OrgSettingsPage: React.FC = () => {
         </form>
 
         {/* Tournament Settings Section */}
+        {loadingTournamentSettings && (
+          <div className="mt-8 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            Loading tournament settings…
+          </div>
+        )}
+
+        {tournamentSettingsError && (
+          <div className="mt-8 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+            <span>{tournamentSettingsError}</span>
+            <button
+              type="button"
+              onClick={fetchTournamentSettings}
+              className="rounded-lg border border-red-200 bg-white px-4 py-2 font-medium text-red-700 hover:bg-red-100"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {tournamentSettings && (
           <div className="mt-8 space-y-6">
             <div className="flex items-center gap-3 mb-2">
@@ -870,7 +905,20 @@ export const OrgSettingsPage: React.FC = () => {
 
           {/* Member list */}
           <div className="space-y-3">
-            {members.length === 0 ? (
+            {loadingMembers ? (
+              <p className="py-4 text-center text-sm text-gray-500">Loading organization admins…</p>
+            ) : membersError ? (
+              <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+                <span>{membersError}</span>
+                <button
+                  type="button"
+                  onClick={fetchMembers}
+                  className="rounded-lg border border-red-200 bg-white px-4 py-2 font-medium text-red-700 hover:bg-red-100"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : members.length === 0 ? (
               <p className="text-gray-500 text-sm text-center py-4">No admins configured yet.</p>
             ) : (
               members.map((member) => (

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { useOrganization } from '../components/OrganizationProvider';
-import { CheckCircle, Calendar, MapPin, Mail, CreditCard, ArrowLeft, Share2, Check } from 'lucide-react';
+import { CheckCircle, Calendar, MapPin, Mail, CreditCard, ArrowLeft, Share2, Check, Loader2 } from 'lucide-react';
 import { Button, Card } from '../components/ui';
 import confetti from 'canvas-confetti';
 import { formatEventDate } from '../utils/dates';
@@ -55,7 +55,15 @@ export function OrgRegistrationSuccessPage() {
   }, [tournament, golfer, navigate, orgSlug, tournamentSlug]);
 
   if (!tournament) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md rounded-3xl bg-white p-8 text-center shadow-sm">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-600" />
+          <h1 className="mt-4 text-xl font-semibold text-gray-900">Preparing your confirmation…</h1>
+          <p className="mt-2 text-sm text-gray-500">If this page was opened directly, we'll send you back to the event page.</p>
+        </div>
+      </div>
+    );
   }
 
   return (

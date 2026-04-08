@@ -7,6 +7,7 @@ import {
   Calendar,
   CreditCard,
   Loader2,
+  RefreshCw,
   Settings,
   ShieldCheck,
   Ticket,
@@ -229,37 +230,53 @@ export const OrgAdminDashboard: React.FC = () => {
   const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
   const [stats, setStats] = useState<OrgStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastLoadedAt, setLastLoadedAt] = useState<string | null>(null);
   const [showWalkIn, setShowWalkIn] = useState<TournamentSummary | null>(null);
 
-  useEffect(() => {
+  const fetchData = React.useCallback(async (options?: { background?: boolean; silent?: boolean }) => {
     if (!organization) return;
 
-    const fetchData = async () => {
-      try {
+    const background = options?.background ?? false;
+
+    try {
+      if (background) {
+        setRefreshing(true);
+      } else {
         setLoading(true);
-        const token = await getToken();
-        if (!token) throw new Error('Not authenticated');
-
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        if (!response.ok) throw new Error('Failed to fetch dashboard data');
-
-        const data = await response.json();
-        setTournaments(data.tournaments || []);
-        setStats(data.stats || null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
       }
-    };
 
-    fetchData();
+      const token = await getToken();
+      if (!token) throw new Error('Not authenticated');
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!response.ok) throw new Error('Failed to fetch dashboard data');
+
+      const data = await response.json();
+      setTournaments(data.tournaments || []);
+      setStats(data.stats || null);
+      setError(null);
+      setLastLoadedAt(new Date().toISOString());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An error occurred';
+      setError(message);
+      if (!options?.silent) {
+        toast.error(message);
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [getToken, organization]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   const activeTournaments = useMemo(
     () => tournaments.filter((tournament) => tournament.status !== 'archived'),
@@ -283,22 +300,30 @@ export const OrgAdminDashboard: React.FC = () => {
       currency: 'USD',
     }).format(cents / 100);
 
+  const lastLoadedLabel = lastLoadedAt
+    ? new Date(lastLoadedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : null;
+
   if (orgLoading || loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center rounded-3xl bg-white shadow-sm">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
+        <div className="text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-600" />
+          <p className="mt-3 text-sm font-medium text-neutral-700">Loading admin dashboard…</p>
+          <p className="mt-1 text-sm text-neutral-500">Gathering event totals and shortcuts.</p>
+        </div>
       </div>
     );
   }
 
-  if (error || !organization) {
+  if (!organization) {
     return (
       <div className="rounded-3xl bg-white p-8 shadow-sm">
         <div className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 h-5 w-5 text-red-500" />
           <div>
             <h1 className="text-xl font-semibold text-neutral-900">Unable to load admin dashboard</h1>
-            <p className="mt-2 text-sm text-neutral-600">{error || 'Organization not found'}</p>
+            <p className="mt-2 text-sm text-neutral-600">Organization not found.</p>
           </div>
         </div>
       </div>
@@ -318,6 +343,14 @@ export const OrgAdminDashboard: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={() => void fetchData({ background: true })}
+              disabled={refreshing}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-neutral-200 px-4 py-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-60"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing' : 'Refresh data'}
+            </button>
             {nextTournament && (
               <button
                 onClick={() => setShowWalkIn(nextTournament)}
@@ -336,7 +369,38 @@ export const OrgAdminDashboard: React.FC = () => {
             </Link>
           </div>
         </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-neutral-500">
+          <span>{refreshing ? 'Refreshing dashboard…' : lastLoadedLabel ? `Updated ${lastLoadedLabel}` : 'Live dashboard'}</span>
+          {error && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-red-700">
+              <AlertCircle className="h-4 w-4" />
+              Last refresh hit an issue
+            </span>
+          )}
+        </div>
       </section>
+
+      {error && (
+        <section className="rounded-3xl border border-red-200 bg-red-50 px-5 py-4 text-red-800 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div>
+                <p className="font-medium">Dashboard data may be stale.</p>
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => void fetchData({ background: true })}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </button>
+          </div>
+        </section>
+      )}
 
       {stats && (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -506,7 +570,7 @@ export const OrgAdminDashboard: React.FC = () => {
           organizationSlug={organization.slug}
           getToken={getToken}
           onClose={() => setShowWalkIn(null)}
-          onSuccess={() => window.location.reload()}
+          onSuccess={() => { void fetchData({ background: true }); }}
         />
       )}
     </div>
