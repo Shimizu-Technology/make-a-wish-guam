@@ -311,7 +311,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               </p>
               <p className="mt-1 text-sm text-neutral-500">
                 {activeTournament
-                  ? 'Use the event workspace below to manage registrations, payments, check-in, sponsors, and raffle operations.'
+                  ? 'Use the event workspace below to manage registrations, payments, check-in, groups, sponsors, and raffle operations.'
                   : 'Create your first event to unlock the event workspace.'}
               </p>
               <div className="mt-3">

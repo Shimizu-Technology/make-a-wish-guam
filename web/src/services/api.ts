@@ -806,7 +806,7 @@ export class ApiClient {
     });
   }
 
-  async setGroupHole(id: number, holeNumber: number): Promise<Group> {
+  async setGroupHole(id: number, holeNumber: number | null): Promise<Group> {
     return this.request(`/api/v1/groups/${id}/set_hole`, {
       method: 'POST',
       body: JSON.stringify({ hole_number: holeNumber }),

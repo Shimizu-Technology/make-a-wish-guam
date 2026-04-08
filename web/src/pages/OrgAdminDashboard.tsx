@@ -9,6 +9,7 @@ import {
   Loader2,
   Settings,
   ShieldCheck,
+  Target,
   Ticket,
   Trophy,
   UserPlus,
@@ -410,6 +411,7 @@ export const OrgAdminDashboard: React.FC = () => {
                   { label: 'Registrations', icon: Users, path: adminEventPath(nextTournament.slug, 'registrations') },
                   { label: 'Payments', icon: CreditCard, path: adminEventPath(nextTournament.slug, 'payments') },
                   { label: 'Check-In', icon: ShieldCheck, path: adminEventPath(nextTournament.slug, 'checkin') },
+                  { label: 'Groups', icon: Target, path: adminEventPath(nextTournament.slug, 'groups') },
                   { label: 'Raffle', icon: Ticket, path: adminEventPath(nextTournament.slug, 'raffle') },
                 ].map((item) => {
                   const Icon = item.icon;

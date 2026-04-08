@@ -7,6 +7,7 @@ import {
   Loader2,
   Plus,
   ShieldCheck,
+  Target,
   Ticket,
   Trophy,
   Users,
@@ -100,7 +101,7 @@ export const EventsManagementPage: React.FC = () => {
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">Manage your event calendar</h1>
             <p className="mt-3 text-sm leading-6 text-neutral-600 sm:text-base">
               Keep org-wide oversight here, then jump directly into the current event workspace for registrations,
-              payments, check-in, sponsors, and raffle operations.
+              payments, check-in, groups, sponsors, and raffle operations.
             </p>
           </div>
 
@@ -223,6 +224,13 @@ export const EventsManagementPage: React.FC = () => {
                     >
                       <CreditCard className="h-4 w-4" />
                       Payments
+                    </Link>
+                    <Link
+                      to={adminEventPath(tournament.slug, 'groups')}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-neutral-200 px-4 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
+                    >
+                      <Target className="h-4 w-4" />
+                      Groups
                     </Link>
                     <Link
                       to={adminEventPath(tournament.slug, 'raffle')}

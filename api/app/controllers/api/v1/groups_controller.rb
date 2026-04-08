@@ -97,18 +97,25 @@ module Api
       def set_hole
         group = Group.find(params[:id])
         old_hole = group.hole_number
+        hole_number = params[:hole_number].presence
 
-        unless (1..18).include?(params[:hole_number].to_i)
+        if hole_number.present? && !(1..18).include?(hole_number.to_i)
           render json: { error: "Hole number must be between 1 and 18" }, status: :unprocessable_entity
           return
         end
 
-        if group.update(hole_number: params[:hole_number])
+        if group.update(hole_number: hole_number)
+          details = if group.hole_number.present?
+            "Assigned group #{group.group_number} to Hole #{group.hole_position_label}"
+          else
+            "Cleared starting hole for group #{group.group_number}"
+          end
+
           ActivityLog.log(
             admin: current_admin,
             action: 'group_updated',
             target: group,
-            details: "Assigned to Hole #{group.hole_position_label}",
+            details: details,
             metadata: { previous_hole: old_hole, new_hole: group.hole_number, group_number: group.group_number }
           )
           broadcast_groups_update(group.tournament)

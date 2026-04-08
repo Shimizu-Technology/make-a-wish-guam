@@ -91,6 +91,19 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 15, group.hole_number
   end
 
+  test "set_hole clears a group's starting hole" do
+    group = groups(:group_one)
+    assert_not_nil group.hole_number
+
+    post set_hole_api_v1_group_url(group), params: {
+      hole_number: nil
+    }, headers: auth_headers
+
+    assert_response :success
+    group.reload
+    assert_nil group.hole_number
+  end
+
   # ==================
   # DELETE /api/v1/groups/:id
   # ==================

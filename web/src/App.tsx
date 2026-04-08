@@ -78,6 +78,7 @@ function App() {
             <Route path="/admin/events/:tournamentSlug/payments" element={<AdminShellPage><PaymentReconciliationPage /></AdminShellPage>} />
             <Route path="/admin/events/:tournamentSlug/checkin" element={<AdminShellPage><OrgCheckInPage /></AdminShellPage>} />
             <Route path="/admin/events/:tournamentSlug/groups" element={<AdminShellPage><OrgGroupsPage /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/scorecard" element={<LegacyTournamentRedirect suffix="/groups" />} />
             <Route path="/admin/events/:tournamentSlug/raffle" element={<AdminShellPage><RaffleManagementPage /></AdminShellPage>} />
             <Route path="/admin/events/:tournamentSlug/sponsors" element={<AdminShellPage><SponsorManagementPage /></AdminShellPage>} />
             <Route path="/admin/events/:tournamentSlug/settings" element={<AdminShellPage><OrgSettingsPage /></AdminShellPage>} />
@@ -88,6 +89,7 @@ function App() {
             <Route path="/admin/tournaments/:tournamentSlug" element={<LegacyTournamentRedirect />} />
             <Route path="/admin/tournaments/:tournamentSlug/checkin" element={<LegacyTournamentRedirect suffix="/checkin" />} />
             <Route path="/admin/tournaments/:tournamentSlug/payments" element={<LegacyTournamentRedirect suffix="/payments" />} />
+            <Route path="/admin/tournaments/:tournamentSlug/groups" element={<LegacyTournamentRedirect suffix="/groups" />} />
             <Route path="/admin/tournaments/:tournamentSlug/scorecard" element={<LegacyTournamentRedirect suffix="/groups" />} />
             <Route path="/admin/tournaments/:tournamentSlug/raffle" element={<LegacyTournamentRedirect suffix="/raffle" />} />
             <Route path="/admin/tournaments/:tournamentSlug/sponsors" element={<LegacyTournamentRedirect suffix="/sponsors" />} />
