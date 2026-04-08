@@ -24,6 +24,7 @@ import { adminEventPath } from '../utils/adminRoutes';
 interface Golfer {
   id: number;
   name: string;
+  partner_name?: string | null;
   email: string;
   phone: string;
   company: string | null;
@@ -171,6 +172,7 @@ export const OrgCheckInPage: React.FC = () => {
       const term = searchTerm.toLowerCase();
       return (
         g.name.toLowerCase().includes(term) ||
+        (g.partner_name && g.partner_name.toLowerCase().includes(term)) ||
         g.email.toLowerCase().includes(term) ||
         g.phone.includes(term) ||
         (g.company && g.company.toLowerCase().includes(term))
@@ -356,6 +358,9 @@ export const OrgCheckInPage: React.FC = () => {
                   <p className="text-gray-400 text-sm truncate">
                     {golfer.phone} • {golfer.email}
                   </p>
+                  {golfer.partner_name && (
+                    <p className="text-gray-500 text-sm truncate">Partner: {golfer.partner_name}</p>
+                  )}
                   {golfer.company && (
                     <p className="text-gray-500 text-sm truncate">{golfer.company}</p>
                   )}

@@ -455,7 +455,7 @@ function TournamentCard({ tournament }: TournamentCardProps) {
             <div className="flex items-center justify-between text-xs text-neutral-500 mb-1.5">
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" strokeWidth={1.5} />
-                {tournament.confirmed_count ?? 0} / {tournament.max_capacity} registered
+                {tournament.confirmed_count ?? 0} / {tournament.max_capacity} teams registered
               </span>
               <span>{capacityPercent}%</span>
             </div>

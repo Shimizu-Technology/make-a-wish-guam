@@ -48,6 +48,7 @@ const WalkInModal: React.FC<{
   onSuccess: () => void;
 }> = ({ tournament, organizationSlug, getToken, onClose, onSuccess }) => {
   const [saving, setSaving] = useState(false);
+  const [defaultAmountLoaded, setDefaultAmountLoaded] = useState(false);
   const [form, setForm] = useState({
     captainName: '',
     captainEmail: '',
@@ -58,6 +59,32 @@ const WalkInModal: React.FC<{
     paymentMethod: 'cash' as 'cash' | 'check' | 'swipesimple',
     amount: '300',
   });
+
+  useEffect(() => {
+    const loadTournamentDefaults = async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organizationSlug}/tournaments/${tournament.slug}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (!response.ok) return;
+        const data = await response.json();
+        const tournamentData = data.tournament;
+        const walkInFee = tournamentData?.walkin_fee ?? tournamentData?.entry_fee_dollars;
+        if (walkInFee) {
+          setForm((prev) => ({ ...prev, amount: String(walkInFee) }));
+        }
+      } finally {
+        setDefaultAmountLoaded(true);
+      }
+    };
+
+    void loadTournamentDefaults();
+  }, [getToken, organizationSlug, tournament.slug]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -176,6 +203,7 @@ const WalkInModal: React.FC<{
                 onChange={(event) => setForm({ ...form, amount: event.target.value })}
                 className="w-full rounded-2xl border border-neutral-200 px-3 py-2.5 text-sm text-neutral-900 outline-none transition focus:border-brand-400"
               />
+              {!defaultAmountLoaded && <p className="mt-1 text-xs text-neutral-500">Loading event pricing…</p>}
             </div>
           </div>
 
@@ -363,7 +391,7 @@ export const OrgAdminDashboard: React.FC = () => {
                       <span className="inline-flex items-center gap-1.5">
                         <Users className="h-4 w-4" />
                         {nextTournament.registration_count}
-                        {nextTournament.capacity ? ` / ${nextTournament.capacity}` : ''} registrations
+                        {nextTournament.capacity ? ` / ${nextTournament.capacity}` : ''} teams registered
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <CreditCard className="h-4 w-4" />

@@ -6,6 +6,7 @@ export { OrgRegistrationPage } from './OrgRegistrationPage';
 export { OrgTournamentPage } from './OrgTournamentPage';
 export { OrgRegistrationSuccessPage } from './OrgRegistrationSuccessPage';
 export { OrgCheckInPage } from './OrgCheckInPage';
+export { OrgGroupsPage } from './OrgGroupsPage';
 export { CreateTournamentPage } from './CreateTournamentPage';
 export { EventsManagementPage } from './EventsManagementPage';
 export { LeaderboardPage } from './LeaderboardPage';

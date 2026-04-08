@@ -15,6 +15,8 @@ export function OrgRegistrationSuccessPage() {
   
   const { golfer, tournament, paymentPending, paymentComplete, swipeSimpleRedirect } = location.state || {};
 
+  const teamName = golfer?.team_name || [golfer?.name, golfer?.partner_name].filter(Boolean).join(' & ');
+
   const SWIPE_SIMPLE_URL = 'https://swipesimple.com/links/lnk_e1c8f45f9c401c93552781ef3d52fdfc';
   
   const primaryColor = organization?.primary_color || '#1e40af';
@@ -79,7 +81,10 @@ export function OrgRegistrationSuccessPage() {
           
           {golfer && (
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <p className="font-medium text-lg">{golfer.name}</p>
+              <p className="font-medium text-lg">{teamName || golfer.name}</p>
+              {golfer.partner_name && (
+                <p className="text-gray-600 mt-1">Team members: {golfer.name} & {golfer.partner_name}</p>
+              )}
               {golfer.email && (
                 <p className="text-gray-600 flex items-center gap-2 mt-1">
                   <Mail size={16} />

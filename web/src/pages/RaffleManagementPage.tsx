@@ -651,7 +651,7 @@ export const RaffleManagementPage: React.FC = () => {
           tournamentId={tournament?.id || ''}
           ticketPrice={tournament?.raffle_ticket_price_cents || 500}
           onClose={() => setShowTicketModal(false)}
-          onSuccess={() => { setShowTicketModal(false); fetchData(); }}
+          onSuccess={() => { fetchData(); }}
         />
       )}
     </div>
@@ -667,6 +667,7 @@ const PrizeModal: React.FC<{
 }> = ({ prize, tournamentId, onClose, onSuccess }) => {
   const { getToken } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [createdTicketNumbers, setCreatedTicketNumbers] = useState<string[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(prize?.image_url || null);
   const [valueDollars, setValueDollars] = useState(prize ? (prize.value_cents / 100).toString() : '0');
@@ -872,6 +873,7 @@ const TicketModal: React.FC<{
 }> = ({ tournamentId, ticketPrice, onClose, onSuccess }) => {
   const { getToken } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [createdTicketNumbers, setCreatedTicketNumbers] = useState<string[]>([]);
   const [form, setForm] = useState({
     purchaser_name: '',
     purchaser_email: '',
@@ -900,8 +902,10 @@ const TicketModal: React.FC<{
 
       if (!res.ok) throw new Error('Failed to create tickets');
       const data = await res.json();
+      setCreatedTicketNumbers((data.tickets || []).map((ticket: { ticket_number: string }) => ticket.ticket_number));
       toast.success(data.message);
       onSuccess();
+      setForm({ purchaser_name: '', purchaser_email: '', purchaser_phone: '', quantity: 1, mark_paid: true });
     } catch (err) {
       toast.error('Failed to create tickets');
     } finally {
@@ -985,6 +989,15 @@ const TicketModal: React.FC<{
               {form.quantity} ticket(s) × ${(ticketPrice / 100).toFixed(2)}
             </p>
           </div>
+
+          {createdTicketNumbers.length > 0 && (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+              <p className="text-sm font-semibold text-green-800">Tickets created</p>
+              <p className="mt-2 break-all font-mono text-sm text-green-700">
+                {createdTicketNumbers.join(', ')}
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <button

@@ -16,6 +16,7 @@ import {
   LeaderboardPage,
   OrgAdminDashboard,
   OrgCheckInPage,
+  OrgGroupsPage,
   OrgRegistrationPage,
   OrgRegistrationSuccessPage,
   OrgSettingsPage,
@@ -76,7 +77,7 @@ function App() {
             <Route path="/admin/events/:tournamentSlug/registrations" element={<AdminShellPage><OrgTournamentAdmin /></AdminShellPage>} />
             <Route path="/admin/events/:tournamentSlug/payments" element={<AdminShellPage><PaymentReconciliationPage /></AdminShellPage>} />
             <Route path="/admin/events/:tournamentSlug/checkin" element={<AdminShellPage><OrgCheckInPage /></AdminShellPage>} />
-            <Route path="/admin/events/:tournamentSlug/groups" element={<AdminShellPage><ScorecardPage /></AdminShellPage>} />
+            <Route path="/admin/events/:tournamentSlug/groups" element={<AdminShellPage><OrgGroupsPage /></AdminShellPage>} />
             <Route path="/admin/events/:tournamentSlug/raffle" element={<AdminShellPage><RaffleManagementPage /></AdminShellPage>} />
             <Route path="/admin/events/:tournamentSlug/sponsors" element={<AdminShellPage><SponsorManagementPage /></AdminShellPage>} />
             <Route path="/admin/events/:tournamentSlug/settings" element={<AdminShellPage><OrgSettingsPage /></AdminShellPage>} />

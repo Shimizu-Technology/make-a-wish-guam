@@ -76,7 +76,7 @@ tournament.assign_attributes(
   location_address: 'Yona, Guam',
   tournament_format: 'scramble',
   team_size: 2,
-  entry_fee: 15000,
+  entry_fee: 30000,
   max_capacity: 144,
   status: 'open',
   registration_open: true,

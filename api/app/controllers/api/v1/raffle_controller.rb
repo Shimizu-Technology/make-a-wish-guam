@@ -159,7 +159,7 @@ module Api
 
         render json: {
           results: results,
-          message: "Drew #{results.count(&:success)} winners"
+          message: "Drew #{results.count { |result| result[:success] }} winners"
         }
       end
 
