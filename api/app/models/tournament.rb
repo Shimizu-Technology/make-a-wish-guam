@@ -20,9 +20,11 @@ class Tournament < ApplicationRecord
   validates :max_capacity, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validates :entry_fee, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
   validates :slug, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
+  validate :course_configs_are_valid
 
   # Callbacks
   before_validation :generate_slug, on: :create
+  before_validation :normalize_course_configs_in_config
 
   # Scopes
   scope :active, -> { where.not(status: 'archived') }
@@ -66,11 +68,66 @@ class Tournament < ApplicationRecord
     { 'quantity' => 12, 'price_cents' => 5000,  'label' => '$50 for 12 tickets' },
     { 'quantity' => 25, 'price_cents' => 10000, 'label' => '$100 for 25 tickets' }
   ].freeze
+  DEFAULT_COURSE_KEY = 'course-1'.freeze
 
   def raffle_bundles
     custom = config&.dig('raffle_bundles')
     return DEFAULT_RAFFLE_BUNDLES if custom.blank?
     custom
+  end
+
+  def course_configs
+    custom = config&.dig('course_configs')
+    normalized = self.class.normalize_course_configs(
+      custom,
+      fallback_hole_count: total_holes || 18,
+      fallback_course_name: course_name.presence || 'Course'
+    )
+
+    return normalized if normalized.present?
+
+    [{
+      'key' => DEFAULT_COURSE_KEY,
+      'name' => course_name.presence || 'Course',
+      'hole_count' => [total_holes || 18, 1].max
+    }]
+  end
+
+  def default_course_key
+    course_configs.first&.dig('key') || DEFAULT_COURSE_KEY
+  end
+
+  def course_config_for(course_key)
+    key = course_key.presence || default_course_key
+    course_configs.find { |course| course['key'] == key }
+  end
+
+  def course_name_for(course_key)
+    course_config_for(course_key)&.dig('name') || 'Course'
+  end
+
+  def hole_count_for_course(course_key)
+    course_config_for(course_key)&.dig('hole_count').to_i
+  end
+
+  def multi_course_setup?
+    course_configs.length > 1
+  end
+
+  def starting_position_prefix(course_key)
+    return nil unless multi_course_setup?
+
+    course_name_for(course_key)
+  end
+
+  def starting_hole_description(course_key, hole_number)
+    return nil unless hole_number.present?
+
+    if multi_course_setup?
+      "#{course_name_for(course_key)} Hole #{hole_number}"
+    else
+      "Hole #{hole_number}"
+    end
   end
 
   # Format constants
@@ -320,6 +377,66 @@ class Tournament < ApplicationRecord
   end
 
   private
+
+  def normalize_course_configs_in_config
+    return unless config.is_a?(Hash)
+
+    stringified = config.deep_stringify_keys
+    stringified['course_configs'] = self.class.normalize_course_configs(
+      stringified['course_configs'],
+      fallback_hole_count: total_holes || 18,
+      fallback_course_name: course_name.presence || 'Course'
+    )
+
+    self.config = stringified
+  end
+
+  def course_configs_are_valid
+    configs = course_configs
+
+    if configs.blank?
+      errors.add(:base, 'At least one course must be configured')
+      return
+    end
+
+    if configs.map { |course| course['key'] }.uniq.length != configs.length
+      errors.add(:config, 'Course keys must be unique')
+    end
+
+    invalid = configs.any? do |course|
+      course['name'].blank? || course['hole_count'].to_i <= 0
+    end
+    errors.add(:config, 'Course configuration is invalid') if invalid
+  end
+
+  def self.normalize_course_configs(raw_configs, fallback_hole_count:, fallback_course_name:)
+    entries = Array(raw_configs).filter_map.with_index do |entry, idx|
+      next unless entry.respond_to?(:to_h)
+
+      data = entry.to_h.stringify_keys
+      name = data['name'].to_s.strip
+      hole_count = data['hole_count'].to_i
+      next if name.blank? || hole_count <= 0
+
+      key = data['key'].to_s.strip.presence || "course-#{idx + 1}"
+
+      {
+        'key' => key,
+        'name' => name,
+        'hole_count' => hole_count
+      }
+    end
+
+    if entries.blank?
+      [{
+        'key' => DEFAULT_COURSE_KEY,
+        'name' => fallback_course_name.presence || 'Course',
+        'hole_count' => [fallback_hole_count.to_i, 1].max
+      }]
+    else
+      entries.uniq { |course| course['key'] }
+    end
+  end
 
   def generate_slug
     return if slug.present?

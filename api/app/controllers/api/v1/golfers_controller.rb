@@ -202,7 +202,7 @@ module Api
               admin: current_admin,
               action: 'golfer_removed_from_group',
               target: golfer,
-              details: "Removed #{golfer.name} from Hole #{old_group.hole_position_label} (cancelled)"
+              details: "Removed #{golfer.name} from #{old_group.hole_position_label} (cancelled)"
             )
           rescue StandardError => e
             Rails.logger.error("Failed to log group removal: #{e.message}")
@@ -283,7 +283,7 @@ module Api
                 admin: current_admin,
                 action: 'golfer_removed_from_group',
                 target: golfer,
-                details: "Removed #{golfer.name} from Hole #{old_group.hole_position_label} (refunded)"
+                details: "Removed #{golfer.name} from #{old_group.hole_position_label} (refunded)"
               )
             rescue StandardError => e
               Rails.logger.error("Failed to log group removal: #{e.message}")
@@ -365,7 +365,7 @@ module Api
               admin: current_admin,
               action: 'golfer_removed_from_group',
               target: golfer,
-              details: "Removed #{golfer.name} from Hole #{old_group.hole_position_label} (refunded)"
+              details: "Removed #{golfer.name} from #{old_group.hole_position_label} (refunded)"
             )
           rescue StandardError => e
             Rails.logger.error("Failed to log group removal: #{e.message}")
@@ -564,7 +564,7 @@ module Api
               admin: current_admin,
               action: 'golfer_removed_from_group',
               target: golfer,
-              details: "Removed #{golfer.name} from Hole #{old_group.hole_position_label} (demoted to waitlist)"
+              details: "Removed #{golfer.name} from #{old_group.hole_position_label} (demoted to waitlist)"
             )
           rescue => e
             Rails.logger.warn("Failed to log activity: #{e.message}")
@@ -970,7 +970,7 @@ module Api
               admin: current_admin,
               action: 'golfer_assigned_to_group',
               target: golfer,
-              details: "Assigned #{golfer.name} to Hole #{golfer.group&.hole_position_label}",
+              details: "Assigned #{golfer.name} to #{golfer.group&.hole_position_label}",
               metadata: { group_id: golfer.group_id, hole_label: golfer.group&.hole_position_label }
             )
           elsif golfer.group_id.nil? && old_values['group_id'].present?
@@ -986,7 +986,7 @@ module Api
               admin: current_admin,
               action: 'golfer_assigned_to_group',
               target: golfer,
-              details: "Moved #{golfer.name} to Hole #{golfer.group&.hole_position_label}",
+              details: "Moved #{golfer.name} to #{golfer.group&.hole_position_label}",
               metadata: { 
                 group_id: golfer.group_id, 
                 hole_label: golfer.group&.hole_position_label,

@@ -4,16 +4,38 @@ class Group < ApplicationRecord
   has_many :scores, dependent: :destroy
 
   validates :group_number, presence: true, uniqueness: { scope: :tournament_id }
-  validates :hole_number, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 18 }, allow_nil: true
+  validates :hole_number, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validates :tournament_id, presence: true
+  validate :starting_position_is_consistent
+  validate :starting_course_exists_in_tournament
+  validate :hole_number_within_course_range
+
+  before_validation :normalize_starting_position
 
   scope :with_golfers, -> { includes(:golfers).order(:group_number) }
   scope :for_tournament, ->(tournament_id) { where(tournament_id: tournament_id) }
 
   MAX_GOLFERS_DEFAULT = 4
+  MAX_GOLFERS = MAX_GOLFERS_DEFAULT
 
   def max_golfers
     tournament&.team_size || MAX_GOLFERS_DEFAULT
+  end
+
+  def assigned_start?
+    starting_course_key.present? && hole_number.present?
+  end
+
+  def starting_course_name
+    return nil unless starting_course_key.present?
+
+    tournament&.course_name_for(starting_course_key)
+  end
+
+  def starting_hole_description
+    return nil unless assigned_start?
+
+    tournament&.starting_hole_description(starting_course_key, hole_number)
   end
 
   def player_count
@@ -33,25 +55,14 @@ class Group < ApplicationRecord
     player_count + incoming <= max_golfers
   end
 
-  # Hole-based label for the group (e.g., "7A" for first foursome at Hole 7)
-  # Always includes a letter suffix for consistency
-  def hole_position_label
-    return "Unassigned" unless hole_number
+  def starting_position_label
+    return "Unassigned" unless assigned_start?
 
-    # Get all groups at this hole, sorted by group_number for consistent ordering
-    groups_at_hole = Group.where(
-      tournament_id: tournament_id,
-      hole_number: hole_number
-    ).order(:group_number)
-
-    # Find this group's index among all groups at this hole
-    group_ids = groups_at_hole.pluck(:id)
-    position_index = group_ids.index(id)
-    
-    # Always add letter suffix for consistency
-    position_letter = ('A'..'Z').to_a[position_index] || 'X'
-    "#{hole_number}#{position_letter}"
+    prefix = tournament&.starting_position_prefix(starting_course_key)
+    [prefix, "#{hole_number}#{position_letter}"].compact.join(" ")
   end
+
+  alias_method :hole_position_label, :starting_position_label
 
   def golfer_labels
     golfers.order(:position).map.with_index do |golfer, index|
@@ -64,16 +75,64 @@ class Group < ApplicationRecord
     return false unless can_add?(golfer)
 
     next_position = golfers.count + 1
-    golfer.update!(group: self, position: next_position)
+    golfer.update_columns(group_id: id, position: next_position, updated_at: Time.current)
     true
   end
 
   def remove_golfer(golfer)
-    golfer.update!(group: nil, position: nil)
+    golfer.update_columns(group_id: nil, position: nil, updated_at: Time.current)
     reorder_positions
   end
 
   private
+
+  def position_letter
+    groups_at_start = Group.where(
+      tournament_id: tournament_id,
+      starting_course_key: starting_course_key,
+      hole_number: hole_number
+    ).order(:group_number)
+
+    group_ids = groups_at_start.pluck(:id)
+    position_index = group_ids.index(id)
+    position_index ||= groups_at_start.pluck(:group_number).count { |number| number < group_number }
+
+    ('A'..'Z').to_a[position_index] || 'X'
+  end
+
+  def normalize_starting_position
+    self.starting_course_key = starting_course_key.presence
+    self.hole_number = hole_number.presence
+
+    if hole_number.present? && starting_course_key.blank? && tournament.present?
+      self.starting_course_key = tournament.default_course_key
+    end
+
+    self.hole_number = nil if starting_course_key.blank?
+  end
+
+  def starting_position_is_consistent
+    return if starting_course_key.blank? && hole_number.blank?
+    return if starting_course_key.present? && hole_number.present?
+
+    errors.add(:base, "Starting course and hole number must both be provided")
+  end
+
+  def starting_course_exists_in_tournament
+    return unless starting_course_key.present? && tournament.present?
+    return if tournament.course_config_for(starting_course_key).present?
+
+    errors.add(:starting_course_key, "is not configured for this event")
+  end
+
+  def hole_number_within_course_range
+    return unless starting_course_key.present? && hole_number.present? && tournament.present?
+
+    max_holes = tournament.hole_count_for_course(starting_course_key)
+    return if max_holes <= 0 || hole_number <= max_holes
+
+    errors.add(:hole_number, "must be between 1 and #{max_holes} for #{starting_course_name}")
+  end
 
   def reorder_positions
     golfers.order(:position).each_with_index do |golfer, index|

@@ -33,6 +33,12 @@ export interface Sponsor {
   major: boolean;
 }
 
+export interface CourseConfig {
+  key: string;
+  name: string;
+  hole_count: number;
+}
+
 // Types for API responses
 export interface Tournament {
   id: number;
@@ -132,6 +138,7 @@ export interface Tournament {
   raffle_ticket_price_cents?: number;
   raffle_include_with_registration?: boolean;
   raffle_bundles?: { quantity: number; price_cents: number; label: string }[];
+  course_configs?: CourseConfig[];
 
   // Legacy compatibility fields (optional)
   employee_entry_fee?: number;
@@ -157,6 +164,8 @@ export interface Golfer {
   checked_in_at: string | null;
   registration_status: 'confirmed' | 'waitlist' | 'cancelled' | 'pending';
   group_id: number | null;
+  starting_course_key: string | null;
+  starting_course_name: string | null;
   hole_number: number | null;
   position: number | null;
   notes: string | null;
@@ -166,6 +175,7 @@ export interface Golfer {
   created_at: string;
   updated_at: string;
   group_position_label: string | null;
+  starting_position_label: string | null;
   hole_position_label: string | null;
   checked_in: boolean;
   group?: Group | null;
@@ -212,12 +222,16 @@ export interface Group {
   id: number;
   tournament_id: number;
   group_number: number;
+  starting_course_key: string | null;
+  starting_course_name: string | null;
   hole_number: number | null;
   created_at: string;
   updated_at: string;
   golfer_count: number;
   is_full: boolean;
+  starting_position_label: string | null;
   hole_position_label: string | null;
+  starting_hole_description?: string | null;
   golfers?: Golfer[];
 }
 
@@ -807,12 +821,16 @@ export class ApiClient {
     return this.request(`/api/v1/groups/${id}`);
   }
 
-  async createGroup(holeNumber?: number, tournamentId?: number): Promise<Group> {
+  async createGroup(
+    options?: { startingCourseKey?: string | null; holeNumber?: number | null },
+    tournamentId?: number
+  ): Promise<Group> {
     const id = tournamentId || this.currentTournamentId;
     return this.request('/api/v1/groups', {
       method: 'POST',
       body: JSON.stringify({ 
-        hole_number: holeNumber,
+        starting_course_key: options?.startingCourseKey,
+        hole_number: options?.holeNumber,
         tournament_id: id
       }),
     });
@@ -831,10 +849,10 @@ export class ApiClient {
     });
   }
 
-  async setGroupHole(id: number, holeNumber: number): Promise<Group> {
+  async setGroupHole(id: number, startingCourseKey: string | null, holeNumber: number | null): Promise<Group> {
     return this.request(`/api/v1/groups/${id}/set_hole`, {
       method: 'POST',
-      body: JSON.stringify({ hole_number: holeNumber }),
+      body: JSON.stringify({ starting_course_key: startingCourseKey, hole_number: holeNumber }),
     });
   }
 

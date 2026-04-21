@@ -28,15 +28,19 @@ module Api
 
         # Auto-assign next group number for this tournament
         next_number = (tournament.groups.maximum(:group_number) || 0) + 1
-        group = tournament.groups.new(group_number: next_number, hole_number: params[:hole_number])
+        group = tournament.groups.new(
+          group_number: next_number,
+          starting_course_key: params[:starting_course_key],
+          hole_number: params[:hole_number]
+        )
 
         if group.save
           ActivityLog.log(
             admin: current_admin,
             action: 'group_created',
             target: group,
-            details: "Created Hole #{group.hole_position_label}",
-            metadata: { hole_number: group.hole_number, group_number: group.group_number }
+            details: "Created #{starting_position_reference(group)}",
+            metadata: group_metadata(group)
           )
           broadcast_groups_update(tournament)
           render json: group, status: :created
@@ -48,16 +52,16 @@ module Api
       # PATCH /api/v1/groups/:id
       def update
         group = Group.find(params[:id])
-        old_hole = group.hole_number
+        old_label = group.starting_position_label
 
         if group.update(group_params)
-          if old_hole != group.hole_number
+          if old_label != group.starting_position_label
             ActivityLog.log(
               admin: current_admin,
               action: 'group_updated',
               target: group,
-              details: "Moved group to Hole #{group.hole_position_label} (was Hole #{old_hole || 'unassigned'})",
-              metadata: { previous_hole: old_hole, new_hole: group.hole_number, group_number: group.group_number }
+              details: "Updated starting position to #{starting_position_reference(group)} (was #{old_label || 'Unassigned'})",
+              metadata: group_metadata(group).merge(previous_label: old_label)
             )
           end
           broadcast_groups_update(group.tournament)
@@ -74,7 +78,7 @@ module Api
         group_number = group.group_number
         golfer_names = group.golfers.pluck(:name)
 
-        hole_label = group.hole_position_label
+        hole_label = group.starting_position_label
 
         ActiveRecord::Base.transaction do
           group.golfers.update_all(group_id: nil, position: nil)
@@ -87,7 +91,7 @@ module Api
           action: 'group_deleted',
           target: nil,
           tournament: tournament,
-          details: "Deleted Hole #{hole_label}",
+          details: "Deleted #{starting_position_reference(group, label: hole_label)}",
           metadata: { group_number: group_number, hole_label: hole_label, removed_golfers: golfer_names }
         )
         
@@ -98,20 +102,21 @@ module Api
       # POST /api/v1/groups/:id/set_hole
       def set_hole
         group = Group.find(params[:id])
-        old_hole = group.hole_number
+        old_label = group.starting_position_label
+        attributes, error_message = starting_position_params_for(group.tournament)
 
-        unless (1..18).include?(params[:hole_number].to_i)
-          render json: { error: "Hole number must be between 1 and 18" }, status: :unprocessable_entity
+        if error_message
+          render json: { error: error_message }, status: :unprocessable_entity
           return
         end
 
-        if group.update(hole_number: params[:hole_number])
+        if group.update(attributes)
           ActivityLog.log(
             admin: current_admin,
             action: 'group_updated',
             target: group,
-            details: "Assigned to Hole #{group.hole_position_label}",
-            metadata: { previous_hole: old_hole, new_hole: group.hole_number, group_number: group.group_number }
+            details: group.assigned_start? ? "Assigned to #{group.starting_position_label}" : "Cleared starting position",
+            metadata: group_metadata(group).merge(previous_label: old_label)
           )
           broadcast_groups_update(group.tournament)
           render json: group, include: "golfers"
@@ -151,7 +156,7 @@ module Api
             admin: current_admin,
             action: 'golfer_assigned_to_group',
             target: golfer,
-            details: "Added #{golfer.name} to Hole #{group.hole_position_label}",
+            details: "Added #{golfer.name} to #{starting_position_reference(group)}",
             metadata: { group_id: group.id, group_number: group.group_number, hole_label: group.hole_position_label }
           )
           broadcast_groups_update(group.tournament)
@@ -171,14 +176,14 @@ module Api
           return
         end
 
-        hole_label = group.hole_position_label
+        hole_label = group.starting_position_label
         group.remove_golfer(golfer)
         
         ActivityLog.log(
           admin: current_admin,
           action: 'golfer_removed_from_group',
           target: golfer,
-          details: "Removed #{golfer.name} from Hole #{hole_label}",
+          details: "Removed #{golfer.name} from #{starting_position_reference(group, label: hole_label)}",
           metadata: { group_id: group.id, group_number: group.group_number, hole_label: hole_label }
         )
         
@@ -315,7 +320,39 @@ module Api
       end
 
       def group_params
-        params.require(:group).permit(:group_number, :hole_number)
+        params.require(:group).permit(:group_number, :starting_course_key, :hole_number)
+      end
+
+      def group_metadata(group)
+        {
+          starting_course_key: group.starting_course_key,
+          hole_number: group.hole_number,
+          group_number: group.group_number,
+          starting_position_label: group.starting_position_label
+        }
+      end
+
+      def starting_position_reference(group, label: nil)
+        resolved = label.presence || group.starting_position_label
+        return "Group #{group.group_number}" if resolved.blank? || resolved == "Unassigned"
+
+        resolved
+      end
+
+      def starting_position_params_for(tournament)
+        course_key = params[:starting_course_key].presence
+        hole_number = params[:hole_number].presence&.to_i
+
+        return [{ starting_course_key: nil, hole_number: nil }, nil] if course_key.blank? && hole_number.nil?
+        return [nil, "Starting course and hole are both required"] if course_key.blank? || hole_number.nil?
+
+        course = tournament.course_config_for(course_key)
+        return [nil, "Selected course is not configured for this event"] unless course
+
+        max_holes = course['hole_count'].to_i
+        return [nil, "Hole number must be between 1 and #{max_holes} for #{course['name']}"] unless (1..max_holes).include?(hole_number)
+
+        [{ starting_course_key: course_key, hole_number: hole_number }, nil]
       end
 
       def broadcast_groups_update(tournament)

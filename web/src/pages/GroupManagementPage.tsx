@@ -1,36 +1,42 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useOrganization } from '../components/OrganizationProvider';
 import {
   DndContext,
   DragOverlay,
-  closestCenter,
   PointerSensor,
   TouchSensor,
+  closestCenter,
+  useDroppable,
   useSensor,
   useSensors,
-  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
-  verticalListSortingStrategy,
   useSortable,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
+  Building2,
   Flag,
-  Plus,
-  Trash2,
-  UserMinus,
-  Shuffle,
-  Loader2,
-  Search,
   GripVertical,
+  Loader2,
+  Plus,
+  Search,
+  Shuffle,
+  Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API = import.meta.env.VITE_API_URL;
+
+interface CourseConfig {
+  key: string;
+  name: string;
+  hole_count: number;
+}
 
 interface GroupGolfer {
   id: number;
@@ -46,12 +52,16 @@ interface Group {
   id: number;
   tournament_id: number;
   group_number: number;
+  starting_course_key: string | null;
+  starting_course_name: string | null;
   hole_number: number | null;
   golfer_count: number;
   player_count: number;
   max_golfers: number;
   is_full: boolean;
+  starting_position_label: string | null;
   hole_position_label: string | null;
+  starting_hole_description: string | null;
   golfers: GroupGolfer[];
 }
 
@@ -63,34 +73,36 @@ interface UnassignedGolfer {
   email: string;
 }
 
+const DEFAULT_COURSE_CONFIGS: CourseConfig[] = [
+  { key: 'course-1', name: 'Course', hole_count: 18 },
+];
+
 const DraggableTeam: React.FC<{ golfer: UnassignedGolfer }> = ({ golfer }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `golfer-${golfer.id}`,
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
-  };
-
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className="flex items-center gap-2 bg-white rounded-xl border border-neutral-200 px-3 py-2.5 hover:border-brand-300 transition-colors"
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.35 : 1 }}
+      className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 transition-colors hover:border-brand-300"
     >
-      <button {...attributes} {...listeners} className="touch-none p-0.5 text-neutral-400 hover:text-neutral-600 cursor-grab active:cursor-grabbing">
-        <GripVertical className="w-4 h-4" />
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab p-0.5 text-neutral-400 active:cursor-grabbing hover:text-neutral-600"
+      >
+        <GripVertical className="h-4 w-4" />
       </button>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-neutral-900 truncate">
-          {golfer.team_name || golfer.name}
-        </p>
+        <p className="truncate text-sm font-medium text-neutral-900">{golfer.team_name || golfer.name}</p>
         {golfer.partner_name && (
-          <p className="text-xs text-neutral-500 truncate">{golfer.name} & {golfer.partner_name}</p>
+          <p className="truncate text-xs text-neutral-500">
+            {golfer.name} &amp; {golfer.partner_name}
+          </p>
         )}
-        <p className="text-xs text-neutral-400 truncate">{golfer.email}</p>
+        <p className="truncate text-xs text-neutral-400">{golfer.email}</p>
       </div>
     </div>
   );
@@ -106,13 +118,11 @@ const DroppableGroupZone: React.FC<{
   return (
     <div
       ref={setNodeRef}
-      className={`
-        border-2 border-dashed rounded-xl py-3 text-center text-sm transition-all
-        ${isOver && canDrop
+      className={`rounded-xl border-2 border-dashed py-3 text-center text-sm transition-all ${
+        isOver && canDrop
           ? 'border-brand-400 bg-brand-50 text-brand-600'
           : 'border-neutral-200 text-neutral-400 hover:border-brand-300 hover:text-brand-500'
-        }
-      `}
+      }`}
     >
       {isOver && canDrop ? 'Drop to assign' : 'Drag a team here'}
     </div>
@@ -121,12 +131,13 @@ const DroppableGroupZone: React.FC<{
 
 const DragOverlayContent: React.FC<{ golfer: UnassignedGolfer | null }> = ({ golfer }) => {
   if (!golfer) return null;
+
   return (
-    <div className="flex items-center gap-2 bg-white rounded-xl border-2 border-brand-400 shadow-lg px-4 py-3 max-w-[240px]">
-      <GripVertical className="w-4 h-4 text-brand-500" />
+    <div className="flex max-w-[240px] items-center gap-2 rounded-xl border-2 border-brand-400 bg-white px-4 py-3 shadow-lg">
+      <GripVertical className="h-4 w-4 text-brand-500" />
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-neutral-900 truncate">{golfer.team_name || golfer.name}</p>
-        {golfer.partner_name && <p className="text-xs text-neutral-500 truncate">& {golfer.partner_name}</p>}
+        <p className="truncate text-sm font-semibold text-neutral-900">{golfer.team_name || golfer.name}</p>
+        {golfer.partner_name && <p className="truncate text-xs text-neutral-500">&amp; {golfer.partner_name}</p>}
       </div>
     </div>
   );
@@ -139,6 +150,7 @@ export const GroupManagementPage: React.FC = () => {
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [unassigned, setUnassigned] = useState<UnassignedGolfer[]>([]);
+  const [courseConfigs, setCourseConfigs] = useState<CourseConfig[]>(DEFAULT_COURSE_CONFIGS);
   const [loading, setLoading] = useState(true);
   const [tournamentId, setTournamentId] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -160,6 +172,7 @@ export const GroupManagementPage: React.FC = () => {
 
   const fetchData = useCallback(async (showLoader = true) => {
     if (!orgSlug || !tournamentSlug) return;
+
     try {
       if (showLoader) setLoading(true);
       const headers = await authHeaders();
@@ -169,62 +182,89 @@ export const GroupManagementPage: React.FC = () => {
         { headers }
       );
       if (!tRes.ok) throw new Error('Failed to load tournament');
-      const tData = await tRes.json();
-      const tId = tData.id || tData.tournament?.id;
+      const tournamentPayload = await tRes.json();
+      const tournament = tournamentPayload.tournament || tournamentPayload;
+      const tId = tournament.id;
+
       setTournamentId(tId);
+      setCourseConfigs(
+        tournament.course_configs?.length ? tournament.course_configs : DEFAULT_COURSE_CONFIGS
+      );
 
       const gRes = await fetch(`${API}/api/v1/groups?tournament_id=${tId}`, { headers });
       if (!gRes.ok) throw new Error('Failed to load groups');
-      const gData = await gRes.json();
-      setGroups(Array.isArray(gData) ? gData : gData.groups || []);
+      const groupPayload = await gRes.json();
+      setGroups(Array.isArray(groupPayload) ? groupPayload : groupPayload.groups || []);
 
-      const golfers = tData.golfers || [];
-      const ungrouped = golfers.filter(
-        (g: any) => g.registration_status === 'confirmed' && !g.group_id
+      const golfers = tournamentPayload.golfers || [];
+      setUnassigned(
+        golfers.filter((golfer: any) => golfer.registration_status === 'confirmed' && !golfer.group_id)
       );
-      setUnassigned(ungrouped);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
-  }, [orgSlug, tournamentSlug, authHeaders]);
+  }, [authHeaders, orgSlug, tournamentSlug]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const sortedGroups = useMemo(() => {
-    return [...groups].sort((a, b) => {
-      const aEmpty = a.golfers.length === 0 ? 0 : 1;
-      const bEmpty = b.golfers.length === 0 ? 0 : 1;
-      if (aEmpty !== bEmpty) return aEmpty - bEmpty;
-      const ha = a.hole_number ?? 999;
-      const hb = b.hole_number ?? 999;
-      if (ha !== hb) return ha - hb;
-      return a.group_number - b.group_number;
-    });
-  }, [groups]);
+  const courseMap = useMemo(
+    () => new Map(courseConfigs.map((course) => [course.key, course])),
+    [courseConfigs]
+  );
+
+  const activeGolfer = useMemo(() => {
+    if (!activeId) return null;
+    const id = parseInt(activeId.replace('golfer-', ''), 10);
+    return unassigned.find((golfer) => golfer.id === id) || null;
+  }, [activeId, unassigned]);
 
   const filteredUnassigned = useMemo(() => {
     if (!searchTerm) return unassigned;
     const term = searchTerm.toLowerCase();
     return unassigned.filter(
-      (g) =>
-        g.name.toLowerCase().includes(term) ||
-        (g.partner_name && g.partner_name.toLowerCase().includes(term)) ||
-        (g.team_name && g.team_name.toLowerCase().includes(term)) ||
-        g.email.toLowerCase().includes(term)
+      (golfer) =>
+        golfer.name.toLowerCase().includes(term) ||
+        golfer.email.toLowerCase().includes(term) ||
+        (golfer.partner_name && golfer.partner_name.toLowerCase().includes(term)) ||
+        (golfer.team_name && golfer.team_name.toLowerCase().includes(term))
     );
-  }, [unassigned, searchTerm]);
+  }, [searchTerm, unassigned]);
 
-  const activeGolfer = useMemo(() => {
-    if (!activeId) return null;
-    const id = parseInt(activeId.replace('golfer-', ''), 10);
-    return unassigned.find((g) => g.id === id) || null;
-  }, [activeId, unassigned]);
+  const sortedUnassignedGroups = useMemo(() => {
+    return groups
+      .filter((group) => !group.starting_course_key || !group.hole_number || !courseMap.has(group.starting_course_key))
+      .sort((a, b) => a.group_number - b.group_number);
+  }, [courseMap, groups]);
+
+  const groupedCourses = useMemo(() => {
+    return courseConfigs.map((course) => ({
+      ...course,
+      holes: Array.from({ length: course.hole_count }, (_, index) => {
+        const holeNumber = index + 1;
+        const holeGroups = groups
+          .filter(
+            (group) =>
+              group.starting_course_key === course.key &&
+              group.hole_number === holeNumber
+          )
+          .sort((a, b) => a.group_number - b.group_number);
+
+        return {
+          holeNumber,
+          groups: holeGroups,
+        };
+      }),
+    }));
+  }, [courseConfigs, groups]);
 
   const createGroup = async () => {
     if (!tournamentId) return;
     setActionLoading('create');
+
     try {
       const headers = await authHeaders();
       const res = await fetch(`${API}/api/v1/groups`, {
@@ -245,6 +285,7 @@ export const GroupManagementPage: React.FC = () => {
   const autoAssign = async () => {
     if (!tournamentId) return;
     setActionLoading('auto');
+
     try {
       const headers = await authHeaders();
       const res = await fetch(`${API}/api/v1/groups/auto_assign`, {
@@ -264,10 +305,14 @@ export const GroupManagementPage: React.FC = () => {
   };
 
   const deleteGroup = async (groupId: number) => {
-    setActionLoading(`del-${groupId}`);
+    setActionLoading(`delete-${groupId}`);
+
     try {
       const headers = await authHeaders();
-      const res = await fetch(`${API}/api/v1/groups/${groupId}`, { method: 'DELETE', headers });
+      const res = await fetch(`${API}/api/v1/groups/${groupId}`, {
+        method: 'DELETE',
+        headers,
+      });
       if (!res.ok) throw new Error('Failed to delete group');
       toast.success('Group deleted');
       fetchData(false);
@@ -278,19 +323,33 @@ export const GroupManagementPage: React.FC = () => {
     }
   };
 
-  const updateGroupHole = async (groupId: number, holeNumber: number | null) => {
-    setActionLoading(`hole-${groupId}`);
+  const updateGroupStart = async (
+    groupId: number,
+    startingCourseKey: string | null,
+    holeNumber: number | null
+  ) => {
+    setActionLoading(`start-${groupId}`);
+
     try {
       const headers = await authHeaders();
       const res = await fetch(`${API}/api/v1/groups/${groupId}/set_hole`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ hole_number: holeNumber }),
+        body: JSON.stringify({
+          starting_course_key: startingCourseKey,
+          hole_number: holeNumber,
+        }),
       });
-      if (!res.ok) throw new Error('Failed to update hole');
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to update starting position');
+      }
+
       fetchData(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed');
+      fetchData(false);
     } finally {
       setActionLoading(null);
     }
@@ -298,6 +357,7 @@ export const GroupManagementPage: React.FC = () => {
 
   const addGolferToGroup = async (groupId: number, golferId: number) => {
     setActionLoading(`add-${golferId}`);
+
     try {
       const headers = await authHeaders();
       const res = await fetch(`${API}/api/v1/groups/${groupId}/add_golfer`, {
@@ -319,7 +379,8 @@ export const GroupManagementPage: React.FC = () => {
   };
 
   const removeGolferFromGroup = async (groupId: number, golferId: number) => {
-    setActionLoading(`rm-${golferId}`);
+    setActionLoading(`remove-${golferId}`);
+
     try {
       const headers = await authHeaders();
       const res = await fetch(`${API}/api/v1/groups/${groupId}/remove_golfer`, {
@@ -336,13 +397,14 @@ export const GroupManagementPage: React.FC = () => {
     }
   };
 
-  const handleDragStart = (event: any) => setActiveId(event.active.id);
+  const handleDragStart = (event: any) => {
+    setActiveId(event.active.id);
+  };
 
   const handleDragOver = (event: any) => {
     const { over } = event;
     if (over && typeof over.id === 'string' && over.id.startsWith('group-drop-')) {
-      const gId = parseInt(over.id.replace('group-drop-', ''), 10);
-      setOverGroupId(gId);
+      setOverGroupId(parseInt(over.id.replace('group-drop-', ''), 10));
     } else {
       setOverGroupId(null);
     }
@@ -351,43 +413,187 @@ export const GroupManagementPage: React.FC = () => {
   const handleDragEnd = (event: any) => {
     setActiveId(null);
     setOverGroupId(null);
+
     const { active, over } = event;
-    if (!over || !active) return;
-
-    if (typeof over.id === 'string' && over.id.startsWith('group-drop-')) {
-      const groupId = parseInt(over.id.replace('group-drop-', ''), 10);
-      const golferId = parseInt(active.id.replace('golfer-', ''), 10);
-      const group = groups.find((g) => g.id === groupId);
-      const golfer = unassigned.find((g) => g.id === golferId);
-      if (group && golfer) {
-        const incomingPlayers = golfer.partner_name ? 2 : 1;
-        const currentPlayers = group.player_count ?? group.golfer_count;
-        const maxPlayers = group.max_golfers || 2;
-        if (currentPlayers + incomingPlayers > maxPlayers) return;
-
-        setUnassigned((prev) => prev.filter((g) => g.id !== golferId));
-        setGroups((prev) =>
-          prev.map((g) =>
-            g.id === groupId
-              ? {
-                  ...g,
-                  golfers: [...g.golfers, { ...golfer, payment_status: '', checked_in_at: null }],
-                  golfer_count: g.golfer_count + 1,
-                  player_count: currentPlayers + incomingPlayers,
-                  is_full: (currentPlayers + incomingPlayers) >= maxPlayers,
-                }
-              : g
-          )
-        );
-        addGolferToGroup(groupId, golferId);
-      }
+    if (!over || !active || typeof over.id !== 'string' || !over.id.startsWith('group-drop-')) {
+      return;
     }
+
+    const groupId = parseInt(over.id.replace('group-drop-', ''), 10);
+    const golferId = parseInt(active.id.replace('golfer-', ''), 10);
+    const group = groups.find((entry) => entry.id === groupId);
+    const golfer = unassigned.find((entry) => entry.id === golferId);
+
+    if (!group || !golfer) return;
+
+    const incomingPlayers = golfer.partner_name ? 2 : 1;
+    const currentPlayers = group.player_count ?? group.golfer_count;
+    const maxPlayers = group.max_golfers || 2;
+    if (currentPlayers + incomingPlayers > maxPlayers) return;
+
+    setUnassigned((prev) => prev.filter((entry) => entry.id !== golferId));
+    setGroups((prev) =>
+      prev.map((entry) =>
+        entry.id === groupId
+          ? {
+              ...entry,
+              golfers: [...entry.golfers, { ...golfer, payment_status: '', checked_in_at: null }],
+              golfer_count: entry.golfer_count + 1,
+              player_count: currentPlayers + incomingPlayers,
+              is_full: currentPlayers + incomingPlayers >= maxPlayers,
+            }
+          : entry
+      )
+    );
+
+    addGolferToGroup(groupId, golferId);
+  };
+
+  const handleCourseChange = (group: Group, nextCourseKey: string) => {
+    if (!nextCourseKey) {
+      updateGroupStart(group.id, null, null);
+      return;
+    }
+
+    const course = courseMap.get(nextCourseKey);
+    if (!course) return;
+
+    const nextHole =
+      group.starting_course_key === nextCourseKey && group.hole_number && group.hole_number <= course.hole_count
+        ? group.hole_number
+        : 1;
+
+    updateGroupStart(group.id, nextCourseKey, nextHole);
+  };
+
+  const renderGroupCard = (group: Group) => {
+    const selectedCourse = group.starting_course_key ? courseMap.get(group.starting_course_key) : null;
+    const label = group.starting_position_label || `Group ${group.group_number}`;
+
+    return (
+      <div
+        key={group.id}
+        className={`overflow-hidden rounded-2xl border bg-white transition-all ${
+          group.is_full ? 'border-green-300' : 'border-neutral-200'
+        }`}
+      >
+        <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-semibold text-neutral-900 sm:text-base">{label}</p>
+                {group.is_full && (
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 sm:text-xs">
+                    Complete
+                  </span>
+                )}
+                {!group.starting_course_key && (
+                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 sm:text-xs">
+                    Needs start
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-neutral-500">
+                {group.player_count ?? group.golfer_count} / {group.max_golfers || 2} players
+                {group.starting_hole_description ? ` · ${group.starting_hole_description}` : ''}
+              </p>
+            </div>
+            <button
+              onClick={() => deleteGroup(group.id)}
+              disabled={actionLoading === `delete-${group.id}`}
+              className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              title="Delete group"
+            >
+              {actionLoading === `delete-${group.id}` ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_110px]">
+            <select
+              value={group.starting_course_key ?? ''}
+              onChange={(event) => handleCourseChange(group, event.target.value)}
+              className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="">No course</option>
+              {courseConfigs.map((course) => (
+                <option key={course.key} value={course.key}>
+                  {course.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={group.hole_number ?? ''}
+              onChange={(event) =>
+                updateGroupStart(
+                  group.id,
+                  group.starting_course_key,
+                  event.target.value ? parseInt(event.target.value, 10) : null
+                )
+              }
+              disabled={!selectedCourse}
+              className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-neutral-100"
+            >
+              <option value="">{selectedCourse ? 'Select hole' : 'Select course'}</option>
+              {selectedCourse &&
+                Array.from({ length: selectedCourse.hole_count }, (_, index) => index + 1).map((hole) => (
+                  <option key={hole} value={hole}>
+                    Hole {hole}
+                  </option>
+                ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-2 p-3 lg:p-4">
+          {group.golfers.length > 0 ? (
+            group.golfers.map((golfer) => (
+              <div key={golfer.id} className="rounded-xl bg-neutral-50 px-3 py-2.5 lg:px-4 lg:py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-neutral-900">{golfer.name}</p>
+                    {golfer.partner_name && <p className="text-sm text-neutral-600">{golfer.partner_name}</p>}
+                  </div>
+                  <button
+                    onClick={() => removeGolferFromGroup(group.id, golfer.id)}
+                    disabled={actionLoading === `remove-${golfer.id}`}
+                    className="shrink-0 rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                    title="Remove team from group"
+                  >
+                    {actionLoading === `remove-${golfer.id}` ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="flex h-12 items-center justify-center text-sm italic text-neutral-400">
+              No teams assigned
+            </div>
+          )}
+
+          {!group.is_full && (
+            <DroppableGroupZone
+              groupId={group.id}
+              isOver={overGroupId === group.id}
+              canDrop={!group.is_full}
+            />
+          )}
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
       </div>
     );
   }
@@ -401,69 +607,66 @@ export const GroupManagementPage: React.FC = () => {
       onDragEnd={handleDragEnd}
     >
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900 flex items-center gap-2">
-              <Flag className="w-6 h-6 text-brand-600" />
-              Hole Assignment
+            <h1 className="flex items-center gap-2 text-2xl font-bold text-neutral-900">
+              <Flag className="h-6 w-6 text-brand-600" />
+              Starting Positions
             </h1>
-            <p className="text-sm text-neutral-500 mt-1">
-              {groups.length} groups &middot; {unassigned.length} unassigned teams
+            <p className="mt-1 text-sm text-neutral-500">
+              {groups.length} groups · {unassigned.length} unassigned teams · {courseConfigs.length} configured course{courseConfigs.length !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               onClick={autoAssign}
               disabled={actionLoading === 'auto' || unassigned.length === 0}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-xl hover:bg-brand-700 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
             >
-              {actionLoading === 'auto' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
+              {actionLoading === 'auto' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shuffle className="h-4 w-4" />}
               Auto-Assign All
             </button>
             <button
               onClick={createGroup}
               disabled={actionLoading === 'create'}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-700 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50"
             >
-              {actionLoading === 'create' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {actionLoading === 'create' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Add Group
             </button>
           </div>
         </div>
 
-        {/* Two-column layout: 1/3 sidebar + 2/3 groups */}
-        <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
-          {/* Left: Unassigned Teams */}
-          <div className="lg:col-span-1 lg:sticky lg:top-24 lg:self-start">
-            <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
-              <div className="px-4 py-3 bg-amber-50 border-b border-amber-200">
+        <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+          <div className="lg:sticky lg:top-24 lg:self-start">
+            <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+              <div className="border-b border-amber-200 bg-amber-50 px-4 py-3">
                 <h2 className="text-sm font-semibold text-amber-900">
                   Unassigned Teams ({unassigned.length})
                 </h2>
               </div>
 
               {unassigned.length > 5 && (
-                <div className="p-3 border-b border-neutral-100">
+                <div className="border-b border-neutral-100 p-3">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                     <input
                       type="text"
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(event) => setSearchTerm(event.target.value)}
                       placeholder="Search teams..."
-                      className="w-full pl-9 pr-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                      className="w-full rounded-xl border border-neutral-200 bg-neutral-50 py-2 pl-9 pr-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:text-sm"
                     />
                   </div>
                 </div>
               )}
 
-              <div className="p-3 space-y-2 max-h-60 lg:max-h-[calc(100vh-280px)] overflow-y-auto">
+              <div className="max-h-60 space-y-2 overflow-y-auto p-3 lg:max-h-[calc(100vh-280px)]">
                 {unassigned.length === 0 ? (
-                  <p className="text-sm text-neutral-400 text-center py-6">All teams assigned</p>
+                  <p className="py-6 text-center text-sm text-neutral-400">All teams assigned</p>
                 ) : (
                   <SortableContext
-                    items={filteredUnassigned.map((g) => `golfer-${g.id}`)}
+                    items={filteredUnassigned.map((golfer) => `golfer-${golfer.id}`)}
                     strategy={verticalListSortingStrategy}
                   >
                     {filteredUnassigned.map((golfer) => (
@@ -475,129 +678,86 @@ export const GroupManagementPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Right: Groups */}
-          <div className="lg:col-span-2 space-y-3 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto lg:pr-1">
+          <div className="space-y-5 lg:col-span-2">
             {groups.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-2xl border border-neutral-200">
-                <Flag className="w-12 h-12 text-neutral-300 mx-auto mb-4" strokeWidth={1.5} />
-                <h3 className="text-lg font-semibold text-neutral-900 mb-1">No groups yet</h3>
-                <p className="text-neutral-500 text-sm mb-4">
-                  Create groups and assign teams to holes for the shotgun start.
+              <div className="rounded-2xl border border-neutral-200 bg-white py-16 text-center">
+                <Flag className="mx-auto mb-4 h-12 w-12 text-neutral-300" strokeWidth={1.5} />
+                <h3 className="mb-1 text-lg font-semibold text-neutral-900">No groups yet</h3>
+                <p className="mb-4 text-sm text-neutral-500">
+                  Create groups and assign teams into course-based starting positions.
                 </p>
                 <button
                   onClick={createGroup}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-xl hover:bg-brand-700 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="h-4 w-4" />
                   Create First Group
                 </button>
               </div>
             ) : (
-              sortedGroups.map((group) => (
-                <div
-                  key={group.id}
-                  className={`bg-white rounded-2xl border overflow-hidden transition-all ${
-                    group.is_full ? 'border-green-300' : 'border-neutral-200'
-                  }`}
-                >
-                  {/* Group Header */}
-                  <div className="px-4 py-3 lg:px-5 lg:py-4 bg-neutral-50 border-b border-neutral-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${
-                          group.hole_number
-                            ? 'bg-brand-600 text-white'
-                            : 'bg-amber-100 text-amber-600 border-2 border-dashed border-amber-300'
-                        }`}>
-                          {group.hole_number ?? group.group_number}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                            <p className="text-sm sm:text-base font-semibold text-neutral-900">
-                              {group.hole_position_label && group.hole_position_label !== 'Unassigned'
-                                ? `Hole ${group.hole_position_label}`
-                                : `Group ${group.group_number}`}
-                            </p>
-                            {group.is_full && (
-                              <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Complete</span>
-                            )}
-                            {!group.hole_number && (
-                              <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-full font-medium border border-amber-200">Needs hole</span>
-                            )}
-                          </div>
-                          <p className="text-xs sm:text-sm text-neutral-500">
-                            {group.player_count ?? group.golfer_count} / {group.max_golfers || 2} players
-                          </p>
-                        </div>
+              <>
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Flag className="h-4 w-4 text-amber-500" />
+                    <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                      Unassigned Groups
+                    </h2>
+                  </div>
+                  {sortedUnassignedGroups.length > 0 ? (
+                    <div className="space-y-3">
+                      {sortedUnassignedGroups.map(renderGroupCard)}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-400">
+                      All groups have a configured starting position.
+                    </div>
+                  )}
+                </section>
+
+                {groupedCourses.map((course) => (
+                  <section key={course.key} className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-xl bg-brand-50 p-2 text-brand-600">
+                        <Building2 className="h-4 w-4" />
                       </div>
-                      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-2">
-                        <select
-                          value={group.hole_number ?? ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            updateGroupHole(group.id, val ? parseInt(val, 10) : null);
-                          }}
-                          className="text-xs sm:text-sm border border-neutral-200 rounded-lg px-2 sm:px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-brand-500 max-w-[100px] sm:max-w-none"
-                        >
-                          <option value="">No hole</option>
-                          {Array.from({ length: 18 }, (_, i) => i + 1).map((h) => (
-                            <option key={h} value={h}>Hole {h}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => deleteGroup(group.id)}
-                          disabled={actionLoading === `del-${group.id}`}
-                          className="p-1.5 sm:p-2 rounded-lg text-neutral-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
-                          title="Delete group"
-                        >
-                          {actionLoading === `del-${group.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                        </button>
+                      <div>
+                        <h2 className="text-lg font-semibold text-neutral-900">{course.name}</h2>
+                        <p className="text-sm text-neutral-500">{course.hole_count} starting hole{course.hole_count !== 1 ? 's' : ''}</p>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Players in Group */}
-                  <div className="p-3 lg:p-4 space-y-2">
-                    {group.golfers && group.golfers.length > 0 ? (
-                      group.golfers.map((golfer) => (
-                        <div
-                          key={golfer.id}
-                          className="bg-neutral-50 rounded-xl px-3 py-2.5 lg:px-4 lg:py-3"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-neutral-900">{golfer.name}</p>
-                              {golfer.partner_name && (
-                                <p className="text-sm text-neutral-600">{golfer.partner_name}</p>
-                              )}
+                    <div className="grid gap-3 xl:grid-cols-2">
+                      {course.holes.map((hole) => (
+                        <div key={`${course.key}-${hole.holeNumber}`} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+                          <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-neutral-900">Hole {hole.holeNumber}</p>
+                                <p className="text-xs text-neutral-500">
+                                  {hole.groups.length} group{hole.groups.length !== 1 ? 's' : ''} assigned
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-600">
+                                {course.name}
+                              </span>
                             </div>
-                            <button
-                              onClick={() => removeGolferFromGroup(group.id, golfer.id)}
-                              disabled={actionLoading === `rm-${golfer.id}`}
-                              className="p-1.5 rounded-lg text-neutral-400 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0 disabled:opacity-50 ml-3"
-                              title="Remove team from group"
-                            >
-                              {actionLoading === `rm-${golfer.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                            </button>
+                          </div>
+
+                          <div className="space-y-3 p-3">
+                            {hole.groups.length > 0 ? (
+                              hole.groups.map(renderGroupCard)
+                            ) : (
+                              <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-400">
+                                No groups assigned to this starting hole yet.
+                              </div>
+                            )}
                           </div>
                         </div>
-                      ))
-                    ) : (
-                      <div className="flex items-center justify-center h-12 text-neutral-400 text-sm italic">
-                        No teams assigned
-                      </div>
-                    )}
-
-                    {!group.is_full && (
-                      <DroppableGroupZone
-                        groupId={group.id}
-                        isOver={overGroupId === group.id}
-                        canDrop={!group.is_full}
-                      />
-                    )}
-                  </div>
-                </div>
-              ))
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </>
             )}
           </div>
         </div>

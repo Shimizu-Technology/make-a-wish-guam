@@ -55,6 +55,7 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     
     assert_difference "Group.count", 1 do
       post api_v1_groups_url, params: {
+        starting_course_key: "course-1",
         hole_number: 10
       }, headers: auth_headers
     end
@@ -62,6 +63,7 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     
     json = JSON.parse(response.body)
     assert_equal expected_number, json["group_number"]
+    assert_equal "course-1", json["starting_course_key"]
     assert_equal 10, json["hole_number"]
   end
 
@@ -83,12 +85,50 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     group = groups(:group_three)
     
     patch api_v1_group_url(group), params: {
-      group: { hole_number: 15 }
+      group: { starting_course_key: "course-1", hole_number: 15 }
     }, headers: auth_headers
     
     assert_response :success
     group.reload
+    assert_equal "course-1", group.starting_course_key
     assert_equal 15, group.hole_number
+  end
+
+  test "set_hole clears an assigned starting position" do
+    group = groups(:group_one)
+
+    post set_hole_api_v1_group_url(group), params: {
+      starting_course_key: nil,
+      hole_number: nil
+    }, headers: auth_headers
+
+    assert_response :success
+    group.reload
+    assert_nil group.starting_course_key
+    assert_nil group.hole_number
+  end
+
+  test "set_hole supports configured multi-course assignments" do
+    group = groups(:group_three)
+    tournament = group.tournament
+    tournament.update!(
+      config: {
+        course_configs: [
+          { key: "hibiscus", name: "Hibiscus", hole_count: 9 },
+          { key: "bouganvillea", name: "Bouganvillea", hole_count: 9 }
+        ]
+      }
+    )
+
+    post set_hole_api_v1_group_url(group), params: {
+      starting_course_key: "hibiscus",
+      hole_number: 3
+    }, headers: auth_headers
+
+    assert_response :success
+    group.reload
+    assert_equal "hibiscus", group.starting_course_key
+    assert_equal 3, group.hole_number
   end
 
   # ==================
@@ -105,4 +145,3 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_response :no_content
   end
 end
-

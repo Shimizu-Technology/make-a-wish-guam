@@ -1,6 +1,8 @@
 class GroupSerializer < ActiveModel::Serializer
-  attributes :id, :tournament_id, :group_number, :hole_number, :created_at, :updated_at,
-             :golfer_count, :is_full, :hole_position_label, :max_golfers, :player_count
+  attributes :id, :tournament_id, :group_number, :starting_course_key, :starting_course_name,
+             :hole_number, :created_at, :updated_at, :golfer_count, :is_full,
+             :starting_position_label, :hole_position_label, :starting_hole_description,
+             :max_golfers, :player_count
 
   has_many :golfers
 
@@ -20,24 +22,19 @@ class GroupSerializer < ActiveModel::Serializer
     object.max_golfers
   end
 
-  # Hole-based label for the group (e.g., "7A" for first foursome at Hole 7)
-  # Always includes a letter suffix for consistency (even if only one foursome at that hole)
+  def starting_course_name
+    object.starting_course_name
+  end
+
+  def starting_position_label
+    object.starting_position_label
+  end
+
   def hole_position_label
-    return "Unassigned" unless object.hole_number
+    object.hole_position_label
+  end
 
-    # Get all groups at this hole, sorted by group_number for consistent ordering
-    groups_at_hole = Group.where(
-      tournament_id: object.tournament_id,
-      hole_number: object.hole_number
-    ).order(:group_number)
-
-    # Find this group's index among all groups at this hole
-    group_ids = groups_at_hole.pluck(:id)
-    position_index = group_ids.index(object.id)
-    
-    # Always add letter suffix for consistency
-    position_letter = ('A'..'Z').to_a[position_index] || 'X'
-    "#{object.hole_number}#{position_letter}"
+  def starting_hole_description
+    object.starting_hole_description
   end
 end
-

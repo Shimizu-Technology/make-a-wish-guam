@@ -86,11 +86,30 @@ interface RaffleBundleDef {
   label: string;
 }
 
+interface CourseConfigDef {
+  key: string;
+  name: string;
+  hole_count: number;
+}
+
 const DEFAULT_RAFFLE_BUNDLES: RaffleBundleDef[] = [
   { quantity: 4,  price_cents: 2000,  label: '$20 for 4 tickets' },
   { quantity: 12, price_cents: 5000,  label: '$50 for 12 tickets' },
   { quantity: 25, price_cents: 10000, label: '$100 for 25 tickets' },
 ];
+
+const DEFAULT_COURSE_CONFIGS: CourseConfigDef[] = [
+  { key: 'course-1', name: 'Course', hole_count: 18 },
+];
+
+function createCourseConfig(seed?: number): CourseConfigDef {
+  const suffix = seed ?? Date.now();
+  return {
+    key: `course-${suffix}-${Math.random().toString(36).slice(2, 8)}`,
+    name: 'New Course',
+    hole_count: 9,
+  };
+}
 
 interface TournamentSettings {
   id: string;
@@ -120,6 +139,7 @@ interface TournamentSettings {
   raffle_ticket_price_cents: string;
   raffle_include_with_registration: boolean;
   raffle_bundles: RaffleBundleDef[];
+  course_configs: CourseConfigDef[];
   sponsor_edit_deadline: string;
   sponsor_tiers: SponsorTierDef[];
   event_schedule: string;
@@ -383,6 +403,7 @@ export const OrgSettingsPage: React.FC = () => {
               raffle_ticket_price_cents: t.raffle_ticket_price_cents?.toString() || '500',
               raffle_include_with_registration: t.raffle_include_with_registration ?? false,
               raffle_bundles: t.raffle_bundles || DEFAULT_RAFFLE_BUNDLES,
+              course_configs: t.course_configs?.length ? t.course_configs : DEFAULT_COURSE_CONFIGS,
               sponsor_edit_deadline: t.sponsor_edit_deadline || '',
               sponsor_tiers: t.sponsor_tiers || [
                 { key: 'title', label: 'Title Sponsor', sort_order: 0 },
@@ -417,6 +438,39 @@ export const OrgSettingsPage: React.FC = () => {
     });
   };
 
+  const updateCourseConfig = (key: string, patch: Partial<CourseConfigDef>) => {
+    setTournamentSettings(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        course_configs: prev.course_configs.map((course) =>
+          course.key === key ? { ...course, ...patch } : course
+        ),
+      };
+    });
+  };
+
+  const addCourseConfig = () => {
+    setTournamentSettings(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        course_configs: [...prev.course_configs, createCourseConfig(prev.course_configs.length + 1)],
+      };
+    });
+  };
+
+  const removeCourseConfig = (key: string) => {
+    setTournamentSettings(prev => {
+      if (!prev || prev.course_configs.length <= 1) return prev;
+
+      return {
+        ...prev,
+        course_configs: prev.course_configs.filter((course) => course.key !== key),
+      };
+    });
+  };
+
   const saveTournamentSettings = async (token: string): Promise<boolean> => {
     if (!tournamentSettings?.id) return true;
 
@@ -448,6 +502,7 @@ export const OrgSettingsPage: React.FC = () => {
       raffle_ticket_price_cents: tournamentSettings.raffle_ticket_price_cents ? parseInt(tournamentSettings.raffle_ticket_price_cents) : 500,
       raffle_include_with_registration: tournamentSettings.raffle_include_with_registration,
       raffle_bundles: tournamentSettings.raffle_bundles,
+      course_configs: tournamentSettings.course_configs,
       sponsor_edit_deadline: tournamentSettings.sponsor_edit_deadline || null,
       sponsor_tiers: tournamentSettings.sponsor_tiers,
       event_schedule: tournamentSettings.event_schedule || null,
@@ -966,6 +1021,77 @@ export const OrgSettingsPage: React.FC = () => {
                     <p className="mt-1 text-xs text-gray-400">Contact support to change team size</p>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-sm sm:text-md font-semibold text-gray-900 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    Starting Courses
+                  </h3>
+                  <p className="mt-1 text-xs sm:text-sm text-gray-500">
+                    Configure how starting positions are grouped. This supports one 18-hole course, two 9-hole courses, or other layouts.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addCourseConfig}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Course
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {tournamentSettings.course_configs.map((course, index) => (
+                  <div key={course.key} className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Course {index + 1}</p>
+                        <p className="text-xs text-gray-500">Used by hole assignments, reports, check-in, and golfer-facing start info.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeCourseConfig(course.key)}
+                        disabled={tournamentSettings.course_configs.length <= 1}
+                        className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                        title="Remove course"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px] gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Course Name
+                        </label>
+                        <input
+                          type="text"
+                          value={course.name}
+                          onChange={(e) => updateCourseConfig(course.key, { name: e.target.value })}
+                          placeholder="e.g. Hibiscus"
+                          className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Holes
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={course.hole_count}
+                          onChange={(e) => updateCourseConfig(course.key, { hole_count: Math.max(1, parseInt(e.target.value || '1', 10)) })}
+                          className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 

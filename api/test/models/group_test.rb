@@ -110,6 +110,62 @@ class GroupTest < ActiveSupport::TestCase
     assert_equal 4, Group::MAX_GOLFERS
   end
 
+  test "assigns default course key for legacy single-course holes" do
+    group = Group.new(
+      tournament: tournaments(:tournament_one),
+      group_number: 101,
+      hole_number: 9
+    )
+
+    assert group.valid?
+    assert_equal "course-1", group.starting_course_key
+    assert_equal "9A", group.starting_position_label
+  end
+
+  test "supports multi-course starting labels" do
+    tournament = tournaments(:tournament_one)
+    tournament.update!(
+      config: {
+        course_configs: [
+          { key: "hibiscus", name: "Hibiscus", hole_count: 9 },
+          { key: "bouganvillea", name: "Bouganvillea", hole_count: 9 }
+        ]
+      }
+    )
+
+    group = Group.new(
+      tournament: tournament,
+      group_number: 102,
+      starting_course_key: "hibiscus",
+      hole_number: 1
+    )
+
+    assert group.valid?
+    assert_equal "Hibiscus 1A", group.starting_position_label
+    assert_equal "Hibiscus Hole 1", group.starting_hole_description
+  end
+
+  test "rejects hole numbers outside configured course range" do
+    tournament = tournaments(:tournament_one)
+    tournament.update!(
+      config: {
+        course_configs: [
+          { key: "hibiscus", name: "Hibiscus", hole_count: 9 }
+        ]
+      }
+    )
+
+    group = Group.new(
+      tournament: tournament,
+      group_number: 103,
+      starting_course_key: "hibiscus",
+      hole_number: 10
+    )
+
+    assert_not group.valid?
+    assert_includes group.errors[:hole_number], "must be between 1 and 9 for Hibiscus"
+  end
+
   test "add_golfer assigns golfer to group" do
     group = groups(:group_three)
     group.golfers.destroy_all

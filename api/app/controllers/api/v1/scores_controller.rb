@@ -240,12 +240,14 @@ module Api
             tournament_format: @tournament.tournament_format,
             team_size: @tournament.team_size,
             total_holes: @tournament.total_holes || 18,
-            total_par: @tournament.total_par || 72
+            total_par: @tournament.total_par || 72,
+            course_configs: @tournament.course_configs
           },
           group: {
             id: group.id,
             group_number: group.group_number,
-            hole_position: group.hole_position_label
+            hole_position: group.hole_position_label,
+            starting_hole_description: group.starting_hole_description
           },
           golfers: golfers.map { |g| { id: g.id, name: g.name } },
           holes: holes,

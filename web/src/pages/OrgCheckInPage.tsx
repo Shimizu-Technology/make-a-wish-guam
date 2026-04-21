@@ -116,7 +116,7 @@ export const OrgCheckInPage: React.FC = () => {
 
       const data = await response.json();
       setTournamentName(data.tournament?.name || '');
-
+      
       if (data.stats?.revenue != null) {
         setRevenue(data.stats.revenue);
       }
@@ -282,22 +282,22 @@ export const OrgCheckInPage: React.FC = () => {
       <section className="overflow-hidden rounded-[28px] shadow-sm">
         <div className="bg-brand-600 px-4 py-6">
           <div className="max-w-6xl mx-auto">
-            <div className="flex items-center justify-between mb-4">
-              <Link
+          <div className="flex items-center justify-between mb-4">
+            <Link
                 to={adminEventPath(tournamentSlug || '')}
                 className="flex items-center gap-2 text-white/80 hover:text-white transition"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span>Back to Admin</span>
-              </Link>
-              <button
-                onClick={fetchData}
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span>Back to Admin</span>
+            </Link>
+            <button
+              onClick={fetchData}
                 className="flex items-center gap-2 px-3 py-2 bg-white/15 hover:bg-white/25 text-white rounded-lg transition"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Refresh</span>
-              </button>
-            </div>
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Refresh</span>
+            </button>
+          </div>
             <h1 className="text-2xl font-bold text-center text-white mb-1">{tournamentName}</h1>
             <p className="text-white/80 text-center">
               Check-In Station
@@ -310,7 +310,7 @@ export const OrgCheckInPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Bar */}
+      {/* Stats Bar */}
         <div className="bg-white border-b border-gray-200 px-4 py-4">
           <div className="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="text-center">
@@ -418,7 +418,7 @@ export const OrgCheckInPage: React.FC = () => {
                 }`}
               >
                 <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  golfer.checked_in_at
+                    golfer.checked_in_at
                     ? 'bg-green-100 text-green-600'
                     : golfer.payment_status === 'paid'
                     ? 'bg-brand-50 text-brand-600'
@@ -542,7 +542,7 @@ export const OrgCheckInPage: React.FC = () => {
                 {selectedGolfer.hole_position_label && (
                   <div className="flex items-center gap-3">
                     <Flag className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <span className="text-gray-700">Hole {selectedGolfer.hole_position_label}</span>
+                    <span className="text-gray-700">Start {selectedGolfer.hole_position_label}</span>
                   </div>
                 )}
 
@@ -671,7 +671,7 @@ export const OrgCheckInPage: React.FC = () => {
                 <p className="text-gray-500 text-sm mt-1">Team: {confirmingCheckIn.name} & {confirmingCheckIn.partner_name}</p>
               )}
               {confirmingCheckIn.hole_position_label && (
-                <p className="text-gray-400 text-xs mt-1">Hole {confirmingCheckIn.hole_position_label}</p>
+                <p className="text-gray-400 text-xs mt-1">Start {confirmingCheckIn.hole_position_label}</p>
               )}
             </div>
             <div className="flex border-t border-gray-200">
@@ -721,7 +721,7 @@ export const OrgCheckInPage: React.FC = () => {
               )}
               {selectedGolfer.hole_position_label && (
                 <span className="text-xs px-2.5 py-1 rounded-full bg-white/15 text-white font-medium">
-                  Hole {selectedGolfer.hole_position_label}
+                  Start {selectedGolfer.hole_position_label}
                 </span>
               )}
             </div>

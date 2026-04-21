@@ -2,11 +2,13 @@
 group_one:
   tournament: tournament_one
   group_number: 1
+  starting_course_key: course-1
   hole_number: 1
 
 group_two:
   tournament: tournament_one
   group_number: 2
+  starting_course_key: course-1
   hole_number: 5
 
 group_three:

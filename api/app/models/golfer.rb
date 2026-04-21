@@ -305,27 +305,13 @@ class Golfer < ApplicationRecord
     "#{group.group_number}#{letter.upcase}"
   end
 
-  # New hole-based position label (e.g., "7A" for first foursome at Hole 7)
-  # The letter indicates which foursome at that hole, not the player's position
-  # Always includes a letter suffix for consistency (even if only one foursome at that hole)
-  def hole_position_label
+  def starting_position_label
     return nil unless group
-    return "Unassigned" unless group.hole_number
 
-    # Get all groups at this hole, sorted by group_number for consistent ordering
-    groups_at_hole = Group.where(
-      tournament_id: tournament_id,
-      hole_number: group.hole_number
-    ).order(:group_number)
-
-    # Find this group's index among all groups at this hole
-    group_ids = groups_at_hole.pluck(:id)
-    position_index = group_ids.index(group.id)
-    
-    # Always add letter suffix for consistency
-    position_letter = ('A'..'Z').to_a[position_index] || 'X'
-    "#{group.hole_number}#{position_letter}"
+    group.starting_position_label
   end
+
+  alias_method :hole_position_label, :starting_position_label
 
   # Check if this is a Stripe payment that's been confirmed
   def stripe_payment_confirmed?
