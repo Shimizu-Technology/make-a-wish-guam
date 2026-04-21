@@ -64,4 +64,19 @@ class TournamentTest < ActiveSupport::TestCase
     assert_not tournament.valid?
     assert_includes tournament.errors[:config], "Course configuration keys must be unique"
   end
+
+  test "course_configs cache reflects config changes on the same instance" do
+    tournament = tournaments(:tournament_one)
+    tournament.config = {
+      course_configs: [
+        { key: "hibiscus", name: "Hibiscus", hole_count: 9 }
+      ]
+    }
+
+    assert_equal "Hibiscus", tournament.course_configs.first["name"]
+
+    tournament.config["course_configs"][0]["name"] = "Bouganvillea"
+
+    assert_equal "Bouganvillea", tournament.course_configs.first["name"]
+  end
 end

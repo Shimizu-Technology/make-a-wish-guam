@@ -1,26 +1,41 @@
 class ResetMawStartingPositions < ActiveRecord::Migration[8.1]
+  class MigrationOrganization < ActiveRecord::Base
+    self.table_name = 'organizations'
+  end
+
+  class MigrationTournament < ActiveRecord::Base
+    self.table_name = 'tournaments'
+  end
+
+  class MigrationGroup < ActiveRecord::Base
+    self.table_name = 'groups'
+  end
+
   COURSE_CONFIGS = [
     { 'key' => 'hibiscus', 'name' => 'Hibiscus', 'hole_count' => 9 },
     { 'key' => 'bouganvillea', 'name' => 'Bouganvillea', 'hole_count' => 9 }
   ].freeze
 
   def up
-    organization = Organization.find_by(slug: 'make-a-wish-guam')
-    return unless organization
+    organization_id = MigrationOrganization.where(slug: 'make-a-wish-guam').pick(:id)
+    return unless organization_id
 
-    tournament = organization.tournaments.find_by(slug: 'golf-for-wishes-2026')
+    tournament = MigrationTournament.find_by(
+      organization_id: organization_id,
+      slug: 'golf-for-wishes-2026'
+    )
     return unless tournament
 
     config = (tournament.config || {}).deep_stringify_keys
     config['course_configs'] = COURSE_CONFIGS
 
-    tournament.update_columns(
+    MigrationTournament.where(id: tournament.id).update_all(
       config: config,
       total_holes: 18,
       updated_at: Time.current
     )
 
-    tournament.groups.update_all(
+    MigrationGroup.where(tournament_id: tournament.id).update_all(
       starting_course_key: nil,
       hole_number: nil,
       updated_at: Time.current

@@ -77,20 +77,26 @@ class Tournament < ApplicationRecord
   end
 
   def course_configs
-    custom = config&.dig('course_configs')
+    current_inputs = course_configs_cache_inputs
+    return @course_configs_cache if @course_configs_cache_inputs == current_inputs
+
+    custom = current_inputs[:raw_course_configs]
     normalized = self.class.normalize_course_configs(
       custom,
-      fallback_hole_count: total_holes || 18,
-      fallback_course_name: course_name.presence || 'Course'
+      fallback_hole_count: current_inputs[:fallback_hole_count],
+      fallback_course_name: current_inputs[:fallback_course_name]
     )
 
-    return normalized if normalized.present?
-
-    [{
-      'key' => DEFAULT_COURSE_KEY,
-      'name' => course_name.presence || 'Course',
-      'hole_count' => [total_holes || 18, 1].max
-    }]
+    @course_configs_cache_inputs = current_inputs
+    @course_configs_cache = if normalized.present?
+      normalized
+    else
+      [{
+        'key' => DEFAULT_COURSE_KEY,
+        'name' => current_inputs[:fallback_course_name],
+        'hole_count' => [current_inputs[:fallback_hole_count].to_i, 1].max
+      }]
+    end
   end
 
   def default_course_key
@@ -377,6 +383,14 @@ class Tournament < ApplicationRecord
   end
 
   private
+
+  def course_configs_cache_inputs
+    {
+      raw_course_configs: config&.dig('course_configs')&.deep_dup,
+      fallback_hole_count: total_holes || 18,
+      fallback_course_name: course_name.presence || 'Course'
+    }
+  end
 
   def normalize_course_configs_in_config
     @course_configs_input_present = false
