@@ -10,7 +10,7 @@ module Api
         tournament = find_tournament
         return render_tournament_required unless tournament
 
-        groups = tournament.groups.with_golfers
+        groups = preload_group_position_letters(tournament.groups.with_golfers)
 
         render json: groups, each_serializer: GroupSerializer, include: "golfers"
       end
@@ -355,10 +355,14 @@ module Api
         [{ starting_course_key: course_key, hole_number: hole_number }, nil]
       end
 
+      def preload_group_position_letters(groups)
+        Group.preload_position_letters(groups.to_a)
+      end
+
       def broadcast_groups_update(tournament)
         return unless tournament
         
-        groups = tournament.groups.with_golfers
+        groups = preload_group_position_letters(tournament.groups.with_golfers)
         ActionCable.server.broadcast("groups_channel", {
           action: "updated",
           tournament_id: tournament.id,

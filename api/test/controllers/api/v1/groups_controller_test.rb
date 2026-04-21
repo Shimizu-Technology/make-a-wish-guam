@@ -21,6 +21,25 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert json.length > 0
   end
 
+  test "index returns stable labels for multiple groups on the same start" do
+    tournament = tournaments(:tournament_one)
+    second_group = tournament.groups.create!(
+      group_number: 4,
+      starting_course_key: "course-1",
+      hole_number: 1
+    )
+
+    get api_v1_groups_url, headers: auth_headers
+    assert_response :success
+
+    json = JSON.parse(response.body)
+    first = json.find { |group| group["id"] == groups(:group_one).id }
+    second = json.find { |group| group["id"] == second_group.id }
+
+    assert_equal "1A", first["starting_position_label"]
+    assert_equal "1B", second["starting_position_label"]
+  end
+
   test "index requires authentication" do
     get api_v1_groups_url
     assert_response :unauthorized

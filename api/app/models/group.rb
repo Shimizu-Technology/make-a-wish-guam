@@ -18,6 +18,19 @@ class Group < ApplicationRecord
   MAX_GOLFERS_DEFAULT = 4
   MAX_GOLFERS = MAX_GOLFERS_DEFAULT
 
+  def self.preload_position_letters(groups)
+    groups.select(&:assigned_start?)
+          .group_by { |group| [group.starting_course_key, group.hole_number] }
+          .each_value do |groups_at_start|
+      groups_at_start.sort_by!(&:group_number)
+      groups_at_start.each_with_index do |group, index|
+        group.precomputed_position_letter = ("A".."Z").to_a[index] || "X"
+      end
+    end
+
+    groups
+  end
+
   def max_golfers
     tournament&.team_size || MAX_GOLFERS_DEFAULT
   end
@@ -88,18 +101,21 @@ class Group < ApplicationRecord
 
   private
 
+  attr_writer :precomputed_position_letter
+
   def position_letter
+    return @precomputed_position_letter if instance_variable_defined?(:@precomputed_position_letter)
+
     groups_at_start = Group.where(
       tournament_id: tournament_id,
       starting_course_key: starting_course_key,
       hole_number: hole_number
-    ).order(:group_number)
+    ).order(:group_number).pluck(:id, :group_number)
 
-    group_ids = groups_at_start.pluck(:id)
-    position_index = group_ids.index(id)
-    position_index ||= groups_at_start.pluck(:group_number).count { |number| number < group_number }
+    position_index = groups_at_start.index { |group_id, _group_number| group_id == id }
+    position_index ||= groups_at_start.count { |_group_id, number| number < group_number }
 
-    ('A'..'Z').to_a[position_index] || 'X'
+    ("A".."Z").to_a[position_index] || "X"
   end
 
   def normalize_starting_position

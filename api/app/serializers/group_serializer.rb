@@ -7,7 +7,7 @@ class GroupSerializer < ActiveModel::Serializer
   has_many :golfers
 
   def golfer_count
-    object.golfers.count
+    object.golfers.size
   end
 
   def player_count
