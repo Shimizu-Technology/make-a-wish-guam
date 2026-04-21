@@ -80,23 +80,12 @@ class Tournament < ApplicationRecord
     current_inputs = course_configs_cache_inputs
     return @course_configs_cache if @course_configs_cache_inputs == current_inputs
 
-    custom = current_inputs[:raw_course_configs]
-    normalized = self.class.normalize_course_configs(
-      custom,
+    @course_configs_cache_inputs = current_inputs
+    @course_configs_cache = self.class.normalize_course_configs(
+      current_inputs[:raw_course_configs],
       fallback_hole_count: current_inputs[:fallback_hole_count],
       fallback_course_name: current_inputs[:fallback_course_name]
     )
-
-    @course_configs_cache_inputs = current_inputs
-    @course_configs_cache = if normalized.present?
-      normalized
-    else
-      [{
-        'key' => DEFAULT_COURSE_KEY,
-        'name' => current_inputs[:fallback_course_name],
-        'hole_count' => [current_inputs[:fallback_hole_count].to_i, 1].max
-      }]
-    end
   end
 
   def default_course_key
@@ -417,12 +406,6 @@ class Tournament < ApplicationRecord
     return if errors[:config].present?
 
     configs = course_configs
-
-    if configs.blank?
-      errors.add(:base, 'At least one course must be configured')
-      return
-    end
-
     invalid = configs.any? do |course|
       course['name'].blank? || course['hole_count'].to_i <= 0
     end
