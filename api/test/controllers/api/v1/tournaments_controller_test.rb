@@ -93,4 +93,20 @@ class Api::V1::TournamentsControllerTest < ActionDispatch::IntegrationTest
     json = JSON.parse(response.body)
     assert_includes json["errors"], "Config Course configuration keys must be unique"
   end
+
+  test "update rejects course config keys that collide with generated defaults" do
+    patch "/api/v1/tournaments/#{tournaments(:tournament_one).id}", params: {
+      tournament: {
+        course_configs: [
+          { name: "Hibiscus", hole_count: 9 },
+          { key: "course-1", name: "Bouganvillea", hole_count: 9 }
+        ]
+      }
+    }, headers: auth_headers, as: :json
+
+    assert_response :unprocessable_entity
+
+    json = JSON.parse(response.body)
+    assert_includes json["errors"], "Config Course configuration keys must be unique"
+  end
 end

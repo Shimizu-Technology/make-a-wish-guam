@@ -65,6 +65,23 @@ class TournamentTest < ActiveSupport::TestCase
     assert_includes tournament.errors[:config], "Course configuration keys must be unique"
   end
 
+  test "rejects course config keys that collide with generated defaults" do
+    tournament = tournaments(:tournament_one)
+
+    tournament.assign_attributes(
+      config: {
+        course_configs: [
+          { name: "Hibiscus", hole_count: 9 },
+          { key: "course-1", name: "Bouganvillea", hole_count: 9 }
+        ]
+      },
+      total_holes: 18
+    )
+
+    assert_not tournament.valid?
+    assert_includes tournament.errors[:config], "Course configuration keys must be unique"
+  end
+
   test "course_configs cache reflects config changes on the same instance" do
     tournament = tournaments(:tournament_one)
     tournament.config = {

@@ -437,13 +437,13 @@ class Tournament < ApplicationRecord
       return
     end
 
-    explicit_keys = raw_configs.filter_map do |entry|
+    effective_keys = raw_configs.filter_map.with_index do |entry, idx|
       next unless entry.respond_to?(:to_h)
 
-      entry.to_h.stringify_keys['key'].to_s.strip.presence
+      self.class.normalized_course_config_key(entry.to_h.stringify_keys, idx)
     end
 
-    if explicit_keys.uniq.length != explicit_keys.length
+    if effective_keys.uniq.length != effective_keys.length
       errors.add(:config, 'Course configuration keys must be unique')
       return
     end
@@ -467,10 +467,8 @@ class Tournament < ApplicationRecord
       hole_count = data['hole_count'].to_i
       next if name.blank? || hole_count <= 0
 
-      key = data['key'].to_s.strip.presence || "course-#{idx + 1}"
-
       {
-        'key' => key,
+        'key' => normalized_course_config_key(data, idx),
         'name' => name,
         'hole_count' => hole_count
       }
@@ -485,6 +483,10 @@ class Tournament < ApplicationRecord
     else
       entries.uniq { |course| course['key'] }
     end
+  end
+
+  def self.normalized_course_config_key(data, idx)
+    data['key'].to_s.strip.presence || "course-#{idx + 1}"
   end
 
   def generate_slug
