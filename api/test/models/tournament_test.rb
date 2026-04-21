@@ -47,4 +47,21 @@ class TournamentTest < ActiveSupport::TestCase
     assert_not tournament.valid?
     assert_includes tournament.errors[:config], "At least one course must be configured"
   end
+
+  test "rejects duplicate explicit course config keys" do
+    tournament = tournaments(:tournament_one)
+
+    tournament.assign_attributes(
+      config: {
+        course_configs: [
+          { key: "hibiscus", name: "Hibiscus Front", hole_count: 9 },
+          { key: "hibiscus", name: "Hibiscus Back", hole_count: 9 }
+        ]
+      },
+      total_holes: 18
+    )
+
+    assert_not tournament.valid?
+    assert_includes tournament.errors[:config], "Course configuration keys must be unique"
+  end
 end

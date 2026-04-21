@@ -468,7 +468,10 @@ export const GroupManagementPage: React.FC = () => {
 
   const renderGroupCard = (group: Group) => {
     const selectedCourse = group.starting_course_key ? courseMap.get(group.starting_course_key) : null;
-    const label = group.starting_position_label || `Group ${group.group_number}`;
+    const label =
+      group.starting_position_label && group.starting_position_label !== 'Unassigned'
+        ? group.starting_position_label
+        : `Group ${group.group_number}`;
 
     return (
       <div

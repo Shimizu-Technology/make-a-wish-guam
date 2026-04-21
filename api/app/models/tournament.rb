@@ -421,6 +421,17 @@ class Tournament < ApplicationRecord
       return
     end
 
+    explicit_keys = raw_configs.filter_map do |entry|
+      next unless entry.respond_to?(:to_h)
+
+      entry.to_h.stringify_keys['key'].to_s.strip.presence
+    end
+
+    if explicit_keys.uniq.length != explicit_keys.length
+      errors.add(:config, 'Course configuration keys must be unique')
+      return
+    end
+
     invalid = raw_configs.any? do |entry|
       next true unless entry.respond_to?(:to_h)
 

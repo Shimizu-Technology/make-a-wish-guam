@@ -252,8 +252,8 @@ module Api
         return if performed?
 
         attrs = tournament_params.to_h
-        if attrs['course_configs'].present?
-          courses = attrs.delete('course_configs')
+        if attrs.key?('course_configs')
+          courses = Array(attrs.delete('course_configs')).map(&:to_h)
           attrs['config'] = (attrs['config'] || {}).merge('course_configs' => courses)
           attrs['total_holes'] = courses.sum { |course| course['hole_count'].to_i }
         end

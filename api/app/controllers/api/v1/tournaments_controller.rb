@@ -46,8 +46,8 @@ module Api
         return if performed?
 
         attrs = tournament_params.except(:organization_id, :course_configs)
-        if params.dig(:tournament, :course_configs).present?
-          courses = tournament_params[:course_configs]&.map(&:to_h)
+        if params[:tournament]&.key?(:course_configs)
+          courses = Array(tournament_params[:course_configs]).map(&:to_h)
           attrs[:config] = (attrs[:config] || {}).merge('course_configs' => courses)
           attrs[:total_holes] = courses.sum { |course| course[:hole_count].to_i }
         end
@@ -89,8 +89,8 @@ module Api
           merged_config['raffle_bundles'] = tournament_params[:raffle_bundles]&.map(&:to_h)
         end
 
-        if params.dig(:tournament, :course_configs).present?
-          courses = tournament_params[:course_configs]&.map(&:to_h)
+        if params[:tournament]&.key?(:course_configs)
+          courses = Array(tournament_params[:course_configs]).map(&:to_h)
           merged_config['course_configs'] = courses
           attrs[:total_holes] = courses.sum { |course| course[:hole_count].to_i }
         end

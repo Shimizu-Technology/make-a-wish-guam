@@ -228,6 +228,8 @@ export interface Group {
   created_at: string;
   updated_at: string;
   golfer_count: number;
+  player_count: number;
+  max_golfers: number;
   is_full: boolean;
   starting_position_label: string | null;
   hole_position_label: string | null;
