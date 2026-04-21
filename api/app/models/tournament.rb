@@ -401,11 +401,13 @@ class Tournament < ApplicationRecord
     stringified = config.deep_stringify_keys
     @course_configs_input_present = stringified.key?('course_configs')
     @raw_course_configs_input = stringified['course_configs']
-    stringified['course_configs'] = self.class.normalize_course_configs(
-      stringified['course_configs'],
-      fallback_hole_count: total_holes || 18,
-      fallback_course_name: course_name.presence || 'Course'
-    )
+    if @course_configs_input_present
+      stringified['course_configs'] = self.class.normalize_course_configs(
+        stringified['course_configs'],
+        fallback_hole_count: total_holes || 18,
+        fallback_course_name: course_name.presence || 'Course'
+      )
+    end
 
     self.config = stringified
   end

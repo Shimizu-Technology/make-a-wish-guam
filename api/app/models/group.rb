@@ -24,7 +24,7 @@ class Group < ApplicationRecord
           .each_value do |groups_at_start|
       groups_at_start.sort_by!(&:group_number)
       groups_at_start.each_with_index do |group, index|
-        group.precomputed_position_letter = ("A".."Z").to_a[index] || "X"
+        group.send(:precomputed_position_letter=, ("A".."Z").to_a[index] || "X")
       end
     end
 

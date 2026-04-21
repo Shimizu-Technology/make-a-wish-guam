@@ -79,4 +79,18 @@ class TournamentTest < ActiveSupport::TestCase
 
     assert_equal "Bouganvillea", tournament.course_configs.first["name"]
   end
+
+  test "saving without explicit course configs does not persist fallback config" do
+    tournament = tournaments(:tournament_one)
+    tournament.update_column(:config, { "sponsor_tiers" => [] })
+    tournament.reload
+
+    assert_equal({ "sponsor_tiers" => [] }, tournament.config)
+    assert_equal "course-1", tournament.course_configs.first["key"]
+
+    tournament.update!(name: "Updated Tournament Without Explicit Courses")
+
+    assert_equal({ "sponsor_tiers" => [] }, tournament.reload.config)
+    assert_equal "course-1", tournament.course_configs.first["key"]
+  end
 end
