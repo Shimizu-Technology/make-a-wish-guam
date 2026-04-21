@@ -150,6 +150,50 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 3, group.hole_number
   end
 
+  test "set_hole rejects zero as an invalid hole number" do
+    group = groups(:group_three)
+
+    post set_hole_api_v1_group_url(group), params: {
+      starting_course_key: "course-1",
+      hole_number: 0
+    }, headers: auth_headers
+
+    assert_response :unprocessable_entity
+    assert_includes JSON.parse(response.body)["error"], "Hole number must be between 1 and 18"
+    group.reload
+    assert_nil group.hole_number
+  end
+
+  test "add_golfer returns validation errors instead of bypassing them" do
+    group = groups(:group_three)
+    group.golfers.destroy_all
+    golfer = golfers(:confirmed_unpaid)
+    golfer.update_column(:name, nil)
+
+    post add_golfer_api_v1_group_url(group), params: { golfer_id: golfer.id }, headers: auth_headers
+
+    assert_response :unprocessable_entity
+    assert_includes JSON.parse(response.body)["errors"], "Name can't be blank"
+    golfer.reload
+    assert_nil golfer.group_id
+    assert_nil golfer.position
+  end
+
+  test "remove_golfer returns validation errors instead of bypassing them" do
+    golfer = golfers(:confirmed_paid)
+    group = golfer.group
+    original_position = golfer.position
+    golfer.update_column(:name, nil)
+
+    post remove_golfer_api_v1_group_url(group), params: { golfer_id: golfer.id }, headers: auth_headers
+
+    assert_response :unprocessable_entity
+    assert_includes JSON.parse(response.body)["errors"], "Name can't be blank"
+    golfer.reload
+    assert_equal group.id, golfer.group_id
+    assert_equal original_position, golfer.position
+  end
+
   # ==================
   # DELETE /api/v1/groups/:id
   # ==================

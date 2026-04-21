@@ -162,7 +162,7 @@ module Api
           broadcast_groups_update(group.tournament)
           render json: group, include: "golfers"
         else
-          render json: { error: "Failed to add golfer to group" }, status: :unprocessable_entity
+          render json: { errors: golfer.errors.full_messages }, status: :unprocessable_entity
         end
       end
 
@@ -177,18 +177,20 @@ module Api
         end
 
         hole_label = group.starting_position_label
-        group.remove_golfer(golfer)
-        
-        ActivityLog.log(
-          admin: current_admin,
-          action: 'golfer_removed_from_group',
-          target: golfer,
-          details: "Removed #{golfer.name} from #{starting_position_reference(group, label: hole_label)}",
-          metadata: { group_id: group.id, group_number: group.group_number, hole_label: hole_label }
-        )
-        
-        broadcast_groups_update(group.tournament)
-        render json: group, include: "golfers"
+        if group.remove_golfer(golfer)
+          ActivityLog.log(
+            admin: current_admin,
+            action: 'golfer_removed_from_group',
+            target: golfer,
+            details: "Removed #{golfer.name} from #{starting_position_reference(group, label: hole_label)}",
+            metadata: { group_id: group.id, group_number: group.group_number, hole_label: hole_label }
+          )
+          
+          broadcast_groups_update(group.tournament)
+          render json: group, include: "golfers"
+        else
+          render json: { errors: golfer.errors.full_messages }, status: :unprocessable_entity
+        end
       end
 
       # POST /api/v1/groups/update_positions
@@ -260,13 +262,18 @@ module Api
                        .select { |g| g.can_add?(golfer) }
                        .first
 
+          created_group = false
           unless group
             next_number = (tournament.groups.maximum(:group_number) || 0) + 1
             group = tournament.groups.create!(group_number: next_number)
+            created_group = true
           end
 
-          group.add_golfer(golfer)
-          assigned_count += 1
+          if group.add_golfer(golfer)
+            assigned_count += 1
+          elsif created_group && group.golfers.none?
+            group.destroy
+          end
         end
 
         broadcast_groups_update(tournament)

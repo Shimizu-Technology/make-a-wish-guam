@@ -89,14 +89,15 @@ class Group < ApplicationRecord
 
     next_position = golfers.count + 1
     golfer.assign_attributes(group_id: id, position: next_position)
-    golfer.save!(validate: false)
-    true
+    golfer.save
   end
 
   def remove_golfer(golfer)
     golfer.assign_attributes(group_id: nil, position: nil)
-    golfer.save!(validate: false)
+    return false unless golfer.save
+
     reorder_positions
+    true
   end
 
   private
@@ -145,9 +146,14 @@ class Group < ApplicationRecord
 
   def hole_number_within_course_range
     return unless starting_course_key.present? && hole_number.present? && tournament.present?
+    return if errors[:starting_course_key].present?
 
     max_holes = tournament.hole_count_for_course(starting_course_key)
-    return if max_holes <= 0 || hole_number <= max_holes
+    unless max_holes.positive?
+      errors.add(:starting_course_key, "is not configured for a valid hole range")
+      return
+    end
+    return if hole_number <= max_holes
 
     errors.add(:hole_number, "must be between 1 and #{max_holes} for #{starting_course_name}")
   end

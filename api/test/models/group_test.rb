@@ -168,10 +168,35 @@ class GroupTest < ActiveSupport::TestCase
     assert_includes group.errors[:hole_number], "must be between 1 and 9 for Hibiscus"
   end
 
+  test "rejects invalid course hole ranges instead of silently skipping validation" do
+    tournament = tournaments(:tournament_one)
+    group = Group.new(
+      tournament: tournament,
+      group_number: 104,
+      starting_course_key: "course-1",
+      hole_number: 1
+    )
+
+    tournament.define_singleton_method(:hole_count_for_course) { |_course_key| 0 }
+
+    assert_not group.valid?
+    assert_includes group.errors[:starting_course_key], "is not configured for a valid hole range"
+  end
+
   test "add_golfer assigns golfer to group" do
     group = groups(:group_three)
     group.golfers.destroy_all
-    golfer = golfers(:confirmed_unpaid)
+    golfer = Golfer.create!(
+      tournament: group.tournament,
+      name: "Valid Assigned Golfer",
+      email: "assigned-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0101",
+      payment_type: "pay_on_day",
+      payment_status: "unpaid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
+    )
     
     result = group.add_golfer(golfer)
     
@@ -181,14 +206,78 @@ class GroupTest < ActiveSupport::TestCase
     assert_equal 1, golfer.position
   end
 
+  test "add_golfer does not bypass golfer validations" do
+    group = groups(:group_three)
+    group.golfers.destroy_all
+    golfer = Golfer.create!(
+      tournament: group.tournament,
+      name: "Temporarily Invalid Golfer",
+      email: "invalid-add-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0102",
+      payment_type: "pay_on_day",
+      payment_status: "unpaid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
+    )
+    golfer.name = nil
+
+    result = group.add_golfer(golfer)
+
+    assert_not result
+    assert_includes golfer.errors[:name], "can't be blank"
+    golfer.reload
+    assert_nil golfer.group_id
+    assert_nil golfer.position
+  end
+
   test "remove_golfer unassigns golfer from group" do
-    golfer = golfers(:confirmed_paid)
-    group = golfer.group
+    group = groups(:group_one)
+    golfer = Golfer.create!(
+      tournament: group.tournament,
+      group: group,
+      name: "Valid Removed Golfer",
+      email: "removed-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0103",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      position: group.golfers.maximum(:position).to_i + 1
+    )
     
     group.remove_golfer(golfer)
     golfer.reload
     
     assert_nil golfer.group_id
     assert_nil golfer.position
+  end
+
+  test "remove_golfer does not bypass golfer validations" do
+    group = groups(:group_one)
+    golfer = Golfer.create!(
+      tournament: group.tournament,
+      group: group,
+      name: "Temporarily Invalid Removal Golfer",
+      email: "invalid-remove-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0104",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      position: group.golfers.maximum(:position).to_i + 1
+    )
+    original_position = golfer.position
+    golfer.name = nil
+
+    result = group.remove_golfer(golfer)
+
+    assert_not result
+    assert_includes golfer.errors[:name], "can't be blank"
+    golfer.reload
+    assert_equal group.id, golfer.group_id
+    assert_equal original_position, golfer.position
   end
 end
