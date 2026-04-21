@@ -49,7 +49,7 @@ module Api
         if params[:tournament]&.key?(:course_configs)
           courses = Array(tournament_params[:course_configs]).map(&:to_h)
           attrs[:config] = (attrs[:config] || {}).merge('course_configs' => courses)
-          attrs[:total_holes] = courses.sum { |course| course[:hole_count].to_i }
+          attrs[:total_holes] = courses.sum { |course| course['hole_count'].to_i }
         end
 
         tournament = organization.tournaments.new(attrs)
@@ -92,7 +92,7 @@ module Api
         if params[:tournament]&.key?(:course_configs)
           courses = Array(tournament_params[:course_configs]).map(&:to_h)
           merged_config['course_configs'] = courses
-          attrs[:total_holes] = courses.sum { |course| course[:hole_count].to_i }
+          attrs[:total_holes] = courses.sum { |course| course['hole_count'].to_i }
         end
 
         attrs[:config] = merged_config if merged_config != @tournament.config

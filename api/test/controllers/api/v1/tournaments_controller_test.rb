@@ -8,6 +8,44 @@ class Api::V1::TournamentsControllerTest < ActionDispatch::IntegrationTest
     authenticate_as(@admin)
   end
 
+  test "create persists total_holes from course configs" do
+    post "/api/v1/admin/tournaments", params: {
+      tournament: {
+        organization_id: organizations(:org_one).id,
+        name: "Configured Course Tournament",
+        year: 2027,
+        status: "draft",
+        course_configs: [
+          { key: "hibiscus", name: "Hibiscus", hole_count: 9 },
+          { key: "bouganvillea", name: "Bouganvillea", hole_count: 9 }
+        ]
+      }
+    }, headers: auth_headers
+
+    assert_response :created
+
+    tournament = Tournament.order(:created_at).last
+    assert_equal 18, tournament.total_holes
+  end
+
+  test "update persists total_holes from course configs" do
+    tournament = tournaments(:tournament_one)
+
+    patch "/api/v1/tournaments/#{tournament.id}", params: {
+      tournament: {
+        course_configs: [
+          { key: "hibiscus", name: "Hibiscus", hole_count: 9 },
+          { key: "bouganvillea", name: "Bouganvillea", hole_count: 9 }
+        ]
+      }
+    }, headers: auth_headers
+
+    assert_response :success
+
+    tournament.reload
+    assert_equal 18, tournament.total_holes
+  end
+
   test "create rejects an explicitly empty course config list" do
     assert_no_difference "Tournament.count" do
       post "/api/v1/admin/tournaments", params: {
