@@ -194,6 +194,47 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal original_position, golfer.position
   end
 
+  test "auto_assign reports failures and cleans up empty groups created for invalid golfers" do
+    tournament = tournaments(:tournament_one)
+    tournament.update_column(:team_size, 1)
+    groups(:group_three).golfers.create!(
+      tournament: tournament,
+      name: "Existing Group Three Player",
+      company: "Test Corp",
+      address: "123 Test St",
+      phone: "671-555-0100",
+      email: "group-three@test.com",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      waiver_accepted_at: Time.current,
+      registration_status: "confirmed",
+      team_category: "Male",
+      position: 1
+    )
+
+    golfer = golfers(:confirmed_unpaid)
+    golfer.update_column(:name, nil)
+
+    assert_no_difference "Group.count" do
+      post auto_assign_api_v1_groups_url, params: {
+        tournament_id: tournament.id
+      }, headers: auth_headers
+    end
+
+    assert_response :success
+
+    json = JSON.parse(response.body)
+    assert_equal 0, json["assigned_count"]
+    assert_equal 1, json["failed_count"]
+    assert_equal golfer.id, json.dig("failures", 0, "golfer_id")
+    assert_includes json.dig("failures", 0, "errors"), "Name can't be blank"
+    assert_includes json["message"], "1 could not be assigned"
+
+    golfer.reload
+    assert_nil golfer.group_id
+    assert_nil golfer.position
+  end
+
   # ==================
   # DELETE /api/v1/groups/:id
   # ==================

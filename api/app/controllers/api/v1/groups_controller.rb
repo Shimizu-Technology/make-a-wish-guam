@@ -256,6 +256,7 @@ module Api
         end
 
         assigned_count = 0
+        failures = []
 
         unassigned.each do |golfer|
           group = tournament.groups.includes(:golfers)
@@ -271,19 +272,37 @@ module Api
 
           if group.add_golfer(golfer)
             assigned_count += 1
-          elsif created_group && group.golfers.none?
-            group.destroy
+          else
+            group.destroy if created_group && group.golfers.none?
+            failures << auto_assign_failure_for(golfer)
           end
         end
 
         broadcast_groups_update(tournament)
+        message =
+          if failures.any?
+            "Auto-assigned #{assigned_count} golfers; #{failures.length} could not be assigned"
+          else
+            "Auto-assigned #{assigned_count} golfers"
+          end
+
         render json: {
-          message: "Auto-assigned #{assigned_count} golfers",
-          assigned_count: assigned_count
+          message: message,
+          assigned_count: assigned_count,
+          failed_count: failures.length,
+          failures: failures
         }
       end
 
       private
+
+      def auto_assign_failure_for(golfer)
+        {
+          golfer_id: golfer.id,
+          name: golfer.name,
+          errors: golfer.errors.full_messages.presence || ["Unable to auto-assign golfer"]
+        }
+      end
 
       def authorize_collection_tournament_access!
         tournament = find_tournament

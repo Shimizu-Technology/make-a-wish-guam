@@ -73,6 +73,17 @@ interface UnassignedGolfer {
   email: string;
 }
 
+interface AutoAssignResponse {
+  message: string;
+  assigned_count: number;
+  failed_count: number;
+  failures: Array<{
+    golfer_id: number;
+    name: string | null;
+    errors: string[];
+  }>;
+}
+
 const DEFAULT_COURSE_CONFIGS: CourseConfig[] = [
   { key: 'course-1', name: 'Course', hole_count: 18 },
 ];
@@ -294,8 +305,12 @@ export const GroupManagementPage: React.FC = () => {
         body: JSON.stringify({ tournament_id: tournamentId }),
       });
       if (!res.ok) throw new Error('Failed to auto-assign');
-      const data = await res.json();
-      toast.success(data.message || 'Auto-assigned');
+      const data: AutoAssignResponse = await res.json();
+      if (data.failed_count > 0) {
+        toast.error(data.message || 'Some golfers could not be auto-assigned');
+      } else {
+        toast.success(data.message || 'Auto-assigned');
+      }
       fetchData(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed');

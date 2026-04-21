@@ -237,6 +237,17 @@ export interface Group {
   golfers?: Golfer[];
 }
 
+export interface AutoAssignResult {
+  message: string;
+  assigned_count: number;
+  failed_count: number;
+  failures: Array<{
+    golfer_id: number;
+    name: string | null;
+    errors: string[];
+  }>;
+}
+
 export interface EmployeeNumber {
   id: number;
   tournament_id: number;
@@ -891,7 +902,7 @@ export class ApiClient {
     });
   }
 
-  async autoAssignGolfers(tournamentId?: number): Promise<{ message: string; assigned_count: number }> {
+  async autoAssignGolfers(tournamentId?: number): Promise<AutoAssignResult> {
     const id = tournamentId || this.currentTournamentId;
     return this.request('/api/v1/groups/auto_assign', {
       method: 'POST',
