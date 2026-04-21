@@ -21,7 +21,8 @@ import {
   ChevronDown,
   ChevronUp,
   ShieldCheck,
-  CalendarClock
+  CalendarClock,
+  Flag,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { AddGolferModal } from '../components/AddGolferModal';
@@ -55,6 +56,7 @@ interface Golfer {
   sponsor_display_name: string | null;
   team_category: string | null;
   registration_source: 'admin' | 'public' | null;
+  hole_position_label: string | null;
 }
 
 interface Tournament {
@@ -440,13 +442,14 @@ export const OrgTournamentAdmin: React.FC = () => {
   };
 
   const exportCSV = () => {
-    const headers = ['Name', 'Email', 'Phone', 'Company', 'Partner Name', 'Category', 'Source', 'Status', 'Payment', 'Payment Method', 'Checked In', 'Registered'];
+    const headers = ['Name', 'Email', 'Phone', 'Company', 'Partner Name', 'Starting Position', 'Category', 'Source', 'Status', 'Payment', 'Payment Method', 'Checked In', 'Registered'];
     const rows = filteredGolfers.map(g => [
       g.name,
       g.email,
       g.phone,
       g.company || '',
       g.partner_name || '',
+      g.hole_position_label || '',
       g.team_category || '',
       g.registration_source === 'admin' ? 'Admin' : 'Public',
       g.payment_status === 'paid' ? 'Confirmed' : 'Pending Payment',
@@ -876,6 +879,12 @@ export const OrgTournamentAdmin: React.FC = () => {
                               )}
                             </p>
                             {golfer.company && <p className="text-sm text-gray-500">{golfer.company}</p>}
+                            {golfer.hole_position_label && (
+                              <div className="mt-1 flex items-center gap-1.5 text-xs text-brand-700">
+                                <Flag className="h-3.5 w-3.5 flex-shrink-0" />
+                                <span>Start {golfer.hole_position_label}</span>
+                              </div>
+                            )}
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {golfer.sponsor_display_name && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-full">
@@ -985,6 +994,12 @@ export const OrgTournamentAdmin: React.FC = () => {
                   }`}>
                     {selectedGolfer.registration_source === 'admin' ? 'Admin Registered' : 'Public'}
                   </span>
+                  {selectedGolfer.hole_position_label && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700">
+                      <Flag className="h-3.5 w-3.5" />
+                      Start {selectedGolfer.hole_position_label}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1048,13 +1063,19 @@ export const OrgTournamentAdmin: React.FC = () => {
                     <span>{selectedGolfer.company}</span>
                   </div>
                 )}
+                {selectedGolfer.hole_position_label && (
+                  <div className="flex items-center gap-3">
+                    <Flag className="w-5 h-5 text-gray-400" />
+                    <span>Start {selectedGolfer.hole_position_label}</span>
+                  </div>
+                )}
 
                 {/* Activity History */}
                 <div className="pt-3 border-t border-gray-100">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Activity History</p>
                   {loadingLogs ? (
                     <div className="text-center py-3 text-gray-500 text-sm">Loading...</div>
-                  ) : activityLogs.length === 0 ? (
+                  ) : (
                     <div className="space-y-2">
                       <div className="flex items-start gap-2 text-sm bg-gray-50 rounded-lg p-2">
                         <div className={`flex-shrink-0 w-1.5 h-1.5 rounded-full mt-1.5 ${selectedGolfer.payment_type === 'sponsor' ? 'bg-blue-500' : 'bg-brand-500'}`} />
@@ -1099,9 +1120,6 @@ export const OrgTournamentAdmin: React.FC = () => {
                           {selectedGolfer.payment_notes}
                         </div>
                       )}
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
                       {activityLogs.map((log: any) => (
                         <div key={log.id} className="flex items-start gap-2 text-sm bg-gray-50 rounded-lg p-2">
                           <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-brand-500 mt-1.5" />
@@ -1114,6 +1132,11 @@ export const OrgTournamentAdmin: React.FC = () => {
                           </div>
                         </div>
                       ))}
+                      {activityLogs.length === 0 && (
+                        <div className="rounded-lg bg-gray-50 p-2 text-xs text-gray-400">
+                          No additional admin actions recorded yet.
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

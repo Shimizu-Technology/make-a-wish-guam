@@ -457,6 +457,12 @@ export const OrgCheckInPage: React.FC = () => {
                     {golfer.phone} &bull; {golfer.email}
                   </p>
                   {golfer.company && <p className="text-gray-400 text-[11px] sm:text-xs truncate">{golfer.company}</p>}
+                  {golfer.hole_position_label && (
+                    <div className="mt-1 flex items-center gap-1.5 text-[11px] text-brand-700 sm:text-xs">
+                      <Flag className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">Start {golfer.hole_position_label}</span>
+                    </div>
+                  )}
                 </div>
 
                 {!golfer.checked_in_at && golfer.payment_status === 'paid' && (

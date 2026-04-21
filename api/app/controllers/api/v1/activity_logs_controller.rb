@@ -75,6 +75,18 @@ module Api
         logs = ActivityLog
           .where(target_type: 'Golfer', target_id: golfer.id)
           .or(ActivityLog.where("metadata->>'golfer_name' = ?", golfer.name))
+
+        if golfer.group_id.present?
+          logs = logs.or(
+            ActivityLog.where(
+              target_type: 'Group',
+              target_id: golfer.group_id,
+              action: 'group_updated'
+            )
+          )
+        end
+
+        logs = logs
           .recent
           .includes(:user)
           .limit(20)

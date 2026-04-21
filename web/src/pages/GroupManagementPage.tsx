@@ -168,6 +168,7 @@ export const GroupManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overGroupId, setOverGroupId] = useState<number | null>(null);
+  const [draftStarts, setDraftStarts] = useState<Record<number, { startingCourseKey: string; holeNumber: number | null }>>({});
 
   const orgSlug = organization?.slug || 'make-a-wish-guam';
 
@@ -250,6 +251,16 @@ export const GroupManagementPage: React.FC = () => {
       .filter((group) => !group.starting_course_key || !group.hole_number || !courseMap.has(group.starting_course_key))
       .sort((a, b) => a.group_number - b.group_number);
   }, [courseMap, groups]);
+
+  const assignableGroups = useMemo(
+    () =>
+      sortedUnassignedGroups.map((group) => ({
+        id: group.id,
+        label: `Group ${group.group_number}`,
+        detail: `${group.player_count ?? group.golfer_count} / ${group.max_golfers || 2} players`,
+      })),
+    [sortedUnassignedGroups]
+  );
 
   const groupedCourses = useMemo(() => {
     return courseConfigs.map((course) => ({
@@ -361,6 +372,12 @@ export const GroupManagementPage: React.FC = () => {
         throw new Error(data.error || 'Failed to update starting position');
       }
 
+      setDraftStarts((prev) => {
+        if (!(groupId in prev)) return prev;
+        const next = { ...prev };
+        delete next[groupId];
+        return next;
+      });
       fetchData(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed');
@@ -465,13 +482,35 @@ export const GroupManagementPage: React.FC = () => {
   };
 
   const handleCourseChange = (group: Group, nextCourseKey: string) => {
+    const isAwaitingStart =
+      !group.starting_course_key || !group.hole_number || !courseMap.has(group.starting_course_key);
+
     if (!nextCourseKey) {
-      updateGroupStart(group.id, null, null);
+      if (isAwaitingStart) {
+        setDraftStarts((prev) => {
+          const next = { ...prev };
+          delete next[group.id];
+          return next;
+        });
+      } else {
+        updateGroupStart(group.id, null, null);
+      }
       return;
     }
 
     const course = courseMap.get(nextCourseKey);
     if (!course) return;
+
+    if (isAwaitingStart) {
+      setDraftStarts((prev) => ({
+        ...prev,
+        [group.id]: {
+          startingCourseKey: nextCourseKey,
+          holeNumber: null,
+        },
+      }));
+      return;
+    }
 
     const nextHole =
       group.starting_course_key === nextCourseKey && group.hole_number && group.hole_number <= course.hole_count
@@ -481,8 +520,21 @@ export const GroupManagementPage: React.FC = () => {
     updateGroupStart(group.id, nextCourseKey, nextHole);
   };
 
+  const assignGroupToHole = (groupId: number, courseKey: string, holeNumber: number) => {
+    updateGroupStart(groupId, courseKey, holeNumber);
+  };
+
   const renderGroupCard = (group: Group) => {
-    const selectedCourse = group.starting_course_key ? courseMap.get(group.starting_course_key) : null;
+    const isAwaitingStart =
+      !group.starting_course_key || !group.hole_number || !courseMap.has(group.starting_course_key);
+    const draftStart = draftStarts[group.id];
+    const selectedCourseKey = isAwaitingStart
+      ? draftStart?.startingCourseKey ?? group.starting_course_key ?? ''
+      : group.starting_course_key ?? '';
+    const selectedHoleNumber = isAwaitingStart
+      ? draftStart?.holeNumber ?? group.hole_number
+      : group.hole_number;
+    const selectedCourse = selectedCourseKey ? courseMap.get(selectedCourseKey) : null;
     const label =
       group.starting_position_label && group.starting_position_label !== 'Unassigned'
         ? group.starting_position_label
@@ -505,15 +557,21 @@ export const GroupManagementPage: React.FC = () => {
                     Complete
                   </span>
                 )}
-                {!group.starting_course_key && (
+                {isAwaitingStart && !selectedCourseKey && (
                   <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 sm:text-xs">
                     Needs start
+                  </span>
+                )}
+                {isAwaitingStart && selectedCourseKey && !selectedHoleNumber && (
+                  <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700 sm:text-xs">
+                    Pick a hole
                   </span>
                 )}
               </div>
               <p className="mt-1 text-xs text-neutral-500">
                 {group.player_count ?? group.golfer_count} / {group.max_golfers || 2} players
                 {group.starting_hole_description ? ` · ${group.starting_hole_description}` : ''}
+                {isAwaitingStart && selectedCourse && !selectedHoleNumber ? ` · ${selectedCourse.name} selected` : ''}
               </p>
             </div>
             <button
@@ -532,7 +590,7 @@ export const GroupManagementPage: React.FC = () => {
 
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_110px]">
             <select
-              value={group.starting_course_key ?? ''}
+              value={selectedCourseKey}
               onChange={(event) => handleCourseChange(group, event.target.value)}
               className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-500"
             >
@@ -544,14 +602,29 @@ export const GroupManagementPage: React.FC = () => {
               ))}
             </select>
             <select
-              value={group.hole_number ?? ''}
-              onChange={(event) =>
-                updateGroupStart(
-                  group.id,
-                  group.starting_course_key,
-                  event.target.value ? parseInt(event.target.value, 10) : null
-                )
-              }
+              value={selectedHoleNumber ?? ''}
+              onChange={(event) => {
+                const nextHole = event.target.value ? parseInt(event.target.value, 10) : null;
+
+                if (isAwaitingStart) {
+                  if (!selectedCourseKey) return;
+                  if (!nextHole) {
+                    setDraftStarts((prev) => ({
+                      ...prev,
+                      [group.id]: {
+                        startingCourseKey: selectedCourseKey,
+                        holeNumber: null,
+                      },
+                    }));
+                    return;
+                  }
+
+                  updateGroupStart(group.id, selectedCourseKey, nextHole);
+                  return;
+                }
+
+                updateGroupStart(group.id, group.starting_course_key, nextHole);
+              }}
               disabled={!selectedCourse}
               className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-neutral-100"
             >
@@ -718,9 +791,12 @@ export const GroupManagementPage: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <Flag className="h-4 w-4 text-amber-500" />
                     <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                      Unassigned Groups
+                      Groups Needing a Start
                     </h2>
                   </div>
+                  <p className="text-sm text-neutral-500">
+                    Build the team here first. Choosing a course will stay local until you pick a hole, so the card will not jump away mid-edit.
+                  </p>
                   {sortedUnassignedGroups.length > 0 ? (
                     <div className="space-y-3">
                       {sortedUnassignedGroups.map(renderGroupCard)}
@@ -765,8 +841,30 @@ export const GroupManagementPage: React.FC = () => {
                             {hole.groups.length > 0 ? (
                               hole.groups.map(renderGroupCard)
                             ) : (
-                              <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-400">
-                                No groups assigned to this starting hole yet.
+                              <div className="space-y-3 rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-4">
+                                <div className="text-center text-sm text-neutral-400">
+                                  No groups assigned to this starting hole yet.
+                                </div>
+                                <select
+                                  defaultValue=""
+                                  onChange={(event) => {
+                                    const groupId = event.target.value ? parseInt(event.target.value, 10) : null;
+                                    if (!groupId) return;
+                                    assignGroupToHole(groupId, course.key, hole.holeNumber);
+                                    event.currentTarget.value = '';
+                                  }}
+                                  disabled={assignableGroups.length === 0}
+                                  className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-neutral-100"
+                                >
+                                  <option value="">
+                                    {assignableGroups.length === 0 ? 'No unassigned groups available' : 'Assign existing group...'}
+                                  </option>
+                                  {assignableGroups.map((group) => (
+                                    <option key={group.id} value={group.id}>
+                                      {group.label} - {group.detail}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
                             )}
                           </div>
