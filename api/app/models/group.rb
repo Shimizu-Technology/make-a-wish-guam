@@ -12,7 +12,7 @@ class Group < ApplicationRecord
 
   before_validation :normalize_starting_position
 
-  scope :with_golfers, -> { includes(:golfers).order(:group_number) }
+  scope :with_golfers, -> { includes(:golfers, :tournament).order(:group_number) }
   scope :for_tournament, ->(tournament_id) { where(tournament_id: tournament_id) }
 
   MAX_GOLFERS_DEFAULT = 4
