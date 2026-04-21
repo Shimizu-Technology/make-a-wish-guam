@@ -18,4 +18,33 @@ class TournamentTest < ActiveSupport::TestCase
 
     assert_equal original.organization_id, copy.organization_id
   end
+
+  test "rejects invalid course configs instead of silently dropping them" do
+    tournament = tournaments(:tournament_one)
+
+    tournament.assign_attributes(
+      config: {
+        course_configs: [
+          { key: "hibiscus", name: "", hole_count: 9 },
+          { key: "bouganvillea", name: "Bouganvillea", hole_count: 9 }
+        ]
+      },
+      total_holes: 18
+    )
+
+    assert_not tournament.valid?
+    assert_includes tournament.errors[:config], "Course configuration is invalid"
+  end
+
+  test "rejects an explicitly empty course config list" do
+    tournament = tournaments(:tournament_one)
+
+    tournament.assign_attributes(
+      config: { course_configs: [] },
+      total_holes: 18
+    )
+
+    assert_not tournament.valid?
+    assert_includes tournament.errors[:config], "At least one course must be configured"
+  end
 end

@@ -379,9 +379,14 @@ class Tournament < ApplicationRecord
   private
 
   def normalize_course_configs_in_config
+    @course_configs_input_present = false
+    @raw_course_configs_input = nil
+
     return unless config.is_a?(Hash)
 
     stringified = config.deep_stringify_keys
+    @course_configs_input_present = stringified.key?('course_configs')
+    @raw_course_configs_input = stringified['course_configs']
     stringified['course_configs'] = self.class.normalize_course_configs(
       stringified['course_configs'],
       fallback_hole_count: total_holes || 18,
@@ -392,6 +397,9 @@ class Tournament < ApplicationRecord
   end
 
   def course_configs_are_valid
+    validate_raw_course_configs_input if @course_configs_input_present
+    return if errors[:config].present?
+
     configs = course_configs
 
     if configs.blank?
@@ -402,6 +410,24 @@ class Tournament < ApplicationRecord
     invalid = configs.any? do |course|
       course['name'].blank? || course['hole_count'].to_i <= 0
     end
+    errors.add(:config, 'Course configuration is invalid') if invalid
+  end
+
+  def validate_raw_course_configs_input
+    raw_configs = Array(@raw_course_configs_input)
+
+    if raw_configs.blank?
+      errors.add(:config, 'At least one course must be configured')
+      return
+    end
+
+    invalid = raw_configs.any? do |entry|
+      next true unless entry.respond_to?(:to_h)
+
+      data = entry.to_h.stringify_keys
+      data['name'].to_s.strip.blank? || data['hole_count'].to_i <= 0
+    end
+
     errors.add(:config, 'Course configuration is invalid') if invalid
   end
 
