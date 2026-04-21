@@ -614,13 +614,13 @@ module Api
 
       # Compute hole position labels for all golfers in one query instead of 2 per golfer
       def bulk_hole_position_labels(tournament_id, golfers)
-        tournament = Tournament.find(tournament_id)
-
         groups_by_id = {}
         golfers.each do |g|
           groups_by_id[g.group_id] = g.group if g.group
         end
         return {} if groups_by_id.empty?
+
+        tournament = Tournament.find(tournament_id)
 
         groups_by_hole = Group.where(tournament_id: tournament_id)
                               .where.not(hole_number: nil)

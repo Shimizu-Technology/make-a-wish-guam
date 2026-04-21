@@ -399,10 +399,6 @@ class Tournament < ApplicationRecord
       return
     end
 
-    if configs.map { |course| course['key'] }.uniq.length != configs.length
-      errors.add(:config, 'Course keys must be unique')
-    end
-
     invalid = configs.any? do |course|
       course['name'].blank? || course['hole_count'].to_i <= 0
     end

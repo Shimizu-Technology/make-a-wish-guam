@@ -75,12 +75,14 @@ class Group < ApplicationRecord
     return false unless can_add?(golfer)
 
     next_position = golfers.count + 1
-    golfer.update_columns(group_id: id, position: next_position, updated_at: Time.current)
+    golfer.assign_attributes(group_id: id, position: next_position)
+    golfer.save!(validate: false)
     true
   end
 
   def remove_golfer(golfer)
-    golfer.update_columns(group_id: nil, position: nil, updated_at: Time.current)
+    golfer.assign_attributes(group_id: nil, position: nil)
+    golfer.save!(validate: false)
     reorder_positions
   end
 
