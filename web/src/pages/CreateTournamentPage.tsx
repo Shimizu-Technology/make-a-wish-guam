@@ -10,7 +10,6 @@ import {
   DollarSign,
   Users,
   Trophy,
-  Clock,
   Save,
   Loader2,
   AlertCircle,

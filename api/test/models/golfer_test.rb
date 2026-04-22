@@ -57,6 +57,50 @@ class GolferTest < ActiveSupport::TestCase
     assert_includes golfer.errors[:email], "has already registered for this tournament"
   end
 
+  test "should allow duplicate email for admin-added manual registrations" do
+    existing = golfers(:confirmed_paid)
+    golfer = Golfer.new(
+      tournament: existing.tournament,
+      name: "Admin Added",
+      email: existing.email,
+      phone: "671-555-9999",
+      payment_type: "pay_on_day",
+      registration_source: "admin",
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
+    )
+
+    assert golfer.valid?, "Admin-added registrations should allow duplicate emails: #{golfer.errors.full_messages.join(', ')}"
+  end
+
+  test "should allow public registration when duplicate email only exists on admin-added team" do
+    tournament = tournaments(:tournament_one)
+    tournament.golfers.create!(
+      name: "Admin POC",
+      email: "shared-contact@example.com",
+      phone: "671-555-1212",
+      payment_type: "pay_on_day",
+      payment_status: "unpaid",
+      registration_status: "confirmed",
+      registration_source: "admin",
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
+    )
+
+    golfer = Golfer.new(
+      tournament: tournament,
+      name: "Public Golfer",
+      email: "shared-contact@example.com",
+      phone: "671-555-3434",
+      payment_type: "pay_on_day",
+      registration_source: "public",
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
+    )
+
+    assert golfer.valid?, "Public registration should not be blocked by admin-only duplicate emails: #{golfer.errors.full_messages.join(', ')}"
+  end
+
   test "should allow same email in different tournaments" do
     existing = golfers(:confirmed_paid)
     other_tournament = tournaments(:tournament_archived)

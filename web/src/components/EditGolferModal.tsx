@@ -1,31 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
+import type { Golfer } from '../services/api';
 import { X, Loader2, Save, Banknote, CreditCard, Building2, AlertTriangle, Star, Flag } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-interface Golfer {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  company: string | null;
-  partner_name: string | null;
-  partner_email: string | null;
-  partner_phone: string | null;
-  registration_status: 'confirmed' | 'waitlist' | 'cancelled';
-  payment_status: 'paid' | 'unpaid' | 'refunded';
-  payment_method: string | null;
-  payment_type: string | null;
-  notes: string | null;
-  checked_in_at: string | null;
-  created_at: string;
-  sponsor_id?: number | null;
-  sponsor_name?: string | null;
-  sponsor_display_name?: string | null;
-  team_category?: string | null;
-  hole_position_label?: string | null;
-  starting_hole_description?: string | null;
-}
 
 interface EditGolferModalProps {
   isOpen: boolean;
@@ -46,7 +23,7 @@ interface FormData {
   partner_email: string;
   partner_phone: string;
   team_category: string;
-  payment_status: 'paid' | 'unpaid' | 'refunded';
+  payment_status: 'paid' | 'unpaid' | 'pending' | 'refunded';
   payment_method: string;
   notes: string;
 }

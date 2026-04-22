@@ -1,12 +1,23 @@
 # frozen_string_literal: true
 
+require "mini_magick"
+
 module Api
   module V1
     module Admin
       class UploadsController < ApplicationController
         include Authenticated
 
-        before_action :require_super_admin!
+        ALLOWED_IMAGE_TYPES = %w[
+          image/jpeg
+          image/png
+          image/gif
+          image/svg+xml
+          image/webp
+          image/avif
+        ].freeze
+
+        before_action :require_branding_access!
 
         # POST /api/v1/admin/uploads
         # Accepts a file upload and returns the URL
@@ -16,12 +27,12 @@ module Api
           end
 
           file = params[:file]
+          upload_io = nil
 
           # Validate file type
-          allowed_types = %w[image/jpeg image/png image/gif image/svg+xml image/webp]
-          unless allowed_types.include?(file.content_type)
+          unless ALLOWED_IMAGE_TYPES.include?(file.content_type)
             return render json: {
-              error: "Invalid file type. Allowed: JPEG, PNG, GIF, SVG, WebP"
+              error: "Invalid file type. Allowed: JPEG, PNG, GIF, SVG, WebP, AVIF"
             }, status: :unprocessable_entity
           end
 
@@ -32,11 +43,13 @@ module Api
             }, status: :unprocessable_entity
           end
 
+          upload_io, filename, content_type = prepared_upload(file)
+
           # Create an Active Storage blob and attach it
           blob = ActiveStorage::Blob.create_and_upload!(
-            io: file,
-            filename: file.original_filename,
-            content_type: file.content_type
+            io: upload_io,
+            filename: filename,
+            content_type: content_type
           )
 
           # Return the URL
@@ -51,6 +64,13 @@ module Api
             content_type: blob.content_type,
             byte_size: blob.byte_size
           }, status: :created
+        rescue MiniMagick::Error, MiniMagick::Invalid => e
+          Rails.logger.warn("AVIF upload normalization failed: #{e.class}: #{e.message}")
+          render json: {
+            error: "Could not process that AVIF image. Please export it again and retry."
+          }, status: :unprocessable_entity
+        ensure
+          upload_io&.close! if upload_io.is_a?(Tempfile)
         end
 
         # POST /api/v1/admin/uploads/presigned
@@ -68,6 +88,35 @@ module Api
             signed_id: blob.signed_id,
             headers: blob.service_headers_for_direct_upload
           }
+        end
+
+        private
+
+        def prepared_upload(file)
+          return [ file, file.original_filename, file.content_type ] unless file.content_type == "image/avif"
+
+          normalized_file = Tempfile.new([ File.basename(file.original_filename, ".*"), ".webp" ])
+          normalized_file.binmode
+
+          begin
+            image = MiniMagick::Image.open(file.tempfile.path)
+            image.auto_orient
+            image.format("webp")
+            image.write(normalized_file.path)
+            normalized_file.rewind
+          rescue MiniMagick::Error, MiniMagick::Invalid
+            normalized_file.close!
+            raise
+          end
+
+          [ normalized_file, "#{File.basename(file.original_filename, ".*")}.webp", "image/webp" ]
+        end
+
+        def require_branding_access!
+          return if current_user&.super_admin?
+          return if current_user&.organization_memberships&.admins&.exists?
+
+          render json: { error: 'Forbidden: Organization admin access required' }, status: :forbidden
         end
       end
     end

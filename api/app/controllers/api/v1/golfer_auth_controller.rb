@@ -31,17 +31,16 @@ module Api
           }
         end
 
-        # Generate magic link for the most recent tournament registration
-        golfer = golfers.first
-        golfer.generate_magic_link!
+        golfers.each do |golfer|
+          golfer.generate_magic_link!
 
-        # Send the magic link email
-        begin
-          GolferMailer.scoring_access_email(golfer).deliver_later
-          Rails.logger.info("GolferAuth: Magic link sent to #{email} for tournament #{golfer.tournament_id}")
-        rescue StandardError => e
-          Rails.logger.error("GolferAuth: Failed to send magic link email - #{e.message}")
-          # Don't fail the request if email fails - they can retry
+          begin
+            GolferMailer.scoring_access_email(golfer).deliver_later
+            Rails.logger.info("GolferAuth: Magic link sent to #{email} for tournament #{golfer.tournament_id}")
+          rescue StandardError => e
+            Rails.logger.error("GolferAuth: Failed to send magic link email - #{e.message}")
+            # Don't fail the request if email fails - they can retry
+          end
         end
 
         render json: {

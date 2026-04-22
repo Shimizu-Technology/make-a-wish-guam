@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useOrganization } from '../components/OrganizationProvider';
-import { api, Tournament, Sponsor } from '../services/api';
+import { PublicHero } from '../components/PublicHero';
+import { api, Tournament, Sponsor, SponsorTier } from '../services/api';
 import { motion, MotionConfig, useInView } from 'framer-motion';
 import {
   Calendar, MapPin, Users, DollarSign, Clock,
@@ -12,7 +13,6 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
-import { hexToRgba } from '../utils/colors';
 import { formatDate, formatEventDate } from '../utils/dates';
 import { SignedInAdminBar } from '../components/SignedInAdminBar';
 
@@ -71,6 +71,15 @@ function ScrollReveal({
   );
 }
 
+const FALLBACK_SPONSOR_TIERS: SponsorTier[] = [
+  { key: 'title', label: 'Title Sponsors', sort_order: 0 },
+  { key: 'platinum', label: 'Major Sponsors', sort_order: 1 },
+  { key: 'gold', label: 'Major Sponsors', sort_order: 2 },
+  { key: 'silver', label: 'Supporting Sponsors', sort_order: 3 },
+  { key: 'bronze', label: 'Supporting Sponsors', sort_order: 4 },
+  { key: 'hole', label: 'Hole Sponsors', sort_order: 5 },
+];
+
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
@@ -91,9 +100,9 @@ export function OrgTournamentPage() {
       try {
         const data = await api.getOrganizationTournament(orgSlug, tournamentSlug);
         setTournament(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to fetch tournament:', err);
-        setError(err.message || 'Failed to load tournament');
+        setError(err instanceof Error ? err.message : 'Failed to load tournament');
       } finally {
         setIsLoading(false);
       }
@@ -144,6 +153,10 @@ export function OrgTournamentPage() {
   };
 
   const status = getStatusBadge();
+  const heroBannerUrl = tournament.banner_url_override || null;
+  const sponsorTiers = [...(tournament.sponsor_tiers || FALLBACK_SPONSOR_TIERS)].sort(
+    (a, b) => a.sort_order - b.sort_order
+  );
 
   return (
     <MotionConfig reducedMotion="user">
@@ -152,30 +165,36 @@ export function OrgTournamentPage() {
       {/* ================================================================= */}
       {/* HERO — MAW blue gradient (no photo)                               */}
       {/* ================================================================= */}
-      <div className="relative bg-gradient-to-br from-[#0057B8] via-[#00408a] to-[#002d63] text-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
-          <div className="flex items-start gap-6">
-            <img
-              src="/images/maw-star-icon.png"
-              alt="Make-A-Wish Guam & CNMI"
-              className="h-10 rounded-lg hidden sm:block flex-shrink-0 mt-1"
-            />
-            <div>
-              <Link to="/" className="inline-flex items-center gap-1 text-white/70 hover:text-white text-sm mb-4 transition-colors">
-                <ChevronLeft className="w-4 h-4" />
-                Back to Events
-              </Link>
-              <h1 className="text-3xl lg:text-4xl font-bold tracking-tight mb-3">
-                {tournament.name}
-              </h1>
-              <p className="text-white/80 text-lg mb-4">{formatEventDate(tournament.event_date)} · {tournament.location_name}</p>
-              <span className={`inline-flex items-center gap-1.5 ${status.bg} ${status.text} text-sm font-semibold px-3 py-1.5 rounded-full`}>
-                {status.label}
-              </span>
-            </div>
+      <PublicHero
+        imageUrl={heroBannerUrl}
+        imageAlt={`${tournament.name} header artwork`}
+        imageDisplay="showcase"
+        containerClassName="min-h-[320px] lg:min-h-[360px]"
+        contentClassName="max-w-3xl"
+      >
+        <div className="flex items-start gap-4 sm:gap-6">
+          <img
+            src="/images/maw-star-icon.png"
+            alt="Make-A-Wish Guam & CNMI"
+            className="mt-1 hidden h-10 flex-shrink-0 rounded-lg sm:block"
+          />
+          <div>
+            <Link to="/" className="inline-flex items-center gap-1 text-sm text-white/70 transition-colors hover:text-white">
+              <ChevronLeft className="w-4 h-4" />
+              Back to Events
+            </Link>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+              {tournament.name}
+            </h1>
+            <p className="mt-3 max-w-2xl text-base text-white/82 sm:text-lg">
+              {formatEventDate(tournament.event_date)}{tournament.location_name ? ` · ${tournament.location_name}` : ''}
+            </p>
+            <span className={`mt-5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${status.bg} ${status.text}`}>
+              {status.label}
+            </span>
           </div>
         </div>
-      </div>
+      </PublicHero>
 
       {/* ================================================================= */}
       {/* KEY STATS BAR                                                      */}
@@ -480,18 +499,7 @@ export function OrgTournamentPage() {
 
             {/* Dynamic sponsor tiers */}
             {(() => {
-              const tierDefs = (tournament as any).sponsor_tiers || [
-                { key: 'title', label: 'Title Sponsors', sort_order: 0 },
-                { key: 'platinum', label: 'Major Sponsors', sort_order: 1 },
-                { key: 'gold', label: 'Major Sponsors', sort_order: 2 },
-                { key: 'silver', label: 'Supporting Sponsors', sort_order: 3 },
-                { key: 'bronze', label: 'Supporting Sponsors', sort_order: 4 },
-                { key: 'hole', label: 'Hole Sponsors', sort_order: 5 },
-              ];
-
-              const sortedTiers = [...tierDefs].sort((a: any, b: any) => a.sort_order - b.sort_order);
-
-              return sortedTiers.map((tierDef: any) => {
+              return sponsorTiers.map((tierDef) => {
                 const tierSponsors = (tournament.sponsors || []).filter(s => s.tier === tierDef.key);
                 if (tierSponsors.length === 0) return null;
 

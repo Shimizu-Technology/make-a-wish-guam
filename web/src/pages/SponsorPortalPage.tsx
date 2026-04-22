@@ -5,6 +5,11 @@ import {
   AlertCircle, Clock, Building2, ExternalLink, Users, Shield,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import {
+  clearSponsorPortalSession,
+  loadSponsorPortalSession,
+  saveSponsorPortalSession,
+} from './sponsorPortalSession';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -40,6 +45,13 @@ interface OrgInfo {
   name: string;
   primary_color: string;
 }
+
+type VerifiedSponsorPortalData = {
+  sponsor: SponsorInfo;
+  tournament: TournamentInfo;
+  organization: OrgInfo;
+  sessionToken: string;
+};
 
 // ---------------------------------------------------------------------------
 // Login Screen
@@ -238,41 +250,10 @@ const SlotCard: React.FC<{
 };
 
 // ---------------------------------------------------------------------------
-// Session helpers — persist verified state across page refreshes
-// ---------------------------------------------------------------------------
-const SESSION_KEY = 'sponsor_portal_session';
-
-function saveSession(token: string, email: string) {
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ token, email, ts: Date.now() }));
-  } catch { /* silent */ }
-}
-
-function loadSession(): { token: string; email: string } | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.token || !parsed?.email) return null;
-    const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
-    if (parsed.ts && Date.now() - parsed.ts > maxAge) {
-      localStorage.removeItem(SESSION_KEY);
-      return null;
-    }
-    return parsed;
-  } catch { /* silent */ }
-  return null;
-}
-
-function clearSession() {
-  try { localStorage.removeItem(SESSION_KEY); } catch { /* silent */ }
-}
-
-// ---------------------------------------------------------------------------
 // Shared confirm helper — calls POST /confirm and returns full data
 // ---------------------------------------------------------------------------
 async function confirmAccess(token: string, email: string): Promise<
-  { ok: true; data: { sponsor: SponsorInfo; tournament: TournamentInfo; organization: OrgInfo } }
+  { ok: true; data: VerifiedSponsorPortalData }
   | { ok: false; error: string }
 > {
   try {
@@ -283,7 +264,15 @@ async function confirmAccess(token: string, email: string): Promise<
     });
     const data = await res.json();
     if (!res.ok) return { ok: false, error: data.error || 'Verification failed.' };
-    return { ok: true, data: { sponsor: data.sponsor, tournament: data.tournament, organization: data.organization } };
+    return {
+      ok: true,
+      data: {
+        sponsor: data.sponsor,
+        tournament: data.tournament,
+        organization: data.organization,
+        sessionToken: data.session_token,
+      },
+    };
   } catch {
     return { ok: false, error: 'Something went wrong. Please try again.' };
   }
@@ -295,9 +284,8 @@ async function confirmAccess(token: string, email: string): Promise<
 const EmailVerification: React.FC<{
   token: string;
   sponsorName: string;
-  onVerified: (data: { sponsor: SponsorInfo; tournament: TournamentInfo; organization: OrgInfo }) => void;
-  onError: (msg: string) => void;
-}> = ({ token, sponsorName, onVerified, onError }) => {
+  onVerified: (data: VerifiedSponsorPortalData) => void;
+}> = ({ token, sponsorName, onVerified }) => {
   const [email, setEmail] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -315,7 +303,7 @@ const EmailVerification: React.FC<{
       return;
     }
 
-    saveSession(token, email.trim());
+    saveSponsorPortalSession(token, result.data);
     onVerified(result.data);
   };
 
@@ -391,11 +379,12 @@ const EmailVerification: React.FC<{
 // Dashboard (fully authenticated view)
 // ---------------------------------------------------------------------------
 const Dashboard: React.FC<{
-  token: string;
+  sessionToken: string;
   initialSponsor: SponsorInfo;
   initialTournament: TournamentInfo;
   initialOrg: OrgInfo;
-}> = ({ token, initialSponsor, initialTournament, initialOrg }) => {
+  onSessionExpired: () => void;
+}> = ({ sessionToken, initialSponsor, initialTournament, initialOrg, onSessionExpired }) => {
   const [sponsor] = useState<SponsorInfo>(initialSponsor);
   const [tournamentInfo] = useState<TournamentInfo>(initialTournament);
   const [orgInfo] = useState<OrgInfo>(initialOrg);
@@ -432,7 +421,11 @@ const Dashboard: React.FC<{
 
   const fetchSlots = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/sponsor_slots`, { headers: { 'X-Sponsor-Token': token } });
+      const res = await fetch(`${API_URL}/api/v1/sponsor_slots`, { headers: { 'X-Sponsor-Session': sessionToken } });
+      if (res.status === 401) {
+        onSessionExpired();
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         const slotsData = data.slots || data;
@@ -440,7 +433,7 @@ const Dashboard: React.FC<{
         initLocalEdits(slotsData);
       }
     } catch { /* silent */ }
-  }, [token]);
+  }, [onSessionExpired, sessionToken]);
 
   useEffect(() => {
     fetchSlots().then(() => setLoading(false));
@@ -466,9 +459,13 @@ const Dashboard: React.FC<{
     try {
       const res = await fetch(`${API_URL}/api/v1/sponsor_slots/${slot.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'X-Sponsor-Token': token },
+        headers: { 'Content-Type': 'application/json', 'X-Sponsor-Session': sessionToken },
         body: JSON.stringify(trimmed),
       });
+      if (res.status === 401) {
+        onSessionExpired();
+        return;
+      }
       if (res.ok) { toast.success(`Player ${slot.slot_number} saved`); updateSlotInPlace(slot.id, trimmed); }
       else { const data = await res.json().catch(() => null); toast.error(data?.error || 'Failed to save.'); }
     } catch { toast.error('Something went wrong.'); }
@@ -478,23 +475,30 @@ const Dashboard: React.FC<{
   const saveAllSlots = async () => {
     setSavingAll(true);
     let success = 0, failed = 0;
-    for (const slot of slots) {
-      const edits = localEdits[slot.id];
-      if (!edits) continue;
-      const trimmed = { player_name: edits.player_name.trim() || null, player_email: edits.player_email.trim() || null, player_phone: edits.player_phone.trim() || null };
-      try {
-        const res = await fetch(`${API_URL}/api/v1/sponsor_slots/${slot.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'X-Sponsor-Token': token },
-          body: JSON.stringify(trimmed),
-        });
-        if (res.ok) { success++; updateSlotInPlace(slot.id, trimmed); }
-        else failed++;
-      } catch { failed++; }
+    try {
+      for (const slot of slots) {
+        const edits = localEdits[slot.id];
+        if (!edits) continue;
+        const trimmed = { player_name: edits.player_name.trim() || null, player_email: edits.player_email.trim() || null, player_phone: edits.player_phone.trim() || null };
+        try {
+          const res = await fetch(`${API_URL}/api/v1/sponsor_slots/${slot.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'X-Sponsor-Session': sessionToken },
+            body: JSON.stringify(trimmed),
+          });
+          if (res.status === 401) {
+            onSessionExpired();
+            return;
+          }
+          if (res.ok) { success++; updateSlotInPlace(slot.id, trimmed); }
+          else failed++;
+        } catch { failed++; }
+      }
+      if (failed === 0) toast.success(`All ${success} players saved!`);
+      else toast.error(`${failed} slot(s) failed to save`);
+    } finally {
+      setSavingAll(false);
     }
-    if (failed === 0) toast.success(`All ${success} players saved!`);
-    else toast.error(`${failed} slot(s) failed to save`);
-    setSavingAll(false);
   };
 
   const updateLocalEdit = (slotId: number, field: string, value: string) => {
@@ -685,25 +689,27 @@ const AuthenticatedFlow: React.FC<{ token: string }> = ({ token }) => {
   const [phase, setPhase] = useState<Phase>('loading');
   const [sponsorName, setSponsorName] = useState('');
   const [error, setError] = useState('');
-  const [verifiedData, setVerifiedData] = useState<{
-    sponsor: SponsorInfo;
-    tournament: TournamentInfo;
-    organization: OrgInfo;
-  } | null>(null);
+  const [verifiedData, setVerifiedData] = useState<VerifiedSponsorPortalData | null>(null);
+
+  const handleSessionExpired = useCallback(() => {
+    clearSponsorPortalSession(token);
+    setSponsorName((prev) => prev || verifiedData?.sponsor.name || 'Sponsor');
+    setVerifiedData(null);
+    setPhase('email_verify');
+    toast.error('Your sponsor session expired. Please verify your email again.');
+  }, [token, verifiedData?.sponsor.name]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const saved = loadSession();
-      if (saved && saved.token === token) {
-        const result = await confirmAccess(token, saved.email);
-        if (cancelled) return;
-        if (result.ok) {
-          setVerifiedData(result.data);
+      const savedSession = loadSponsorPortalSession<VerifiedSponsorPortalData>(token);
+      if (savedSession) {
+        if (!cancelled) {
+          setVerifiedData(savedSession);
+          setSponsorName(savedSession.sponsor.name);
           setPhase('dashboard');
-          return;
         }
-        clearSession();
+        return;
       }
 
       if (cancelled) return;
@@ -761,7 +767,6 @@ const AuthenticatedFlow: React.FC<{ token: string }> = ({ token }) => {
           setVerifiedData(data);
           setPhase('dashboard');
         }}
-        onError={(msg) => { setError(msg); setPhase('error'); }}
       />
     );
   }
@@ -769,10 +774,11 @@ const AuthenticatedFlow: React.FC<{ token: string }> = ({ token }) => {
   if (phase === 'dashboard' && verifiedData) {
     return (
       <Dashboard
-        token={token}
+        sessionToken={verifiedData.sessionToken}
         initialSponsor={verifiedData.sponsor}
         initialTournament={verifiedData.tournament}
         initialOrg={verifiedData.organization}
+        onSessionExpired={handleSessionExpired}
       />
     );
   }

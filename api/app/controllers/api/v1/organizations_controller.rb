@@ -34,6 +34,7 @@ module Api
         organization = Organization.find_by_slug!(params[:slug])
         loaded = organization.tournaments
                              .includes(:organization, :sponsors)
+                             .where(public_listed: true)
                              .where(status: %w[open closed in_progress completed])
                              .order(event_date: :desc)
                              .to_a
@@ -49,7 +50,7 @@ module Api
       # Public endpoint - returns specific tournament with sponsors
       def tournament
         organization = Organization.find_by_slug!(params[:slug])
-        tournament = organization.tournaments.find_by!(slug: params[:tournament_slug])
+        tournament = organization.tournaments.where(public_listed: true).find_by!(slug: params[:tournament_slug])
         
         # Get active sponsors grouped by tier
         sponsors = tournament.sponsors.active.ordered.includes(logo_attachment: :blob).map do |s|

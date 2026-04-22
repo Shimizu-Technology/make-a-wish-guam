@@ -14,7 +14,7 @@ interface AddGolferModalProps {
   tournamentName?: string;
 }
 
-type PaymentOption = 'send_link' | 'already_paid';
+type PaymentOption = 'send_link' | 'already_paid' | 'pay_offline_later';
 
 interface FormData {
   name: string;
@@ -57,12 +57,14 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
   const [formData, setFormData] = useState<FormData>({ ...defaultFormData });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (submitError) setSubmitError(null);
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -90,7 +92,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
     if (!formData.team_category) {
       newErrors.team_category = 'Team category is required';
     }
-    if (formData.payment_option === 'already_paid' && !formData.payment_method) {
+    if (formData.payment_option !== 'send_link' && !formData.payment_method) {
       newErrors.payment_method = 'Payment method is required';
     }
 
@@ -101,6 +103,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
   const handleClose = () => {
     setFormData({ ...defaultFormData });
     setErrors({});
+    setSubmitError(null);
     onClose();
   };
 
@@ -112,6 +115,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
       return;
     }
 
+    setSubmitError(null);
     setSaving(true);
 
     try {
@@ -124,6 +128,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
         : `${import.meta.env.VITE_API_URL}/api/v1/golfers`;
 
       const isPaid = formData.payment_option === 'already_paid';
+      const payOfflineLater = formData.payment_option === 'pay_offline_later';
 
       const payload = {
         golfer: {
@@ -137,11 +142,15 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
           team_category: formData.team_category || undefined,
           notes: formData.notes || undefined,
           tournament_id: tournamentId,
-          registration_status: isPaid ? 'confirmed' : 'pending',
+          registration_status: isPaid || payOfflineLater ? 'confirmed' : 'pending',
           registration_source: 'admin',
-          payment_type: isPaid ? (formData.payment_method === 'swipe_simple' ? 'swipe_simple' : 'pay_on_day') : 'stripe',
+          payment_type: isPaid
+            ? (formData.payment_method === 'swipe_simple' ? 'swipe_simple' : 'pay_on_day')
+            : payOfflineLater
+              ? 'pay_on_day'
+              : 'stripe',
           payment_status: isPaid ? 'paid' : 'unpaid',
-          payment_method: isPaid ? formData.payment_method : undefined,
+          payment_method: formData.payment_option === 'send_link' ? undefined : formData.payment_method,
           is_team_captain: true,
           waiver_accepted_at: new Date().toISOString(),
         },
@@ -198,13 +207,26 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
           // already created as paid; mark_paid is best-effort for audit
         }
         toast.success(`${formData.name} added and marked as paid!`);
+      } else if (payOfflineLater) {
+        toast.success(`${formData.name} added. Team is confirmed and awaiting ${formData.payment_method.replace('_', ' ')} payment.`);
       }
 
       setFormData({ ...defaultFormData });
       onSuccess();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to add team');
+      const message = err instanceof Error ? err.message : 'Failed to add team';
+      setSubmitError(message);
+
+      const normalized = message.toLowerCase();
+      if (normalized.includes('email') && normalized.includes('already registered')) {
+        setErrors((prev) => ({
+          ...prev,
+          email: 'That email is already being used by another active team in this event.',
+        }));
+      }
+
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -249,6 +271,13 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {submitError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-sm font-medium text-red-700">Could not add team</p>
+              <p className="mt-1 text-sm text-red-600">{submitError}</p>
+            </div>
+          )}
+
           {/* Player 1 (Captain) */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -398,7 +427,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
               <span className="text-lg font-bold text-gray-900">{formatCurrency(entryFee)}</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Send Payment Link */}
               <label
                 className={`flex items-start gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${
@@ -421,6 +450,31 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
                     <span className="font-medium text-gray-900 text-sm">Send Payment Link</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">Email golfer a link to pay online</p>
+                </div>
+              </label>
+
+              {/* Pay Offline Later */}
+              <label
+                className={`flex items-start gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${
+                  formData.payment_option === 'pay_offline_later'
+                    ? 'border-brand-500 bg-brand-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="payment_option"
+                  value="pay_offline_later"
+                  checked={formData.payment_option === 'pay_offline_later'}
+                  onChange={handleChange}
+                  className="mt-0.5 w-4 h-4 text-brand-600"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Banknote className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span className="font-medium text-gray-900 text-sm">Pay Offline Later</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">Confirm the team now and collect cash, check, or card later</p>
                 </div>
               </label>
 
@@ -450,11 +504,11 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
               </label>
             </div>
 
-            {/* Payment method selector for "Already Paid" */}
-            {formData.payment_option === 'already_paid' && (
+            {/* Payment method selector for offline payment flows */}
+            {formData.payment_option !== 'send_link' && (
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Payment Method <span className="text-red-500">*</span>
+                  {formData.payment_option === 'already_paid' ? 'Payment Method' : 'Expected Payment Method'} <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {[

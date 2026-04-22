@@ -5,6 +5,7 @@ require "test_helper"
 class Api::V1::GolferAuthControllerTest < ActionDispatch::IntegrationTest
   self.use_transactional_tests = true
   fixtures []
+  include ActiveJob::TestHelper
 
   def setup
     @org = Organization.create!(
@@ -28,7 +29,8 @@ class Api::V1::GolferAuthControllerTest < ActionDispatch::IntegrationTest
       payment_type: "pay_on_day",
       payment_status: "unpaid",
       registration_status: "confirmed",
-      waiver_accepted_at: Time.current
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
     )
   end
 
@@ -66,6 +68,39 @@ class Api::V1::GolferAuthControllerTest < ActionDispatch::IntegrationTest
     @golfer.reload
     assert_not_nil @golfer.magic_link_token
     assert_not_nil @golfer.magic_link_expires_at
+  end
+
+  test "request_link generates links for each active golfer with the same email" do
+    second_tournament = Tournament.create!(
+      organization: @org,
+      name: "Second Test Tournament",
+      year: 2027,
+      status: "open",
+      registration_open: true
+    )
+
+    second_golfer = Golfer.create!(
+      tournament: second_tournament,
+      name: "Jane Doe",
+      email: "john@example.com",
+      phone: "671-555-5678",
+      payment_type: "pay_on_day",
+      payment_status: "unpaid",
+      registration_status: "confirmed",
+      registration_source: "admin",
+      waiver_accepted_at: Time.current,
+      team_category: "Female"
+    )
+
+    assert_enqueued_emails 2 do
+      post api_v1_golfer_auth_request_link_url, params: { email: "john@example.com" }
+    end
+
+    @golfer.reload
+    second_golfer.reload
+
+    assert_not_nil @golfer.magic_link_token
+    assert_not_nil second_golfer.magic_link_token
   end
 
   test "request_link returns success even for unknown email (prevents enumeration)" do

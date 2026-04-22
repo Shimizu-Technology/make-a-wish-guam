@@ -65,6 +65,7 @@ module Api
           return
         end
 
+        session_token = sponsor.generate_portal_session_token!(verified_email: email)
         tournament = sponsor.tournament
         org = tournament&.organization
 
@@ -100,7 +101,7 @@ module Api
             name: org&.name || 'Make-A-Wish Guam & CNMI',
             primary_color: org&.primary_color || '#0057B8'
           },
-          token: token
+          session_token: session_token
         }
       end
     end

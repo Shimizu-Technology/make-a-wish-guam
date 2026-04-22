@@ -64,7 +64,7 @@ interface GolferAuthContextType extends GolferAuthState {
   verifyMagicLink: (token: string) => Promise<boolean>;
   refreshSession: () => Promise<boolean>;
   logout: () => void;
-  getAuthHeader: () => { Authorization: string } | {};
+  getAuthHeader: () => Record<string, string>;
 }
 
 export const GolferAuthContext = createContext<GolferAuthContextType | null>(null);
@@ -257,11 +257,10 @@ export function GolferAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Get auth header for API calls
-  const getAuthHeader = useCallback(() => {
-    if (state.token) {
-      return { Authorization: `Bearer ${state.token}` };
-    }
-    return {};
+  const getAuthHeader = useCallback((): Record<string, string> => {
+    return state.token
+      ? { Authorization: `Bearer ${state.token}` }
+      : {};
   }, [state.token]);
 
   const value: GolferAuthContextType = {

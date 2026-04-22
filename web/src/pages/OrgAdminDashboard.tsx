@@ -13,7 +13,6 @@ import {
   Trophy,
   UserPlus,
   Users,
-  CheckCircle,
   X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';

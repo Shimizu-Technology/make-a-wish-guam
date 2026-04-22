@@ -11,7 +11,6 @@ import {
   Trophy,
   Users,
 } from 'lucide-react';
-import { useOrganization } from '../components/OrganizationProvider';
 import { useTournament } from '../contexts';
 import { adminEventPath, adminOrgRoutes } from '../utils/adminRoutes';
 import { formatShortDate } from '../utils/dates';
@@ -19,7 +18,6 @@ import type { Tournament } from '../services/api';
 
 export const EventsManagementPage: React.FC = () => {
   const navigate = useNavigate();
-  const { organization } = useOrganization();
   const { tournaments, currentTournament, isLoading, error } = useTournament();
 
   const activeTournaments = useMemo(
@@ -36,7 +34,7 @@ export const EventsManagementPage: React.FC = () => {
       total_tournaments: tournaments.length,
       active_tournaments: activeTournaments.length,
       total_registrations: tournaments.reduce(
-        (sum, tournament) => sum + (tournament.registration_count || 0),
+        (sum, tournament) => sum + (tournament.registration_count || tournament.confirmed_count || 0),
         0
       ),
       total_revenue: tournaments.reduce(

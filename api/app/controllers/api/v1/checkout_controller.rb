@@ -380,7 +380,11 @@ module Api
         ActiveRecord::Base.transaction do
           tournament.lock!
           
-          existing = tournament.golfers.lock.find_by(email: metadata.golfer_email)
+          existing = tournament.golfers.lock
+            .where(email: metadata.golfer_email)
+            .where.not(registration_status: "cancelled")
+            .where.not(registration_source: "admin")
+            .first
           if existing
             golfer = existing
             raise ActiveRecord::Rollback

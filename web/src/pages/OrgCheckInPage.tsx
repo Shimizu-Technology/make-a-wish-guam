@@ -3,55 +3,27 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuthToken } from '../hooks/useAuthToken';
 import { useOrganization } from '../components/OrganizationProvider';
 import { useGolferChannel } from '../hooks/useGolferChannel';
+import type { Golfer as ApiGolfer } from '../services/api';
 import {
   Search,
   UserCheck,
   ArrowLeft,
   RefreshCw,
   CheckCircle,
-  CreditCard,
   Users,
-  Clock,
   Loader2,
   PartyPopper,
-  Mail,
-  Phone,
-  Building2,
   ShieldCheck,
   X,
   AlertTriangle,
   CalendarClock,
   Flag,
   ChevronRight,
+  Building2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
 import { formatDateTime } from '../utils/dates';
-
-interface Golfer {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  company: string | null;
-  partner_name: string | null;
-  partner_email: string | null;
-  partner_phone: string | null;
-  team_name: string | null;
-  registration_status: 'confirmed' | 'waitlist' | 'cancelled';
-  payment_status: 'paid' | 'unpaid' | 'refunded';
-  payment_type: string | null;
-  payment_method: string | null;
-  checked_in_at: string | null;
-  created_at: string;
-  paid_at: string | null;
-  payment_verified_by_name: string | null;
-  payment_verified_at: string | null;
-  sponsor_display_name: string | null;
-  checked_in_by_name: string | null;
-  payment_notes: string | null;
-  hole_position_label: string | null;
-}
 
 type QueueTab = 'not_checked_in' | 'paid' | 'not_paid' | 'checked_in' | 'all';
 
@@ -71,18 +43,18 @@ export const OrgCheckInPage: React.FC = () => {
   const { organization } = useOrganization();
   const { getToken } = useAuthToken();
 
-  const [golfers, setGolfers] = useState<Golfer[]>([]);
+  const [golfers, setGolfers] = useState<ApiGolfer[]>([]);
   const [tournamentName, setTournamentName] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeQueue, setActiveQueue] = useState<QueueTab>('not_checked_in');
   const [checkingIn, setCheckingIn] = useState<number | null>(null);
-  const [selectedGolfer, setSelectedGolfer] = useState<Golfer | null>(null);
+  const [selectedGolfer, setSelectedGolfer] = useState<ApiGolfer | null>(null);
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [verifyMethod, setVerifyMethod] = useState('swipe_simple_confirmed');
   const [verifyNotes, setVerifyNotes] = useState('');
   const [revenue, setRevenue] = useState<number>(0);
-  const [confirmingCheckIn, setConfirmingCheckIn] = useState<Golfer | null>(null);
+  const [confirmingCheckIn, setConfirmingCheckIn] = useState<ApiGolfer | null>(null);
 
   useGolferChannel({
     onGolferUpdated: (updatedGolfer) => {
@@ -92,7 +64,7 @@ export const OrgCheckInPage: React.FC = () => {
     },
     onGolferCreated: (newGolfer) => {
       if (newGolfer.registration_status === 'confirmed') {
-        setGolfers(prev => [...prev.filter(g => g.id !== newGolfer.id), newGolfer as unknown as Golfer]);
+        setGolfers(prev => [...prev.filter(g => g.id !== newGolfer.id), newGolfer]);
       }
     },
     onGolferDeleted: (golferId) => {
@@ -122,10 +94,10 @@ export const OrgCheckInPage: React.FC = () => {
       }
 
       const confirmed = (data.golfers || []).filter(
-        (g: Golfer) => g.registration_status === 'confirmed'
+        (g: ApiGolfer) => g.registration_status === 'confirmed'
       );
       setGolfers(confirmed);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load golfers');
     } finally {
       setLoading(false);
@@ -193,7 +165,7 @@ export const OrgCheckInPage: React.FC = () => {
     return filtered;
   }, [golfers, activeQueue, searchTerm]);
 
-  const requestCheckIn = (golfer: Golfer) => {
+  const requestCheckIn = (golfer: ApiGolfer) => {
     if (golfer.checked_in_at) return;
     if (golfer.payment_status !== 'paid') {
       toast.error('Payment must be verified before check-in');
@@ -203,7 +175,7 @@ export const OrgCheckInPage: React.FC = () => {
     setConfirmingCheckIn(golfer);
   };
 
-  const executeCheckIn = async (golfer: Golfer) => {
+  const executeCheckIn = async (golfer: ApiGolfer) => {
     setConfirmingCheckIn(null);
     setCheckingIn(golfer.id);
     try {
@@ -223,14 +195,14 @@ export const OrgCheckInPage: React.FC = () => {
       toast.success(`${golfer.name} checked in!`, { duration: 2000 });
       setSelectedGolfer(null);
       await fetchData();
-    } catch (err) {
+    } catch {
       toast.error(`Failed to check in ${golfer.name}`);
     } finally {
       setCheckingIn(null);
     }
   };
 
-  const handleVerifyPayment = async (golfer: Golfer) => {
+  const handleVerifyPayment = async (golfer: ApiGolfer) => {
     setCheckingIn(golfer.id);
     try {
       const token = await getToken();
@@ -255,14 +227,14 @@ export const OrgCheckInPage: React.FC = () => {
       setVerifyMethod('swipe_simple_confirmed');
       setVerifyNotes('');
       await fetchData();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed');
     } finally {
       setCheckingIn(null);
     }
   };
 
-  const getRowStyle = (golfer: Golfer) => {
+  const getRowStyle = (golfer: ApiGolfer) => {
     if (golfer.checked_in_at) return 'bg-gray-50 opacity-60';
     if (golfer.payment_status === 'paid') return 'bg-white hover:bg-gray-50 border border-gray-200';
     return 'bg-white hover:bg-gray-50 border border-gray-200 border-l-4 border-l-amber-500';

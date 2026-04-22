@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useOrganization } from '../components/OrganizationProvider';
@@ -120,6 +120,14 @@ export const SponsorManagementPage: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const handleSponsorSlotsFilledChange = useCallback((sponsorId: number, slotsFilled: number) => {
+    setSponsors((prev) =>
+      prev.map((sponsor) =>
+        sponsor.id === sponsorId ? { ...sponsor, slots_filled: slotsFilled } : sponsor
+      )
+    );
+  }, []);
+
   const handleSendAccessLink = async (sponsor: Sponsor) => {
     try {
       const res = await fetch(
@@ -239,7 +247,7 @@ export const SponsorManagementPage: React.FC = () => {
                     onEdit={() => { setEditingSponsor(sponsor); setShowModal(true); }}
                     onDelete={() => handleDelete(sponsor)}
                     onSendPortalLink={() => handleSendAccessLink(sponsor)}
-                    onSlotsUpdated={fetchData}
+                    onSlotsFilledChange={handleSponsorSlotsFilledChange}
                   />
                 ))}
               </div>
@@ -279,8 +287,8 @@ const SponsorCard: React.FC<{
   onEdit: () => void;
   onDelete: () => void;
   onSendPortalLink: () => void;
-  onSlotsUpdated: () => void;
-}> = ({ sponsor, tournamentId, expanded, onToggleExpand, onEdit, onDelete, onSendPortalLink, onSlotsUpdated }) => {
+  onSlotsFilledChange: (sponsorId: number, slotsFilled: number) => void;
+}> = ({ sponsor, tournamentId, expanded, onToggleExpand, onEdit, onDelete, onSendPortalLink, onSlotsFilledChange }) => {
   const { getToken } = useAuth();
   const teamCount = Math.floor(sponsor.slot_count / 2);
   const hasPortal = !!sponsor.login_email;
@@ -288,13 +296,16 @@ const SponsorCard: React.FC<{
 
   const [slots, setSlots] = useState<SponsorSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotsLoaded, setSlotsLoaded] = useState(false);
+  const slotsLoadedRef = useRef(false);
   const [editingSlotId, setEditingSlotId] = useState<number | null>(null);
   const [slotForm, setSlotForm] = useState({ player_name: '', player_email: '', player_phone: '' });
   const [savingSlot, setSavingSlot] = useState(false);
 
-  const fetchSlots = useCallback(async () => {
+  const fetchSlots = useCallback(async (options?: { blocking?: boolean }) => {
     if (!tournamentId) return;
-    setLoadingSlots(true);
+    const blocking = options?.blocking ?? !slotsLoadedRef.current;
+    if (blocking) setLoadingSlots(true);
     try {
       const token = await getToken();
       const res = await fetch(
@@ -303,16 +314,33 @@ const SponsorCard: React.FC<{
       );
       if (res.ok) {
         const data = await res.json();
-        setSlots(data.slots || []);
+        const loadedSlots = data.slots || [];
+        setSlots(loadedSlots);
+        setSlotsLoaded(true);
+        slotsLoadedRef.current = true;
+        onSlotsFilledChange(
+          sponsor.id,
+          loadedSlots.filter((slot: SponsorSlot) => !!slot.player_name?.trim()).length
+        );
       }
     } catch { /* silent */ } finally {
-      setLoadingSlots(false);
+      if (blocking) setLoadingSlots(false);
     }
-  }, [tournamentId, sponsor.id, getToken]);
+  }, [tournamentId, sponsor.id, getToken, onSlotsFilledChange]);
 
   useEffect(() => {
-    if (expanded && hasTeams) fetchSlots();
-  }, [expanded, hasTeams, fetchSlots]);
+    setSlots([]);
+    setSlotsLoaded(false);
+    slotsLoadedRef.current = false;
+    setEditingSlotId(null);
+  }, [sponsor.id]);
+
+  useEffect(() => {
+    if (!expanded || !hasTeams) return;
+    if (!slotsLoaded || slots.length !== sponsor.slot_count) {
+      fetchSlots({ blocking: !slotsLoaded });
+    }
+  }, [expanded, hasTeams, slotsLoaded, slots.length, sponsor.slot_count, fetchSlots]);
 
   const startEditing = (slot: SponsorSlot) => {
     setEditingSlotId(slot.id);
@@ -336,12 +364,20 @@ const SponsorCard: React.FC<{
         }
       );
       if (res.ok) {
+        const data = await res.json();
+        const updatedSlot = data.slot as SponsorSlot;
+        const nextSlots = slots.map((slot) => (slot.id === slotId ? updatedSlot : slot));
+
+        setSlots(nextSlots);
+        onSlotsFilledChange(
+          sponsor.id,
+          nextSlots.filter((slot) => !!slot.player_name?.trim()).length
+        );
         toast.success('Player updated');
         setEditingSlotId(null);
-        fetchSlots();
-        onSlotsUpdated();
       } else {
-        toast.error('Failed to update');
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || 'Failed to update');
       }
     } catch { toast.error('Failed to update'); } finally {
       setSavingSlot(false);
@@ -535,7 +571,7 @@ const SponsorModal: React.FC<{
     description: sponsor?.description || '',
     hole_number: sponsor?.hole_number || '',
     active: sponsor?.active ?? true,
-    login_email: (sponsor as any)?.login_email || '',
+    login_email: sponsor?.login_email || '',
     team_count: Math.floor((sponsor?.slot_count || 0) / 2),
   });
 
@@ -573,8 +609,17 @@ const SponsorModal: React.FC<{
         fd.append('sponsor[logo]', logoFile);
         res = await fetch(url, { method: sponsor ? 'PATCH' : 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
       } else {
-        const payload = { ...form, slot_count: slotCount, hole_number: form.tier === 'hole' ? Number(form.hole_number) : null };
-        delete (payload as any).team_count;
+        const payload = {
+          name: form.name,
+          tier: form.tier,
+          logo_url: form.logo_url,
+          website_url: form.website_url,
+          description: form.description,
+          active: form.active,
+          login_email: form.login_email,
+          slot_count: slotCount,
+          hole_number: form.tier === 'hole' ? Number(form.hole_number) : null,
+        };
         res = await fetch(url, {
           method: sponsor ? 'PATCH' : 'POST',
           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },

@@ -28,8 +28,8 @@ interface GolferChannelCallbacks {
  * ```
  */
 export function useGolferChannel(callbacks: GolferChannelCallbacks) {
-  const consumerRef = useRef<any>(null);
-  const subscriptionRef = useRef<any>(null);
+  const consumerRef = useRef<ReturnType<typeof createConsumer> | null>(null);
+  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   const callbacksRef = useRef(callbacks);
 
   // Keep callbacks ref updated

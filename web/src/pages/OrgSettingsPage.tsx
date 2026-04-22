@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganization } from '../components/OrganizationProvider';
+import { ImageUpload } from '../components/ImageUpload';
 import { useOrganizationStore } from '../stores/organizationStore';
 import type { OrganizationSettings as OrganizationContentSettings } from '../stores/organizationStore';
 import { useAuthToken } from '../hooks/useAuthToken';
@@ -149,6 +150,7 @@ interface TournamentSettings {
   contact_email: string;
   waitlist_enabled: boolean;
   waitlist_max: string;
+  banner_url_override: string;
   raffle_enabled: boolean;
   raffle_description: string;
   raffle_draw_time: string;
@@ -408,6 +410,7 @@ export const OrgSettingsPage: React.FC = () => {
               max_capacity: t.max_capacity?.toString() || '',
               waitlist_enabled: t.waitlist_enabled ?? false,
               waitlist_max: t.waitlist_max?.toString() || '',
+              banner_url_override: t.banner_url_override || '',
               swipe_simple_url: t.swipe_simple_url || '',
               walkin_swipe_simple_url: t.walkin_swipe_simple_url || '',
               contact_name: t.contact_name || '',
@@ -443,7 +446,10 @@ export const OrgSettingsPage: React.FC = () => {
     }
   };
 
-  const handleTournamentChange = (field: keyof TournamentSettings, value: string | boolean) => {
+  const handleTournamentChange = <K extends keyof TournamentSettings>(
+    field: K,
+    value: TournamentSettings[K]
+  ) => {
     setTournamentSettings(prev => {
       if (!prev) return null;
       const updated = { ...prev, [field]: value };
@@ -511,6 +517,7 @@ export const OrgSettingsPage: React.FC = () => {
       max_capacity: tournamentSettings.max_capacity ? parseInt(tournamentSettings.max_capacity) : null,
       waitlist_enabled: tournamentSettings.waitlist_enabled,
       waitlist_max: tournamentSettings.waitlist_max ? parseInt(tournamentSettings.waitlist_max) : null,
+      banner_url_override: tournamentSettings.banner_url_override || null,
       swipe_simple_url: tournamentSettings.swipe_simple_url || null,
       walkin_swipe_simple_url: tournamentSettings.walkin_swipe_simple_url || null,
       contact_name: tournamentSettings.contact_name || null,
@@ -667,6 +674,7 @@ export const OrgSettingsPage: React.FC = () => {
     setSaving(true);
     try {
       const token = await getToken();
+      if (!token) throw new Error('Not authenticated');
 
       const orgRes = await fetch(
         `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}`,
@@ -752,7 +760,7 @@ export const OrgSettingsPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="max-w-4xl mx-auto px-4 pt-6 pb-32 sm:px-6 sm:py-8 lg:px-8">
         <div className="space-y-5 sm:space-y-6">
           {/* Basic Info */}
           <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
@@ -848,13 +856,15 @@ export const OrgSettingsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Homepage Content */}
+          {/* Events Landing Page */}
           <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
             <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
               <Home className="w-5 h-5 text-gray-400" />
-              Homepage Content
+              Events Landing Page
             </h2>
-            <p className="text-xs sm:text-sm text-gray-500 mb-4">These fields control what appears on the public homepage hero section.</p>
+            <p className="text-xs sm:text-sm text-gray-500 mb-4">
+              These fields control the main events landing page. The page introduces the organization and lists upcoming events. Event artwork is managed separately below.
+            </p>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -884,7 +894,7 @@ export const OrgSettingsPage: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Highlight Stats
                 </label>
-                <p className="text-xs text-gray-500 mb-3">Up to 3 stats shown on the homepage hero.</p>
+                <p className="text-xs text-gray-500 mb-3">Up to 3 stats shown in the events landing page hero.</p>
                 <div className="space-y-3">
                   {formData.homepage_stats.map((stat, i) => (
                     <div key={i} className="relative flex flex-col sm:flex-row sm:items-center gap-2 bg-gray-50 rounded-xl p-3 pr-10 sm:pr-3 sm:bg-transparent sm:p-0">
@@ -1044,6 +1054,23 @@ export const OrgSettingsPage: React.FC = () => {
                     <p className="mt-1 text-xs text-gray-400">Contact support to change team size</p>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+              <h3 className="text-sm sm:text-md font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                <Home className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                Event Header
+              </h3>
+              <div className="space-y-4">
+                <ImageUpload
+                  label="Event Header Graphic"
+                  value={tournamentSettings.banner_url_override}
+                  onChange={(url) => handleTournamentChange('banner_url_override', url)}
+                  getToken={getToken}
+                  previewAspectClassName="aspect-[16/9]"
+                  helpText="Optional artwork for this event's detail and registration pages. Replace it to change the event graphic, or clear it to return to the plain blue hero with no image."
+                />
               </div>
             </div>
 
@@ -1594,32 +1621,6 @@ export const OrgSettingsPage: React.FC = () => {
             </>
           )}
 
-          {/* Single Save Button */}
-          <div className="flex items-center justify-between gap-3 pt-2 pb-4">
-            <Link
-              to={"/admin"}
-              className="px-4 sm:px-6 py-2.5 sm:py-3 text-gray-700 hover:text-gray-900 font-medium text-sm sm:text-base"
-            >
-              Cancel
-            </Link>
-            <button
-              onClick={handleSaveAll}
-              disabled={saving}
-              className="flex items-center gap-2 px-5 sm:px-8 py-2.5 sm:py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 text-white rounded-xl font-semibold text-sm sm:text-base transition-colors shadow-lg shadow-brand-600/25"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Save All Settings
-                </>
-              )}
-            </button>
-          </div>
         </div>
 
         {/* Admin Management Section */}
@@ -1739,6 +1740,34 @@ export const OrgSettingsPage: React.FC = () => {
           </div>
         </div>
       </main>
+
+      <div className="pointer-events-none fixed inset-x-4 bottom-4 z-40 sm:inset-x-6 lg:inset-x-auto lg:right-8">
+        <div className="pointer-events-auto flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white/96 px-4 py-3 shadow-[0_20px_60px_rgba(15,23,42,0.18)] backdrop-blur lg:min-w-[420px]">
+          <Link
+            to={"/admin"}
+            className="px-3 py-2 text-sm font-medium text-gray-600 transition hover:text-gray-900"
+          >
+            Cancel
+          </Link>
+          <button
+            onClick={handleSaveAll}
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:bg-gray-300 sm:px-5"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Save All Settings
+              </>
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

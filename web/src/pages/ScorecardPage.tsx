@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAuthToken } from '../hooks/useAuthToken';
 import { useGolferAuth } from '../contexts/GolferAuthContext';
 import { 
@@ -13,7 +13,6 @@ import {
   Minus,
   RefreshCw,
   AlertCircle,
-  LogOut
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminEventPath } from '../utils/adminRoutes';
@@ -86,10 +85,9 @@ export const ScorecardPage: React.FC = () => {
   const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
   const orgSlug = 'make-a-wish-guam';
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const groupId = searchParams.get('group');
   const tournamentIdParam = searchParams.get('tournament'); // For golfer flow
-  const { getToken, isAuthenticated, authType, isGolferAuth } = useAuthToken();
+  const { getToken, isGolferAuth } = useAuthToken();
   const { tournament: golferTournament } = useGolferAuth();
 
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -286,11 +284,6 @@ export const ScorecardPage: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  };
-
-  const getParForHole = (hole: number): number => {
-    if (!tournament?.hole_pars) return 4;
-    return tournament.hole_pars[hole.toString()] || 4;
   };
 
   const getRelativeScore = (strokes: number, par: number): string => {

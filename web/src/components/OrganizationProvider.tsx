@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useOrganizationStore } from '../stores/organizationStore';
 import { api } from '../services/api';
+import type { Organization } from '../stores/organizationStore';
 import { AlertTriangle } from 'lucide-react';
 
 interface OrganizationProviderProps {
@@ -37,7 +38,7 @@ export function OrganizationProvider({
       }
 
       try {
-        const response = await api.get(`/organizations/${orgSlug}`);
+        const response = await api.get<Organization>(`/organizations/${orgSlug}`);
         setOrganization(response.data);
       } catch (err: unknown) {
         console.error('Failed to fetch organization:', err);
@@ -54,7 +55,7 @@ export function OrganizationProvider({
     }
 
     fetchOrganization();
-  }, [orgSlug, navigate, fallbackPath, setOrganization, setLoading, setError]);
+  }, [fallbackPath, navigate, orgSlug, organization?.slug, setError, setLoading, setOrganization]);
 
   // Show loading state
   if (isLoading) {
