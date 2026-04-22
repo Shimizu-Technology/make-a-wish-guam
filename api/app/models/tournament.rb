@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Tournament < ApplicationRecord
+  MAX_COURSE_HOLES = 18
+
   # Associations
   belongs_to :organization
   has_many :golfers, dependent: :restrict_with_error
@@ -428,10 +430,11 @@ class Tournament < ApplicationRecord
       next true unless entry.respond_to?(:to_h)
 
       data = entry.to_h.stringify_keys
-      data['name'].to_s.strip.blank? || data['hole_count'].to_i <= 0
+      hole_count = data['hole_count'].to_i
+      data['name'].to_s.strip.blank? || hole_count <= 0 || hole_count > MAX_COURSE_HOLES
     end
 
-    errors.add(:config, 'Course configuration is invalid') if invalid
+    errors.add(:config, "Course configuration is invalid") if invalid
   end
 
   def self.normalize_course_configs(raw_configs, fallback_hole_count:, fallback_course_name:)

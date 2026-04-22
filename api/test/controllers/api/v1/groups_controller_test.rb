@@ -52,7 +52,7 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "1B", second["starting_position_label"]
   end
 
-  test "index removes empty leftover groups before rendering holes" do
+  test "index excludes empty leftover groups without deleting them" do
     tournament = tournaments(:tournament_one)
     empty_group = tournament.groups.create!(
       group_number: 4,
@@ -60,12 +60,12 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
       hole_number: 1
     )
 
-    assert_difference "Group.count", -2 do
+    assert_no_difference "Group.count" do
       get api_v1_groups_url, headers: auth_headers
     end
 
     assert_response :success
-    refute Group.exists?(empty_group.id)
+    assert Group.exists?(empty_group.id)
 
     json = JSON.parse(response.body)
     refute json.any? { |group| group["id"] == empty_group.id }

@@ -84,10 +84,11 @@ class GroupTest < ActiveSupport::TestCase
   # Scopes
   # ==================
 
-  test "with_golfers scope includes golfers and orders by group_number" do
+  test "with_golfers scope only returns groups that still have golfers loaded and ordered" do
     groups_list = Group.with_golfers
     numbers = groups_list.pluck(:group_number)
     assert_equal numbers.sort, numbers
+    assert groups_list.all? { |group| group.golfers.any? }
     assert groups_list.all? { |group| group.association(:golfers).loaded? }
     assert groups_list.all? { |group| group.association(:tournament).loaded? }
   end

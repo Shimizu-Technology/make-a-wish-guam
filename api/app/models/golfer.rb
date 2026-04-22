@@ -97,12 +97,20 @@ class Golfer < ApplicationRecord
 
   def assign_to_group(group:, position:)
     assign_attributes(group: group, position: position)
-    save(validate: false)
+    save!(validate: false)
+    true
+  rescue ActiveRecord::ActiveRecordError
+    errors.add(:base, "Unable to assign golfer to this starting position")
+    false
   end
 
   def clear_group_assignment
     assign_attributes(group: nil, position: nil)
-    save(validate: false)
+    save!(validate: false)
+    true
+  rescue ActiveRecord::ActiveRecordError
+    errors.add(:base, "Unable to clear golfer starting position")
+    false
   end
 
   # Magic Link methods

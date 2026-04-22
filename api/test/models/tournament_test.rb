@@ -36,6 +36,22 @@ class TournamentTest < ActiveSupport::TestCase
     assert_includes tournament.errors[:config], "Course configuration is invalid"
   end
 
+  test "rejects course configs with more than 18 holes" do
+    tournament = tournaments(:tournament_one)
+
+    tournament.assign_attributes(
+      config: {
+        course_configs: [
+          { key: "hibiscus", name: "Hibiscus", hole_count: 19 }
+        ]
+      },
+      total_holes: 19
+    )
+
+    assert_not tournament.valid?
+    assert_includes tournament.errors[:config], "Course configuration is invalid"
+  end
+
   test "rejects an explicitly empty course config list" do
     tournament = tournaments(:tournament_one)
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganization } from '../components/OrganizationProvider';
 import { useOrganizationStore } from '../stores/organizationStore';
+import type { OrganizationSettings as OrganizationContentSettings } from '../stores/organizationStore';
 import { useAuthToken } from '../hooks/useAuthToken';
 import {
   ArrowLeft,
@@ -92,6 +93,17 @@ interface CourseConfigDef {
   hole_count: number;
 }
 
+interface AdminTournamentListItem {
+  slug: string;
+  status?: string;
+}
+
+interface AdminTournamentListResponse {
+  tournaments?: AdminTournamentListItem[];
+}
+
+const MAX_COURSE_HOLES = 18;
+
 const DEFAULT_RAFFLE_BUNDLES: RaffleBundleDef[] = [
   { quantity: 4,  price_cents: 2000,  label: '$20 for 4 tickets' },
   { quantity: 12, price_cents: 5000,  label: '$50 for 12 tickets' },
@@ -109,6 +121,10 @@ function createCourseConfig(seed?: number): CourseConfigDef {
     name: 'New Course',
     hole_count: 9,
   };
+}
+
+function clampCourseHoleCount(value: number): number {
+  return Math.min(MAX_COURSE_HOLES, Math.max(1, value));
 }
 
 interface TournamentSettings {
@@ -311,7 +327,7 @@ export const OrgSettingsPage: React.FC = () => {
 
   useEffect(() => {
     if (organization) {
-      const settings = (organization as any).settings || {};
+      const settings: OrganizationContentSettings = organization.settings || {};
       setFormData({
         name: organization.name || '',
         slug: organization.slug || '',
@@ -363,9 +379,9 @@ export const OrgSettingsPage: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.ok) {
-        const data = await res.json();
+        const data: AdminTournamentListResponse = await res.json();
         const tournaments = data.tournaments || [];
-        const active = tournaments.find((t: any) => t.status !== 'archived') || tournaments[0];
+        const active = tournaments.find((t) => t.status !== 'archived') || tournaments[0];
         if (active) {
           const detailRes = await fetch(
             `${import.meta.env.VITE_API_URL}/api/v1/admin/organizations/${organization.slug}/tournaments/${active.slug}`,
@@ -441,10 +457,14 @@ export const OrgSettingsPage: React.FC = () => {
   const updateCourseConfig = (key: string, patch: Partial<CourseConfigDef>) => {
     setTournamentSettings(prev => {
       if (!prev) return null;
+      const normalizedPatch = { ...patch };
+      if (normalizedPatch.hole_count !== undefined) {
+        normalizedPatch.hole_count = clampCourseHoleCount(normalizedPatch.hole_count);
+      }
       return {
         ...prev,
         course_configs: prev.course_configs.map((course) =>
-          course.key === key ? { ...course, ...patch } : course
+          course.key === key ? { ...course, ...normalizedPatch } : course
         ),
       };
     });
@@ -502,7 +522,10 @@ export const OrgSettingsPage: React.FC = () => {
       raffle_ticket_price_cents: tournamentSettings.raffle_ticket_price_cents ? parseInt(tournamentSettings.raffle_ticket_price_cents) : 500,
       raffle_include_with_registration: tournamentSettings.raffle_include_with_registration,
       raffle_bundles: tournamentSettings.raffle_bundles,
-      course_configs: tournamentSettings.course_configs,
+      course_configs: tournamentSettings.course_configs.map((course) => ({
+        ...course,
+        hole_count: clampCourseHoleCount(course.hole_count),
+      })),
       sponsor_edit_deadline: tournamentSettings.sponsor_edit_deadline || null,
       sponsor_tiers: tournamentSettings.sponsor_tiers,
       event_schedule: tournamentSettings.event_schedule || null,
@@ -549,7 +572,7 @@ export const OrgSettingsPage: React.FC = () => {
       } else {
         toast.error(data.error || 'Failed to add member');
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to add member');
     } finally {
       setAddingMember(false);
@@ -596,7 +619,7 @@ export const OrgSettingsPage: React.FC = () => {
         const data = await res.json();
         toast.error(data.error || 'Failed to remove admin');
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to remove admin');
     }
   };
@@ -1084,8 +1107,9 @@ export const OrgSettingsPage: React.FC = () => {
                         <input
                           type="number"
                           min="1"
+                          max={MAX_COURSE_HOLES}
                           value={course.hole_count}
-                          onChange={(e) => updateCourseConfig(course.key, { hole_count: Math.max(1, parseInt(e.target.value || '1', 10)) })}
+                          onChange={(e) => updateCourseConfig(course.key, { hole_count: clampCourseHoleCount(parseInt(e.target.value || '1', 10)) })}
                           className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                         />
                       </div>
