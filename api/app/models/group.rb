@@ -118,11 +118,11 @@ class Group < ApplicationRecord
   def position_letter
     return @precomputed_position_letter if instance_variable_defined?(:@precomputed_position_letter)
 
-    groups_at_start = Group.where(
+    groups_at_start = Group.joins(:golfers).where(
       tournament_id: tournament_id,
       starting_course_key: starting_course_key,
       hole_number: hole_number
-    ).order(:group_number).pluck(:id, :group_number)
+    ).distinct.order(:group_number).pluck(:id, :group_number)
 
     position_index = groups_at_start.index { |group_id, _group_number| group_id == id }
     position_index ||= groups_at_start.count { |_group_id, number| number < group_number }

@@ -118,29 +118,48 @@ module Api
           return
         end
 
-        if group.update(attributes)
-          if !group.assigned_start? && group.empty_slot?
-            removed_group_id = group.id
-            tournament = group.tournament
-            group.scores.destroy_all
-            group.destroy!
-            broadcast_groups_update(tournament)
-            render json: { removed_group_id: removed_group_id, deleted: true }
-            return
+        positions_to_track = [starting_position_key(group), starting_position_key_for_attributes(attributes)]
+        removed_group_id = nil
+        response_payload = nil
+        deleted = false
+        tournament = group.tournament
+        label_changes = {}
+
+        ActiveRecord::Base.transaction do
+          label_changes = tracked_label_changes(tournament, positions_to_track)
+
+          unless group.update(attributes)
+            raise ActiveRecord::RecordInvalid, group
           end
 
-          ActivityLog.log(
-            admin: current_admin,
-            action: 'group_updated',
-            target: group,
-            details: group.assigned_start? ? "Assigned to #{group.starting_position_label}" : "Cleared starting position",
-            metadata: group_metadata(group).merge(previous_label: old_label)
-          )
-          broadcast_groups_update(group.tournament)
-          render json: group, include: "golfers"
-        else
-          render json: { errors: group.errors.full_messages }, status: :unprocessable_entity
+          if !group.assigned_start? && group.empty_slot?
+            removed_group_id = group.id
+            group.scores.destroy_all
+            group.destroy!
+            deleted = true
+            response_payload = { removed_group_id: removed_group_id, deleted: true }
+          else
+            response_payload = ActiveModelSerializers::SerializableResource.new(group, include: "golfers").as_json
+          end
         end
+
+        ActivityLog.log(
+          admin: current_admin,
+          action: 'group_updated',
+          target: group,
+          details: group.assigned_start? ? "Assigned to #{group.starting_position_label}" : "Cleared starting position",
+          metadata: group_metadata(group).merge(previous_label: old_label)
+        )
+        log_starting_position_adjustments(
+          tournament: tournament,
+          positions: positions_to_track,
+          previous_labels: label_changes,
+          excluded_group_ids: [group.id]
+        )
+        broadcast_groups_update(tournament)
+        render json: response_payload
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       # POST /api/v1/groups/:id/add_golfer
@@ -205,8 +224,11 @@ module Api
         hole_label = group.starting_position_label
         group_deleted = false
         removed_group_id = nil
+        label_changes = {}
+        tournament = group.tournament
 
         ActiveRecord::Base.transaction do
+          label_changes = tracked_label_changes(tournament, [starting_position_key(group)])
           raise ActiveRecord::RecordInvalid, golfer unless group.remove_golfer(golfer)
 
           if group.empty_slot?
@@ -230,8 +252,15 @@ module Api
               hole_label: hole_label
             )
           )
+          if group_deleted
+            log_starting_position_adjustments(
+              tournament: tournament,
+              positions: [starting_position_key(group)],
+              previous_labels: label_changes
+            )
+          end
           
-          broadcast_groups_update(group.tournament)
+          broadcast_groups_update(tournament)
           if group_deleted
             render json: { removed_group_id: removed_group_id, deleted: true }
           else
@@ -513,10 +542,72 @@ module Api
       end
 
       def cleanup_empty_groups!(tournament)
-        tournament.groups.without_golfers.find_each do |group|
-          group.scores.destroy_all
-          group.destroy!
+        ActiveRecord::Base.transaction do
+          tournament.groups.without_golfers.find_each do |group|
+            group.scores.destroy_all
+            group.destroy!
+          end
         end
+      end
+
+      def tracked_label_changes(tournament, positions)
+        tracked_groups_for_positions(tournament, positions).each_with_object({}) do |tracked_group, labels|
+          labels[tracked_group.id] = tracked_group.starting_position_label
+        end
+      end
+
+      def tracked_groups_for_positions(tournament, positions)
+        valid_positions = positions.compact.uniq
+        return [] if valid_positions.empty?
+
+        conditions = valid_positions.map do |course_key, hole_number|
+          Group.where(
+            tournament_id: tournament.id,
+            starting_course_key: course_key,
+            hole_number: hole_number
+          )
+        end
+
+        scope = conditions.reduce { |combined, relation| combined.or(relation) }
+        groups = scope.includes(:golfers).to_a.select { |tracked_group| tracked_group.golfers.any? }
+        preload_group_position_letters(groups)
+      end
+
+      def log_starting_position_adjustments(tournament:, positions:, previous_labels:, excluded_group_ids: [])
+        tracked_groups_for_positions(tournament, positions).each do |tracked_group|
+          next if excluded_group_ids.include?(tracked_group.id)
+
+          previous_label = previous_labels[tracked_group.id]
+          next if previous_label.blank?
+          next if previous_label == tracked_group.starting_position_label
+
+          tracked_group.golfers.each do |golfer|
+            ActivityLog.log(
+              admin: current_admin,
+              action: 'group_updated',
+              target: golfer,
+              details: "Starting position adjusted to #{tracked_group.starting_position_label} (was #{previous_label})",
+              metadata: group_metadata(tracked_group).merge(
+                previous_label: previous_label,
+                auto_adjusted: true,
+                golfer_name: golfer.name
+              ),
+              tournament: tournament
+            )
+          end
+        end
+      end
+
+      def starting_position_key(group)
+        return nil unless group.starting_course_key.present? && group.hole_number.present?
+
+        [group.starting_course_key, group.hole_number]
+      end
+
+      def starting_position_key_for_attributes(attributes)
+        return nil unless attributes[:starting_course_key].present? && attributes[:hole_number].present?
+
+        [attributes[:starting_course_key], attributes[:hole_number]]
       end
 
       def broadcast_groups_update(tournament)

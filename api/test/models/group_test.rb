@@ -147,6 +147,35 @@ class GroupTest < ActiveSupport::TestCase
     assert_equal "Hibiscus Hole 1", group.starting_hole_description
   end
 
+  test "starting_position_label ignores empty groups at the same start" do
+    tournament = tournaments(:tournament_one)
+    empty_group = tournament.groups.create!(
+      group_number: 4,
+      starting_course_key: "course-1",
+      hole_number: 1
+    )
+    filled_group = tournament.groups.create!(
+      group_number: 5,
+      starting_course_key: "course-1",
+      hole_number: 1
+    )
+    tournament.golfers.create!(
+      group: filled_group,
+      name: "Filled Start Golfer",
+      email: "filled-start-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0188",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      position: 1
+    )
+
+    assert empty_group.empty_slot?
+    assert_equal "1B", filled_group.starting_position_label
+  end
+
   test "rejects hole numbers outside configured course range" do
     tournament = tournaments(:tournament_one)
     tournament.update!(

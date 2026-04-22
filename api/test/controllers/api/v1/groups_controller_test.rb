@@ -196,6 +196,41 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 3, group.hole_number
   end
 
+  test "set_hole logs automatic label compaction for other teams at the same start" do
+    tournament = tournaments(:tournament_one)
+    trailing_group = tournament.groups.create!(
+      group_number: 4,
+      starting_course_key: "course-1",
+      hole_number: 1
+    )
+    trailing_golfer = tournament.golfers.create!(
+      group: trailing_group,
+      name: "Trailing Golfer",
+      email: "trailing-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0200",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      position: 1
+    )
+
+    post set_hole_api_v1_group_url(groups(:group_one)), params: {
+      starting_course_key: "course-1",
+      hole_number: 2
+    }, headers: auth_headers
+
+    assert_response :success
+
+    trailing_golfer.reload
+    log = ActivityLog.where(target_type: "Golfer", target_id: trailing_golfer.id, action: "group_updated").order(:created_at).last
+    assert_equal "Starting position adjusted to 1A (was 1B)", log.details
+    assert_equal "1A", log.metadata["starting_position_label"]
+    assert_equal "1B", log.metadata["previous_label"]
+    assert_equal true, log.metadata["auto_adjusted"]
+  end
+
   test "set_hole rejects zero as an invalid hole number" do
     group = groups(:group_three)
 
