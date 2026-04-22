@@ -1,0 +1,74 @@
+export interface GroupManagementCourseConfig {
+  key: string;
+  name: string;
+  hole_count: number;
+}
+
+export interface GroupManagementGroup {
+  id: number;
+  group_number: number;
+  starting_course_key: string | null;
+  hole_number: number | null;
+  golfers: Array<unknown>;
+}
+
+export interface GroupedCourseHole<TGroup extends GroupManagementGroup> {
+  holeNumber: number;
+  groups: TGroup[];
+}
+
+export interface GroupedCourse<TGroup extends GroupManagementGroup> extends GroupManagementCourseConfig {
+  holes: Array<GroupedCourseHole<TGroup>>;
+}
+
+export const hasValidStartingPosition = (
+  group: Pick<GroupManagementGroup, 'starting_course_key' | 'hole_number'>,
+  courseMap: Map<string, GroupManagementCourseConfig>
+) => {
+  if (!group.starting_course_key || !group.hole_number) return false;
+
+  const course = courseMap.get(group.starting_course_key);
+  if (!course) return false;
+
+  return group.hole_number <= course.hole_count;
+};
+
+export const isAwaitingPlacement = (
+  group: Pick<GroupManagementGroup, 'starting_course_key' | 'hole_number'>,
+  courseMap: Map<string, GroupManagementCourseConfig>
+) => !hasValidStartingPosition(group, courseMap);
+
+export const buildPlacementQueueGroups = <TGroup extends GroupManagementGroup>(
+  groups: TGroup[],
+  courseMap: Map<string, GroupManagementCourseConfig>
+) =>
+  groups
+    .filter((group) => group.golfers.length > 0 && isAwaitingPlacement(group, courseMap))
+    .sort((a, b) => a.group_number - b.group_number);
+
+export const buildGroupedCourses = <TGroup extends GroupManagementGroup>(
+  courseConfigs: GroupManagementCourseConfig[],
+  groups: TGroup[]
+): Array<GroupedCourse<TGroup>> => {
+  const courseMap = new Map(courseConfigs.map((course) => [course.key, course]));
+
+  return courseConfigs.map((course) => ({
+    ...course,
+    holes: Array.from({ length: course.hole_count }, (_, index) => {
+      const holeNumber = index + 1;
+      const holeGroups = groups
+        .filter(
+          (group) =>
+            hasValidStartingPosition(group, courseMap) &&
+            group.starting_course_key === course.key &&
+            group.hole_number === holeNumber
+        )
+        .sort((a, b) => a.group_number - b.group_number);
+
+      return {
+        holeNumber,
+        groups: holeGroups,
+      };
+    }),
+  }));
+};
