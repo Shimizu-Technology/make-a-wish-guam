@@ -87,6 +87,9 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
     if (phoneIsEmpty(formData.phone)) {
       newErrors.phone = 'Phone is required';
     }
+    if (!formData.team_category) {
+      newErrors.team_category = 'Team category is required';
+    }
     if (formData.payment_option === 'already_paid' && !formData.payment_method) {
       newErrors.payment_method = 'Payment method is required';
     }
@@ -368,7 +371,7 @@ export const AddGolferModal: React.FC<AddGolferModalProps> = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Team Category <span className="text-gray-400">(optional)</span>
+                  Team Category <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="team_category"

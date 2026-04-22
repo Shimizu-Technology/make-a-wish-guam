@@ -19,6 +19,7 @@ class Golfer < ApplicationRecord
   validates :waiver_accepted_at, presence: true, unless: :sponsored?
   validates :tournament_id, presence: true
   validates :team_category, inclusion: { in: %w[Male Female Co-Ed] }, allow_blank: true, unless: :sponsored?
+  validate :team_category_required_for_unsponsored_registration
 
   # Scopes - Active golfers (not cancelled)
   scope :active, -> { where.not(registration_status: "cancelled") }
@@ -58,6 +59,14 @@ class Golfer < ApplicationRecord
     if existing.exists?
       errors.add(:email, 'has already registered for this tournament')
     end
+  end
+
+  def team_category_required_for_unsponsored_registration
+    return if sponsored?
+    return if team_category.present?
+    return unless new_record? || will_save_change_to_team_category?
+
+    errors.add(:team_category, "can't be blank")
   end
 
   public

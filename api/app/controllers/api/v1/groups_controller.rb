@@ -163,51 +163,54 @@ module Api
 
       # POST /api/v1/groups/:id/add_golfer
       def add_golfer
-        group = Group.find(params[:id])
-        golfer = Golfer.find(params[:golfer_id])
+        group = nil
+        golfer = nil
 
-        if golfer.tournament_id != group.tournament_id
-          render json: { error: "Golfer and group must belong to the same tournament" }, status: :unprocessable_entity
-          return
+        ActiveRecord::Base.transaction do
+          golfer = Golfer.lock.find(params[:golfer_id])
+          group = Group.lock.includes(:golfers).find(params[:id])
+
+          if golfer.tournament_id != group.tournament_id
+            raise PlacementError, "Golfer and group must belong to the same tournament"
+          end
+
+          unless group.can_add?(golfer)
+            raise PlacementError, "Group is full (#{group.player_count}/#{group.max_golfers} players)"
+          end
+
+          if golfer.registration_status == "cancelled"
+            raise PlacementError, "Cannot add cancelled golfer to a group"
+          end
+
+          if golfer.registration_status == "waitlist"
+            raise PlacementError, "Cannot add waitlist golfer to a group. Promote them to confirmed first."
+          end
+
+          if golfer.group_id.present?
+            raise PlacementError, "Golfer is already assigned to a group"
+          end
+
+          unless group.add_golfer(golfer)
+            raise ActiveRecord::RecordInvalid, golfer
+          end
         end
 
-        unless group.can_add?(golfer)
-          render json: { error: "Group is full (#{group.player_count}/#{group.max_golfers} players)" }, status: :unprocessable_entity
-          return
-        end
-        
-        # Prevent adding cancelled or waitlist golfers to groups
-        if golfer.registration_status == "cancelled"
-          render json: { error: "Cannot add cancelled golfer to a group" }, status: :unprocessable_entity
-          return
-        end
-        
-        if golfer.registration_status == "waitlist"
-          render json: { error: "Cannot add waitlist golfer to a group. Promote them to confirmed first." }, status: :unprocessable_entity
-          return
-        end
-
-        if golfer.group_id.present?
-          render json: { error: "Golfer is already assigned to a group" }, status: :unprocessable_entity
-          return
-        end
-
-        if group.add_golfer(golfer)
-          ActivityLog.log(
-            admin: current_admin,
-            action: 'golfer_assigned_to_group',
-            target: golfer,
-            details: "Added #{golfer.name} to #{starting_position_reference(group)}",
-            metadata: group_metadata(group).merge(
-              group_id: group.id,
-              group_number: group.group_number
-            )
+        ActivityLog.log(
+          admin: current_admin,
+          action: 'golfer_assigned_to_group',
+          target: golfer,
+          details: "Added #{golfer.name} to #{starting_position_reference(group)}",
+          metadata: group_metadata(group).merge(
+            group_id: group.id,
+            group_number: group.group_number
           )
-          broadcast_groups_update(group.tournament)
-          render json: group, include: "golfers"
-        else
-          render json: { errors: golfer.errors.full_messages }, status: :unprocessable_entity
-        end
+        )
+        broadcast_groups_update(group.tournament)
+        render json: group, include: "golfers"
+      rescue PlacementError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       # POST /api/v1/groups/:id/remove_golfer

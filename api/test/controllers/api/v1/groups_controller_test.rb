@@ -259,6 +259,20 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, golfer.position
   end
 
+  test "add_golfer persists assignment when golfer has a blank category" do
+    group = groups(:group_three)
+    group.golfers.destroy_all
+    golfer = golfers(:confirmed_unpaid)
+    golfer.update_columns(team_category: nil, updated_at: Time.current)
+
+    post add_golfer_api_v1_group_url(group), params: { golfer_id: golfer.id }, headers: auth_headers
+
+    assert_response :success
+    golfer.reload
+    assert_equal group.id, golfer.group_id
+    assert_equal 1, golfer.position
+  end
+
   test "place_golfer creates a started group and returns consistent metadata" do
     tournament = tournaments(:tournament_one)
     golfer = golfers(:confirmed_unpaid)

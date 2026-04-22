@@ -120,6 +120,9 @@ export const EditGolferModal: React.FC<EditGolferModalProps> = ({
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone is required';
     }
+    if (!formData.team_category) {
+      newErrors.team_category = 'Team category is required';
+    }
     if (formData.payment_status === 'paid' && !formData.payment_method) {
       newErrors.payment_method = 'Payment method is required when marked as paid';
     }
@@ -153,7 +156,7 @@ export const EditGolferModal: React.FC<EditGolferModalProps> = ({
           body: JSON.stringify({
             golfer: {
               ...formData,
-              team_category: formData.team_category || null,
+              team_category: formData.team_category,
             },
           }),
         }
@@ -362,18 +365,23 @@ export const EditGolferModal: React.FC<EditGolferModalProps> = ({
           </div>
 
           <div className="pt-4 border-t border-gray-200">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Team Category</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Team Category <span className="text-red-500">*</span>
+            </label>
             <select
               name="team_category"
               value={formData.team_category}
               onChange={handleChange}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 ${
+                errors.team_category ? 'border-red-400 ring-2 ring-red-100' : 'border-gray-300'
+              }`}
             >
               <option value="">—</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
               <option value="Co-Ed">Co-Ed</option>
             </select>
+            {errors.team_category && <p className="text-xs text-red-500 mt-1">{errors.team_category}</p>}
           </div>
 
           {/* Payment Section */}

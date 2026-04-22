@@ -146,6 +146,7 @@ export const OrgRegistrationPage: React.FC = () => {
       if (formData.player2Email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.player2Email)) {
         newErrors.player2Email = 'Please enter a valid email address';
       }
+      if (!formData.teamCategory) newErrors.teamCategory = 'Team category is required';
     }
 
     if (step === 3) {
@@ -497,7 +498,7 @@ export const OrgRegistrationPage: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                          Team Category <span className="text-neutral-400">(optional)</span>
+                          Team Category <span className="text-red-500">*</span>
                         </label>
                         <select
                           name="teamCategory"

@@ -12,7 +12,8 @@ class GolferTest < ActiveSupport::TestCase
       email: "test-new@example.com",
       phone: "671-555-1234",
       payment_type: "pay_on_day",
-      waiver_accepted_at: Time.current
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
     )
     assert golfer.valid?, "Golfer should be valid with required attributes: #{golfer.errors.full_messages.join(', ')}"
   end
@@ -49,7 +50,8 @@ class GolferTest < ActiveSupport::TestCase
       email: existing.email,
       phone: "671-555-9999",
       payment_type: "pay_on_day",
-      waiver_accepted_at: Time.current
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
     )
     assert_not golfer.valid?
     assert_includes golfer.errors[:email], "has already registered for this tournament"
@@ -65,7 +67,8 @@ class GolferTest < ActiveSupport::TestCase
       email: existing.email,
       phone: "671-555-9999",
       payment_type: "pay_on_day",
-      waiver_accepted_at: Time.current
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
     )
     assert golfer.valid?, "Same email should be allowed in different tournament: #{golfer.errors.full_messages.join(', ')}"
   end
@@ -94,18 +97,19 @@ class GolferTest < ActiveSupport::TestCase
     assert_includes golfer.errors[:waiver_accepted_at], "can't be blank"
   end
 
-  test "team category is optional" do
+  test "team category is required for non-sponsored golfers" do
     golfer = Golfer.new(
       tournament: tournaments(:tournament_one),
-      name: "Category Optional",
-      email: "category-optional@example.com",
+      name: "Category Required",
+      email: "category-required@example.com",
       phone: "671-555-1234",
       payment_type: "pay_on_day",
       waiver_accepted_at: Time.current,
       team_category: nil
     )
 
-    assert golfer.valid?, golfer.errors.full_messages.join(", ")
+    assert_not golfer.valid?
+    assert_includes golfer.errors[:team_category], "can't be blank"
   end
 
   # ==================
@@ -216,7 +220,8 @@ class GolferTest < ActiveSupport::TestCase
       email: "new-callback@example.com",
       phone: "671-555-9999",
       payment_type: "pay_on_day",
-      waiver_accepted_at: Time.current
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
     )
     assert_equal "unpaid", golfer.payment_status
   end
@@ -232,7 +237,8 @@ class GolferTest < ActiveSupport::TestCase
       email: "capacity-test@example.com",
       phone: "671-555-9999",
       payment_type: "pay_on_day",
-      waiver_accepted_at: Time.current
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
     )
     assert_equal "confirmed", golfer.registration_status
   end
