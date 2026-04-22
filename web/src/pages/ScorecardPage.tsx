@@ -27,6 +27,7 @@ interface Group {
   id: number;
   group_number: number;
   hole_position: string;
+  starting_hole_description?: string | null;
 }
 
 interface HoleScore {
@@ -75,6 +76,7 @@ interface Tournament {
   name: string;
   total_holes: number;
   total_par: number;
+  course_configs?: { key: string; name: string; hole_count: number }[];
   hole_pars?: Record<string, number>;
   tournament_format?: 'scramble' | 'stroke' | 'stableford' | 'best_ball' | 'match' | 'captain_choice' | 'custom';
   team_size?: number;
@@ -163,6 +165,7 @@ export const ScorecardPage: React.FC = () => {
           tournament_format: golferTournament.format as Tournament['tournament_format'],
           total_holes: golferTournament.total_holes || 18,
           total_par: golferTournament.total_par || 72,
+          course_configs: golferTournament.course_configs,
         } as Tournament);
       }
 
@@ -358,6 +361,9 @@ export const ScorecardPage: React.FC = () => {
               <h1 className="text-lg font-bold">
                 Group {scorecard.group.group_number}
               </h1>
+              {scorecard.group.starting_hole_description && (
+                <p className="text-sm text-green-200">{scorecard.group.starting_hole_description}</p>
+              )}
               <p className="text-green-200 text-sm">
                 {scorecard.golfers.map(g => g.name).join(' • ')}
               </p>

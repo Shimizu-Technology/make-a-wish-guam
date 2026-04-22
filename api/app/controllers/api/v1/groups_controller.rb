@@ -1,7 +1,9 @@
 module Api
   module V1
     class GroupsController < BaseController
-      before_action :authorize_collection_tournament_access!, only: [:index, :create, :batch_create, :auto_assign]
+      class PlacementError < StandardError; end
+
+      before_action :authorize_collection_tournament_access!, only: [:index, :create, :batch_create, :auto_assign, :place_golfer]
       before_action :authorize_group_access!, only: [:show, :update, :destroy, :set_hole, :add_golfer, :remove_golfer]
       before_action :authorize_update_positions_access!, only: [:update_positions]
 
@@ -10,7 +12,7 @@ module Api
         tournament = find_tournament
         return render_tournament_required unless tournament
 
-        groups = tournament.groups.with_golfers
+        groups = preload_group_position_letters(tournament.groups.with_golfers)
 
         render json: groups, each_serializer: GroupSerializer, include: "golfers"
       end
@@ -26,38 +28,44 @@ module Api
         tournament = find_tournament
         return render_tournament_required unless tournament
 
-        # Auto-assign next group number for this tournament
-        next_number = (tournament.groups.maximum(:group_number) || 0) + 1
-        group = tournament.groups.new(group_number: next_number, hole_number: params[:hole_number])
+        group = nil
 
-        if group.save
-          ActivityLog.log(
-            admin: current_admin,
-            action: 'group_created',
-            target: group,
-            details: "Created Hole #{group.hole_position_label}",
-            metadata: { hole_number: group.hole_number, group_number: group.group_number }
+        ActiveRecord::Base.transaction do
+          group = tournament.groups.new(
+            group_number: allocate_next_group_number!(tournament),
+            starting_course_key: params[:starting_course_key],
+            hole_number: params[:hole_number]
           )
-          broadcast_groups_update(tournament)
-          render json: group, status: :created
-        else
-          render json: { errors: group.errors.full_messages }, status: :unprocessable_entity
+
+          group.save!
         end
+
+        ActivityLog.log(
+          admin: current_admin,
+          action: 'group_created',
+          target: group,
+          details: "Created #{starting_position_reference(group)}",
+          metadata: group_metadata(group)
+        )
+        broadcast_groups_update(tournament)
+        render json: group, status: :created
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       # PATCH /api/v1/groups/:id
       def update
         group = Group.find(params[:id])
-        old_hole = group.hole_number
+        old_label = group.starting_position_label
 
         if group.update(group_params)
-          if old_hole != group.hole_number
+          if old_label != group.starting_position_label
             ActivityLog.log(
               admin: current_admin,
               action: 'group_updated',
               target: group,
-              details: "Moved group to Hole #{group.hole_position_label} (was Hole #{old_hole || 'unassigned'})",
-              metadata: { previous_hole: old_hole, new_hole: group.hole_number, group_number: group.group_number }
+              details: "Updated starting position to #{starting_position_reference(group)} (was #{old_label || 'Unassigned'})",
+              metadata: group_metadata(group).merge(previous_label: old_label)
             )
           end
           broadcast_groups_update(group.tournament)
@@ -74,7 +82,7 @@ module Api
         group_number = group.group_number
         golfer_names = group.golfers.pluck(:name)
 
-        hole_label = group.hole_position_label
+        hole_label = group.starting_position_label
 
         ActiveRecord::Base.transaction do
           group.golfers.update_all(group_id: nil, position: nil)
@@ -87,8 +95,13 @@ module Api
           action: 'group_deleted',
           target: nil,
           tournament: tournament,
-          details: "Deleted Hole #{hole_label}",
-          metadata: { group_number: group_number, hole_label: hole_label, removed_golfers: golfer_names }
+          details: "Deleted #{starting_position_reference(group, label: hole_label)}",
+          metadata: group_metadata(group).merge(
+            group_number: group_number,
+            starting_position_label: hole_label,
+            hole_label: hole_label,
+            removed_golfers: golfer_names
+          )
         )
         
         broadcast_groups_update(tournament)
@@ -98,92 +111,178 @@ module Api
       # POST /api/v1/groups/:id/set_hole
       def set_hole
         group = Group.find(params[:id])
-        old_hole = group.hole_number
+        old_label = group.starting_position_label
+        attributes, error_message = starting_position_params_for(group.tournament)
 
-        unless (1..18).include?(params[:hole_number].to_i)
-          render json: { error: "Hole number must be between 1 and 18" }, status: :unprocessable_entity
+        if error_message
+          render json: { error: error_message }, status: :unprocessable_entity
           return
         end
 
-        if group.update(hole_number: params[:hole_number])
-          ActivityLog.log(
-            admin: current_admin,
-            action: 'group_updated',
-            target: group,
-            details: "Assigned to Hole #{group.hole_position_label}",
-            metadata: { previous_hole: old_hole, new_hole: group.hole_number, group_number: group.group_number }
-          )
-          broadcast_groups_update(group.tournament)
-          render json: group, include: "golfers"
-        else
-          render json: { errors: group.errors.full_messages }, status: :unprocessable_entity
+        positions_to_track = [starting_position_key(group), starting_position_key_for_attributes(attributes)]
+        removed_group_id = nil
+        response_payload = nil
+        deleted = false
+        tournament = group.tournament
+        label_changes = {}
+
+        ActiveRecord::Base.transaction do
+          label_changes = tracked_label_changes(tournament, positions_to_track)
+
+          unless group.update(attributes)
+            raise ActiveRecord::RecordInvalid, group
+          end
+
+          if !group.assigned_start? && group.empty_slot?
+            removed_group_id = group.id
+            group.scores.destroy_all
+            group.destroy!
+            deleted = true
+            response_payload = { removed_group_id: removed_group_id, deleted: true }
+          else
+            response_payload = ActiveModelSerializers::SerializableResource.new(group, include: "golfers").as_json
+          end
         end
+
+        ActivityLog.log(
+          admin: current_admin,
+          action: 'group_updated',
+          target: group,
+          details: group.assigned_start? ? "Assigned to #{group.starting_position_label}" : "Cleared starting position",
+          metadata: group_metadata(group).merge(previous_label: old_label)
+        )
+        log_starting_position_adjustments(
+          tournament: tournament,
+          positions: positions_to_track,
+          previous_labels: label_changes,
+          excluded_group_ids: [group.id]
+        )
+        broadcast_groups_update(tournament)
+        render json: response_payload
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       # POST /api/v1/groups/:id/add_golfer
       def add_golfer
-        group = Group.find(params[:id])
-        golfer = Golfer.find(params[:golfer_id])
+        group = nil
+        golfer = nil
 
-        if golfer.tournament_id != group.tournament_id
-          render json: { error: "Golfer and group must belong to the same tournament" }, status: :unprocessable_entity
-          return
+        ActiveRecord::Base.transaction do
+          golfer = Golfer.lock.find(params[:golfer_id])
+          group = Group.lock.includes(:golfers).find(params[:id])
+
+          if golfer.tournament_id != group.tournament_id
+            raise PlacementError, "Golfer and group must belong to the same tournament"
+          end
+
+          unless group.can_add?(golfer)
+            raise PlacementError, "Group is full (#{group.player_count}/#{group.max_golfers} players)"
+          end
+
+          if golfer.registration_status == "cancelled"
+            raise PlacementError, "Cannot add cancelled golfer to a group"
+          end
+
+          if golfer.registration_status == "waitlist"
+            raise PlacementError, "Cannot add waitlist golfer to a group. Promote them to confirmed first."
+          end
+
+          if golfer.group_id.present?
+            raise PlacementError, "Golfer is already assigned to a group"
+          end
+
+          unless group.add_golfer(golfer)
+            raise ActiveRecord::RecordInvalid, golfer
+          end
         end
 
-        unless group.can_add?(golfer)
-          render json: { error: "Group is full (#{group.player_count}/#{group.max_golfers} players)" }, status: :unprocessable_entity
-          return
-        end
-        
-        # Prevent adding cancelled or waitlist golfers to groups
-        if golfer.registration_status == "cancelled"
-          render json: { error: "Cannot add cancelled golfer to a group" }, status: :unprocessable_entity
-          return
-        end
-        
-        if golfer.registration_status == "waitlist"
-          render json: { error: "Cannot add waitlist golfer to a group. Promote them to confirmed first." }, status: :unprocessable_entity
-          return
-        end
-
-        if group.add_golfer(golfer)
-          ActivityLog.log(
-            admin: current_admin,
-            action: 'golfer_assigned_to_group',
-            target: golfer,
-            details: "Added #{golfer.name} to Hole #{group.hole_position_label}",
-            metadata: { group_id: group.id, group_number: group.group_number, hole_label: group.hole_position_label }
+        ActivityLog.log(
+          admin: current_admin,
+          action: 'golfer_assigned_to_group',
+          target: golfer,
+          details: "Added #{golfer.name} to #{starting_position_reference(group)}",
+          metadata: group_metadata(group).merge(
+            group_id: group.id,
+            group_number: group.group_number
           )
-          broadcast_groups_update(group.tournament)
-          render json: group, include: "golfers"
-        else
-          render json: { error: "Failed to add golfer to group" }, status: :unprocessable_entity
-        end
+        )
+        broadcast_groups_update(group.tournament)
+        render json: group, include: "golfers"
+      rescue PlacementError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       # POST /api/v1/groups/:id/remove_golfer
       def remove_golfer
-        group = Group.find(params[:id])
-        golfer = Golfer.find(params[:golfer_id])
+        group = nil
+        golfer = nil
 
-        unless golfer.group_id == group.id
-          render json: { error: "Golfer is not in this group" }, status: :unprocessable_entity
-          return
+        hole_label = nil
+        group_deleted = false
+        removed_group_id = nil
+        label_changes = {}
+        tournament = nil
+
+        ActiveRecord::Base.transaction do
+          golfer = Golfer.lock.find(params[:golfer_id])
+          group = Group.lock.find(params[:id])
+
+          unless golfer.group_id == group.id
+            raise PlacementError, "Golfer is not in this group"
+          end
+
+          hole_label = group.starting_position_label
+          tournament = group.tournament
+          label_changes = tracked_label_changes(tournament, [starting_position_key(group)])
+          raise ActiveRecord::RecordInvalid, golfer unless group.remove_golfer(golfer)
+
+          if group.empty_slot?
+            removed_group_id = group.id
+            group.scores.destroy_all
+            group.destroy!
+            group_deleted = true
+          end
         end
 
-        hole_label = group.hole_position_label
-        group.remove_golfer(golfer)
-        
-        ActivityLog.log(
-          admin: current_admin,
-          action: 'golfer_removed_from_group',
-          target: golfer,
-          details: "Removed #{golfer.name} from Hole #{hole_label}",
-          metadata: { group_id: group.id, group_number: group.group_number, hole_label: hole_label }
-        )
-        
-        broadcast_groups_update(group.tournament)
-        render json: group, include: "golfers"
+        if golfer.errors.empty?
+          ActivityLog.log(
+            admin: current_admin,
+            action: 'golfer_removed_from_group',
+            target: golfer,
+            details: "Removed #{golfer.name} from #{starting_position_reference(group, label: hole_label)}",
+            metadata: group_metadata(group).merge(
+              group_id: group.id,
+              group_number: group.group_number,
+              starting_position_label: hole_label,
+              hole_label: hole_label
+            )
+          )
+          if group_deleted
+            log_starting_position_adjustments(
+              tournament: tournament,
+              positions: [starting_position_key(group)],
+              previous_labels: label_changes
+            )
+          end
+          
+          broadcast_groups_update(tournament)
+          if group_deleted
+            render json: { removed_group_id: removed_group_id, deleted: true }
+          else
+            render json: group, include: "golfers"
+          end
+        else
+          render json: { errors: golfer.errors.full_messages }, status: :unprocessable_entity
+        end
+      rescue PlacementError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Group or golfer not found" }, status: :not_found
       end
 
       # POST /api/v1/groups/update_positions
@@ -212,6 +311,80 @@ module Api
         render json: { error: e.message }, status: :unprocessable_entity
       end
 
+      # POST /api/v1/groups/place_golfer
+      def place_golfer
+        tournament = find_tournament
+        return render_tournament_required unless tournament
+
+        attributes, error_message = starting_position_params_for(tournament)
+        if error_message
+          render json: { error: error_message }, status: :unprocessable_entity
+          return
+        end
+
+        group = nil
+        created_group = false
+
+        ActiveRecord::Base.transaction do
+          golfer = tournament.golfers.lock.find(params[:golfer_id])
+
+          raise PlacementError, "Golfer is already assigned to a group" if golfer.group_id.present?
+          raise PlacementError, "Cannot add cancelled golfer to a group" if golfer.registration_status == "cancelled"
+          if golfer.registration_status == "waitlist"
+            raise PlacementError, "Cannot add waitlist golfer to a group. Promote them to confirmed first."
+          end
+
+          group = Group.reusable_slot_for(
+            tournament: tournament,
+            course_key: attributes[:starting_course_key],
+            hole_number: attributes[:hole_number]
+          )
+
+          unless group
+            created_group = true
+            group = tournament.groups.create!(
+              group_number: allocate_next_group_number!(tournament),
+              starting_course_key: attributes[:starting_course_key],
+              hole_number: attributes[:hole_number]
+            )
+          end
+
+          unless group.add_golfer(golfer)
+            raise ActiveRecord::RecordInvalid, golfer
+          end
+
+          if created_group
+            ActivityLog.log(
+              admin: current_admin,
+              action: 'group_created',
+              target: group,
+              details: "Created #{starting_position_reference(group)}",
+              metadata: group_metadata(group)
+            )
+          end
+
+          ActivityLog.log(
+            admin: current_admin,
+            action: 'golfer_assigned_to_group',
+            target: golfer,
+            details: "Added #{golfer.name} to #{starting_position_reference(group)}",
+            metadata: group_metadata(group).merge(
+              group_id: group.id,
+              group_number: group.group_number
+            )
+          )
+        end
+
+        broadcast_groups_update(tournament)
+        render json: group, include: "golfers", status: :created
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Golfer not found" }, status: :not_found
+      rescue PlacementError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
+      end
+
       # POST /api/v1/groups/batch_create
       # Create multiple groups at once
       def batch_create
@@ -223,10 +396,14 @@ module Api
         count = 40 if count > 40 # Max 40 groups (160 golfers / 4)
 
         groups = []
-        next_number = (tournament.groups.maximum(:group_number) || 0) + 1
 
-        count.times do |i|
-          groups << tournament.groups.create!(group_number: next_number + i)
+        ActiveRecord::Base.transaction do
+          tournament.lock!
+          next_number = (tournament.groups.maximum(:group_number) || 0) + 1
+
+          count.times do |i|
+            groups << tournament.groups.create!(group_number: next_number + i)
+          end
         end
 
         broadcast_groups_update(tournament)
@@ -249,29 +426,54 @@ module Api
         end
 
         assigned_count = 0
+        failures = []
 
         unassigned.each do |golfer|
           group = tournament.groups.includes(:golfers)
                        .select { |g| g.can_add?(golfer) }
                        .first
 
+          created_group = false
           unless group
-            next_number = (tournament.groups.maximum(:group_number) || 0) + 1
-            group = tournament.groups.create!(group_number: next_number)
+            group = ActiveRecord::Base.transaction do
+              tournament.groups.create!(group_number: allocate_next_group_number!(tournament))
+            end
+            created_group = true
           end
 
-          group.add_golfer(golfer)
-          assigned_count += 1
+          if group.add_golfer(golfer)
+            assigned_count += 1
+          else
+            group.destroy if created_group && group.golfers.none?
+            failures << auto_assign_failure_for(golfer)
+          end
         end
 
         broadcast_groups_update(tournament)
+        message =
+          if failures.any?
+            "Auto-assigned #{assigned_count} golfers; #{failures.length} could not be assigned"
+          else
+            "Auto-assigned #{assigned_count} golfers"
+          end
+
         render json: {
-          message: "Auto-assigned #{assigned_count} golfers",
-          assigned_count: assigned_count
+          message: message,
+          assigned_count: assigned_count,
+          failed_count: failures.length,
+          failures: failures
         }
       end
 
       private
+
+      def auto_assign_failure_for(golfer)
+        {
+          golfer_id: golfer.id,
+          name: golfer.name,
+          errors: golfer.errors.full_messages.presence || ["Unable to auto-assign golfer"]
+        }
+      end
 
       def authorize_collection_tournament_access!
         tournament = find_tournament
@@ -315,13 +517,115 @@ module Api
       end
 
       def group_params
-        params.require(:group).permit(:group_number, :hole_number)
+        params.require(:group).permit(:group_number, :starting_course_key, :hole_number)
+      end
+
+      def group_metadata(group)
+        {
+          starting_course_key: group.starting_course_key,
+          hole_number: group.hole_number,
+          group_number: group.group_number,
+          starting_position_label: group.starting_position_label,
+          hole_label: group.hole_position_label
+        }
+      end
+
+      def starting_position_reference(group, label: nil)
+        resolved = label.presence || group.starting_position_label
+        return "Group #{group.group_number}" if resolved.blank? || resolved == "Unassigned"
+
+        resolved
+      end
+
+      def starting_position_params_for(tournament)
+        course_key = params[:starting_course_key].presence
+        hole_number = params[:hole_number].presence&.to_i
+
+        return [{ starting_course_key: nil, hole_number: nil }, nil] if course_key.blank? && hole_number.nil?
+        return [nil, "Starting course and hole are both required"] if course_key.blank? || hole_number.nil?
+
+        course = tournament.course_config_for(course_key)
+        return [nil, "Selected course is not configured for this event"] unless course
+
+        max_holes = course['hole_count'].to_i
+        return [nil, "Hole number must be between 1 and #{max_holes} for #{course['name']}"] unless (1..max_holes).include?(hole_number)
+
+        [{ starting_course_key: course_key, hole_number: hole_number }, nil]
+      end
+
+      def preload_group_position_letters(groups)
+        Group.preload_position_letters(groups.to_a)
+      end
+
+      def allocate_next_group_number!(tournament)
+        tournament.lock!
+        (tournament.groups.maximum(:group_number) || 0) + 1
+      end
+
+      def tracked_label_changes(tournament, positions)
+        tracked_groups_for_positions(tournament, positions).each_with_object({}) do |tracked_group, labels|
+          labels[tracked_group.id] = tracked_group.starting_position_label
+        end
+      end
+
+      def tracked_groups_for_positions(tournament, positions)
+        valid_positions = positions.compact.uniq
+        return [] if valid_positions.empty?
+
+        conditions = valid_positions.map do |course_key, hole_number|
+          Group.where(
+            tournament_id: tournament.id,
+            starting_course_key: course_key,
+            hole_number: hole_number
+          )
+        end
+
+        scope = conditions.reduce { |combined, relation| combined.or(relation) }
+        groups = scope.includes(:golfers).to_a.select { |tracked_group| tracked_group.golfers.any? }
+        preload_group_position_letters(groups)
+      end
+
+      def log_starting_position_adjustments(tournament:, positions:, previous_labels:, excluded_group_ids: [])
+        tracked_groups_for_positions(tournament, positions).each do |tracked_group|
+          next if excluded_group_ids.include?(tracked_group.id)
+
+          previous_label = previous_labels[tracked_group.id]
+          next if previous_label.blank?
+          next if previous_label == tracked_group.starting_position_label
+
+          tracked_group.golfers.each do |golfer|
+            ActivityLog.log(
+              admin: current_admin,
+              action: 'group_updated',
+              target: golfer,
+              details: "Starting position adjusted to #{tracked_group.starting_position_label} (was #{previous_label})",
+              metadata: group_metadata(tracked_group).merge(
+                previous_label: previous_label,
+                auto_adjusted: true,
+                golfer_name: golfer.name
+              ),
+              tournament: tournament
+            )
+          end
+        end
+      end
+
+      def starting_position_key(group)
+        return nil unless group.starting_course_key.present? && group.hole_number.present?
+
+        [group.starting_course_key, group.hole_number]
+      end
+
+      def starting_position_key_for_attributes(attributes)
+        return nil unless attributes[:starting_course_key].present? && attributes[:hole_number].present?
+
+        [attributes[:starting_course_key], attributes[:hole_number]]
       end
 
       def broadcast_groups_update(tournament)
         return unless tournament
         
-        groups = tournament.groups.with_golfers
+        groups = preload_group_position_letters(tournament.groups.with_golfers)
         ActionCable.server.broadcast("groups_channel", {
           action: "updated",
           tournament_id: tournament.id,

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_07_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_21_103000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -132,8 +132,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_07_150000) do
     t.datetime "created_at", null: false
     t.integer "group_number"
     t.integer "hole_number"
+    t.string "starting_course_key"
     t.bigint "tournament_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["tournament_id", "starting_course_key", "hole_number"], name: "index_groups_on_tournament_course_and_hole"
     t.index ["tournament_id"], name: "index_groups_on_tournament_id"
   end
 

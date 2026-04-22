@@ -18,7 +18,8 @@ class Golfer < ApplicationRecord
   validates :registration_status, inclusion: { in: %w[confirmed waitlist cancelled pending], allow_nil: true }
   validates :waiver_accepted_at, presence: true, unless: :sponsored?
   validates :tournament_id, presence: true
-  validates :team_category, presence: true, inclusion: { in: %w[Male Female Co-Ed] }, unless: :sponsored?
+  validates :team_category, inclusion: { in: %w[Male Female Co-Ed] }, allow_blank: true, unless: :sponsored?
+  validate :team_category_required_for_unsponsored_registration
 
   # Scopes - Active golfers (not cancelled)
   scope :active, -> { where.not(registration_status: "cancelled") }
@@ -60,6 +61,14 @@ class Golfer < ApplicationRecord
     end
   end
 
+  def team_category_required_for_unsponsored_registration
+    return if sponsored?
+    return if team_category.present?
+    return unless new_record? || will_save_change_to_team_category?
+
+    errors.add(:team_category, "can't be blank")
+  end
+
   public
 
   # Set registration status based on capacity
@@ -93,6 +102,24 @@ class Golfer < ApplicationRecord
 
   def can_cancel?
     !cancelled?
+  end
+
+  def assign_to_group(group:, position:)
+    assign_attributes(group: group, position: position)
+    save!(validate: false)
+    true
+  rescue ActiveRecord::ActiveRecordError
+    errors.add(:base, "Unable to assign golfer to this starting position")
+    false
+  end
+
+  def clear_group_assignment
+    assign_attributes(group: nil, position: nil)
+    save!(validate: false)
+    true
+  rescue ActiveRecord::ActiveRecordError
+    errors.add(:base, "Unable to clear golfer starting position")
+    false
   end
 
   # Magic Link methods
@@ -305,27 +332,13 @@ class Golfer < ApplicationRecord
     "#{group.group_number}#{letter.upcase}"
   end
 
-  # New hole-based position label (e.g., "7A" for first foursome at Hole 7)
-  # The letter indicates which foursome at that hole, not the player's position
-  # Always includes a letter suffix for consistency (even if only one foursome at that hole)
-  def hole_position_label
+  def starting_position_label
     return nil unless group
-    return "Unassigned" unless group.hole_number
 
-    # Get all groups at this hole, sorted by group_number for consistent ordering
-    groups_at_hole = Group.where(
-      tournament_id: tournament_id,
-      hole_number: group.hole_number
-    ).order(:group_number)
-
-    # Find this group's index among all groups at this hole
-    group_ids = groups_at_hole.pluck(:id)
-    position_index = group_ids.index(group.id)
-    
-    # Always add letter suffix for consistency
-    position_letter = ('A'..'Z').to_a[position_index] || 'X'
-    "#{group.hole_number}#{position_letter}"
+    group.starting_position_label
   end
+
+  alias_method :hole_position_label, :starting_position_label
 
   # Check if this is a Stripe payment that's been confirmed
   def stripe_payment_confirmed?

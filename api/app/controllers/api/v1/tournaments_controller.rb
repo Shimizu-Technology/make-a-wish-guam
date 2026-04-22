@@ -45,7 +45,14 @@ module Api
         require_org_admin!(organization)
         return if performed?
 
-        tournament = organization.tournaments.new(tournament_params.except(:organization_id))
+        attrs = tournament_params.except(:organization_id, :course_configs)
+        if params[:tournament]&.key?(:course_configs)
+          courses = Array(tournament_params[:course_configs]).map(&:to_h)
+          attrs[:config] = (attrs[:config] || {}).merge('course_configs' => courses)
+          attrs[:total_holes] = courses.sum { |course| course['hole_count'].to_i }
+        end
+
+        tournament = organization.tournaments.new(attrs)
         
         if tournament.save
           ActivityLog.log(
@@ -63,7 +70,8 @@ module Api
       # PATCH /api/v1/tournaments/:id
       def update
         attrs = tournament_params.except(:organization_id, :sponsor_tiers,
-                                         :raffle_include_with_registration, :raffle_bundles)
+                                         :raffle_include_with_registration, :raffle_bundles,
+                                         :course_configs)
 
         merged_config = (@tournament.config || {}).deep_dup
 
@@ -79,6 +87,12 @@ module Api
 
         if params.dig(:tournament, :raffle_bundles).present?
           merged_config['raffle_bundles'] = tournament_params[:raffle_bundles]&.map(&:to_h)
+        end
+
+        if params[:tournament]&.key?(:course_configs)
+          courses = Array(tournament_params[:course_configs]).map(&:to_h)
+          merged_config['course_configs'] = courses
+          attrs[:total_holes] = courses.sum { |course| course['hole_count'].to_i }
         end
 
         attrs[:config] = merged_config if merged_config != @tournament.config
@@ -209,6 +223,7 @@ module Api
           :check_in_time,
           :raffle_include_with_registration,
           config: {},
+          course_configs: [:key, :name, :hole_count],
           sponsor_tiers: [:key, :label, :sort_order],
           raffle_bundles: [:quantity, :price_cents, :label]
         )
@@ -216,4 +231,3 @@ module Api
     end
   end
 end
-

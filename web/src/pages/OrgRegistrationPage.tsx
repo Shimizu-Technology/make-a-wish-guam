@@ -102,9 +102,10 @@ export const OrgRegistrationPage: React.FC = () => {
       try {
         const data = await api.getOrganizationTournament(orgSlug, tournamentSlug);
         setTournament(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to load tournament';
         console.error('Failed to fetch tournament:', err);
-        setSubmitError(err.message || 'Failed to load tournament');
+        setSubmitError(message);
       } finally {
         setIsLoading(false);
       }
@@ -145,7 +146,7 @@ export const OrgRegistrationPage: React.FC = () => {
       if (formData.player2Email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.player2Email)) {
         newErrors.player2Email = 'Please enter a valid email address';
       }
-      if (!formData.teamCategory) newErrors.teamCategory = 'Please select a team category';
+      if (!formData.teamCategory) newErrors.teamCategory = 'Team category is required';
     }
 
     if (step === 3) {
@@ -181,14 +182,14 @@ export const OrgRegistrationPage: React.FC = () => {
           name: formData.player1Name,
           email: formData.player1Email,
           phone: formData.player1Phone,
-          payment_type: 'swipe_simple' as any,
+          payment_type: 'swipe_simple',
           partner_name: formData.player2Name,
           partner_email: formData.player2Email || undefined,
           partner_phone: formData.player2Phone && formData.player2Phone !== '+1671' ? formData.player2Phone : undefined,
           partner_waiver_accepted_at: new Date().toISOString(),
           team_name: formData.teamName || undefined,
           team_category: formData.teamCategory || undefined,
-        } as any,
+        },
         waiver_accepted: true,
         tournament_id: tournament.id,
       });
@@ -222,8 +223,8 @@ export const OrgRegistrationPage: React.FC = () => {
           }
         });
       }
-    } catch (error: any) {
-      setSubmitError(error.message || 'Registration failed. Please try again.');
+    } catch (error: unknown) {
+      setSubmitError(error instanceof Error ? error.message : 'Registration failed. Please try again.');
       setSubmitState('idle');
     }
   };
@@ -618,7 +619,7 @@ export const OrgRegistrationPage: React.FC = () => {
                         </div>
                         <div className="flex justify-between items-baseline">
                           <span className="text-sm text-neutral-500">Entry Fee</span>
-                          <span className="text-lg font-bold text-neutral-900">{(tournament as any).entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}</span>
+                          <span className="text-lg font-bold text-neutral-900">{tournament.entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}</span>
                         </div>
                       </div>
 
@@ -752,7 +753,7 @@ export const OrgRegistrationPage: React.FC = () => {
                 <div className="border-t border-neutral-100 pt-4 mb-6">
                   <div className="flex justify-between items-baseline mb-2">
                     <span className="text-neutral-500 text-sm">Entry Fee</span>
-                    <span className="text-2xl font-bold text-neutral-900">{(tournament as any).entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}</span>
+                    <span className="text-2xl font-bold text-neutral-900">{tournament.entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}</span>
                   </div>
                   <p className="text-xs text-neutral-400">per team (2 players)</p>
 

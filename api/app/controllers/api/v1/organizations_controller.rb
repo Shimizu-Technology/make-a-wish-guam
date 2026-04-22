@@ -235,6 +235,7 @@ module Api
                      :sponsor_id, :sponsor_name, :notes]
             ).merge(
               "hole_position_label" => hole_labels[g.id],
+              "starting_hole_description" => g.group&.starting_hole_description,
               "sponsor_display_name" => g.sponsor_name.presence || g.sponsor&.name
             )
           },
@@ -251,7 +252,14 @@ module Api
         require_org_admin!(organization)
         return if performed?
 
-        tournament = organization.tournaments.build(tournament_params)
+        attrs = tournament_params.to_h
+        if attrs.key?('course_configs')
+          courses = Array(attrs.delete('course_configs')).map(&:to_h)
+          attrs['config'] = (attrs['config'] || {}).merge('course_configs' => courses)
+          attrs['total_holes'] = courses.sum { |course| course['hole_count'].to_i }
+        end
+
+        tournament = organization.tournaments.build(attrs)
         
         # Generate slug if not provided
         if tournament.slug.blank?
@@ -607,28 +615,29 @@ module Api
 
       # Compute hole position labels for all golfers in one query instead of 2 per golfer
       def bulk_hole_position_labels(tournament_id, golfers)
-        # Golfers are loaded with includes(:group), so use the preloaded associations
-        # instead of querying Group again. Only need one query for all tournament groups.
         groups_by_id = {}
         golfers.each do |g|
           groups_by_id[g.group_id] = g.group if g.group
         end
         return {} if groups_by_id.empty?
 
+        tournament = Tournament.find(tournament_id)
+
         groups_by_hole = Group.where(tournament_id: tournament_id)
                               .where.not(hole_number: nil)
                               .order(:group_number)
-                              .group_by(&:hole_number)
+                              .group_by { |group| [group.starting_course_key, group.hole_number] }
 
         golfers.each_with_object({}) do |g, labels|
           grp = groups_by_id[g.group_id]
           next labels[g.id] = nil unless grp
-          next labels[g.id] = "Unassigned" unless grp.hole_number
+          next labels[g.id] = "Unassigned" unless grp.assigned_start?
 
-          hole_groups = groups_by_hole[grp.hole_number] || []
+          hole_groups = groups_by_hole[[grp.starting_course_key, grp.hole_number]] || []
           idx = hole_groups.index { |hg| hg.id == grp.id }
           letter = idx ? ('A'..'Z').to_a[idx] || 'X' : 'X'
-          labels[g.id] = "#{grp.hole_number}#{letter}"
+          prefix = tournament.starting_position_prefix(grp.starting_course_key)
+          labels[g.id] = [prefix, "#{grp.hole_number}#{letter}"].compact.join(' ')
         end
       end
 
@@ -674,7 +683,8 @@ module Api
           :allow_cash, :allow_check, :allow_card, :checks_payable_to, :payment_instructions,
           :registration_deadline,
           :contact_name, :contact_phone, :fee_includes,
-          :walkin_fee, :walkin_registration_open
+          :walkin_fee, :walkin_registration_open,
+          course_configs: [:key, :name, :hole_count]
         )
       end
 

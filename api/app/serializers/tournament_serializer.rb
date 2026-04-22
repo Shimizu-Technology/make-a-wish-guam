@@ -39,6 +39,8 @@ class TournamentSerializer < ActiveModel::Serializer
              # Schedule
              :check_in_time, :shotgun_start, :tee_times_enabled, :tee_time_interval_minutes,
              :event_schedule,
+             # Course configuration
+             :total_holes, :course_configs,
              :created_at, :updated_at
 
   def organization_slug
@@ -141,6 +143,10 @@ class TournamentSerializer < ActiveModel::Serializer
     object.raffle_bundles
   end
 
+  def course_configs
+    object.course_configs
+  end
+
   def created_at
     object.created_at.in_time_zone('Guam').iso8601
   end
@@ -149,4 +155,3 @@ class TournamentSerializer < ActiveModel::Serializer
     object.updated_at.in_time_zone('Guam').iso8601
   end
 end
-

@@ -36,6 +36,7 @@ import {
 } from './pages';
 import { PaymentReconciliationPage } from './pages/PaymentReconciliationPage';
 import { ActivityLogPage } from './pages/ActivityLogPage';
+import { PostHogPageView } from './providers/PostHogProvider';
 
 const MAW_SLUG = 'make-a-wish-guam';
 
@@ -66,6 +67,7 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <PostHogPageView />
         <div className="min-h-screen flex flex-col">
           <Toaster position="top-right" />
           <Routes>

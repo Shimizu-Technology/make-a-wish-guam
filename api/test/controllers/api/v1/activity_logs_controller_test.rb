@@ -79,6 +79,7 @@ class Api::V1::ActivityLogsControllerTest < ActionDispatch::IntegrationTest
 
   test "golfer_activity returns logs for specific golfer" do
     golfer = golfers(:confirmed_paid)
+    group = golfer.group
     
     # Create a log for this golfer
     ActivityLog.create!(
@@ -88,6 +89,17 @@ class Api::V1::ActivityLogsControllerTest < ActionDispatch::IntegrationTest
       target_id: golfer.id,
       target_name: golfer.name
     )
+
+    ActivityLog.create!(
+      admin: @admin,
+      tournament: golfer.tournament,
+      action: "group_updated",
+      target_type: "Group",
+      target_id: group.id,
+      target_name: "Group #{group.group_number}",
+      details: "Assigned to #{group.hole_position_label}",
+      metadata: { group_id: group.id, hole_label: group.hole_position_label }
+    )
     
     get golfer_history_api_v1_activity_logs_url(golfer_id: golfer.id), headers: auth_headers
     assert_response :success
@@ -96,10 +108,7 @@ class Api::V1::ActivityLogsControllerTest < ActionDispatch::IntegrationTest
     # Response format is { activity_logs: [...], golfer_id, golfer_name }
     assert json.key?("activity_logs"), "Response should have activity_logs key"
     assert_equal golfer.id, json["golfer_id"]
-    
-    json["activity_logs"].each do |log|
-      assert_equal golfer.id, log["target_id"]
-    end
+    assert_includes json["activity_logs"].map { |log| log["action"] }, "golfer_checked_in"
+    assert_includes json["activity_logs"].map { |log| log["action"] }, "group_updated"
   end
 end
-

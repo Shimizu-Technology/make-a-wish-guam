@@ -166,6 +166,7 @@ Rails.application.routes.draw do
           post :remove_golfer
         end
         collection do
+          post :place_golfer
           post :update_positions
           post :batch_create
           post :auto_assign

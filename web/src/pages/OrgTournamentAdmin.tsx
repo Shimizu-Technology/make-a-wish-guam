@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuthToken } from '../hooks/useAuthToken';
 import { useOrganization } from '../components/OrganizationProvider';
@@ -10,7 +10,6 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
-  Clock,
   Mail,
   Phone,
   Building2,
@@ -21,11 +20,12 @@ import {
   ChevronDown,
   ChevronUp,
   ShieldCheck,
-  CalendarClock
+  Flag
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { AddGolferModal } from '../components/AddGolferModal';
 import { EditGolferModal } from '../components/EditGolferModal';
+import { ActivityLog } from '../services/api';
 import { adminEventPath, adminOrgRoutes } from '../utils/adminRoutes';
 import { formatDateTime, formatShortDate } from '../utils/dates';
 
@@ -55,6 +55,8 @@ interface Golfer {
   sponsor_display_name: string | null;
   team_category: string | null;
   registration_source: 'admin' | 'public' | null;
+  hole_position_label: string | null;
+  starting_hole_description?: string | null;
 }
 
 interface Tournament {
@@ -184,10 +186,10 @@ export const OrgTournamentAdmin: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [verifyingGolfer, setVerifyingGolfer] = useState<Golfer | null>(null);
   const [confirmingCheckIn, setConfirmingCheckIn] = useState<Golfer | null>(null);
-  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
 
-  const fetchActivityLogs = async (golferId: number) => {
+  const fetchActivityLogs = useCallback(async (golferId: number) => {
     setLoadingLogs(true);
     setActivityLogs([]);
     try {
@@ -206,7 +208,7 @@ export const OrgTournamentAdmin: React.FC = () => {
     } finally {
       setLoadingLogs(false);
     }
-  };
+  }, [getToken]);
 
   useEffect(() => {
     if (selectedGolfer) {
@@ -214,9 +216,9 @@ export const OrgTournamentAdmin: React.FC = () => {
     } else {
       setActivityLogs([]);
     }
-  }, [selectedGolfer?.id]);
+  }, [fetchActivityLogs, selectedGolfer]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!organization || !tournamentSlug) return;
 
     try {
@@ -240,11 +242,11 @@ export const OrgTournamentAdmin: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken, organization, tournamentSlug]);
 
   useEffect(() => {
     fetchData();
-  }, [organization, tournamentSlug, getToken]);
+  }, [fetchData]);
 
   const filteredGolfers = useMemo(() => {
     let filtered = [...golfers];
@@ -341,7 +343,7 @@ export const OrgTournamentAdmin: React.FC = () => {
       toast.success(`${golfer.name} checked in!`);
       setSelectedGolfer(null);
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to check in golfer');
     }
   };
@@ -440,7 +442,7 @@ export const OrgTournamentAdmin: React.FC = () => {
   };
 
   const exportCSV = () => {
-    const headers = ['Name', 'Email', 'Phone', 'Company', 'Partner Name', 'Category', 'Source', 'Status', 'Payment', 'Payment Method', 'Checked In', 'Registered'];
+    const headers = ['Name', 'Email', 'Phone', 'Company', 'Partner Name', 'Category', 'Starting Position', 'Source', 'Status', 'Payment', 'Payment Method', 'Checked In', 'Registered'];
     const rows = filteredGolfers.map(g => [
       g.name,
       g.email,
@@ -448,6 +450,7 @@ export const OrgTournamentAdmin: React.FC = () => {
       g.company || '',
       g.partner_name || '',
       g.team_category || '',
+      startingPositionSummary(g) || 'Unassigned',
       g.registration_source === 'admin' ? 'Admin' : 'Public',
       g.payment_status === 'paid' ? 'Confirmed' : 'Pending Payment',
       g.payment_status,
@@ -482,6 +485,14 @@ export const OrgTournamentAdmin: React.FC = () => {
     if (golfer.payment_status === 'paid') return { label: 'Paid', style: 'bg-green-100 text-green-700' };
     if (golfer.payment_status === 'refunded') return { label: 'Refunded', style: 'bg-gray-100 text-gray-700' };
     return { label: 'Pending', style: 'bg-amber-100 text-amber-700' };
+  };
+
+  const startingPositionSummary = (golfer: Golfer) => {
+    if (!golfer.hole_position_label && !golfer.starting_hole_description) return null;
+
+    return golfer.starting_hole_description
+      ? `${golfer.hole_position_label || 'Assigned'} · ${golfer.starting_hole_description}`
+      : golfer.hole_position_label;
   };
 
   if (orgLoading || loading) {
@@ -876,6 +887,9 @@ export const OrgTournamentAdmin: React.FC = () => {
                               )}
                             </p>
                             {golfer.company && <p className="text-sm text-gray-500">{golfer.company}</p>}
+                            {startingPositionSummary(golfer) && (
+                              <p className="text-sm text-brand-700 mt-0.5">Start {startingPositionSummary(golfer)}</p>
+                            )}
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {golfer.sponsor_display_name && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-full">
@@ -995,6 +1009,22 @@ export const OrgTournamentAdmin: React.FC = () => {
                     <p className="text-sm text-gray-900">{selectedGolfer.team_category}</p>
                   </div>
                 )}
+                {startingPositionSummary(selectedGolfer) && (
+                  <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+                    <div className="flex items-start gap-3">
+                      <Flag className="w-4 h-4 text-brand-600 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-brand-700 uppercase tracking-wide mb-1">Starting Position</p>
+                        {selectedGolfer.hole_position_label && (
+                          <p className="text-sm font-medium text-brand-900">Start {selectedGolfer.hole_position_label}</p>
+                        )}
+                        {selectedGolfer.starting_hole_description && (
+                          <p className="text-sm text-brand-800">{selectedGolfer.starting_hole_description}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Team Members */}
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team Members</p>
@@ -1102,7 +1132,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {activityLogs.map((log: any) => (
+                      {activityLogs.map((log) => (
                         <div key={log.id} className="flex items-start gap-2 text-sm bg-gray-50 rounded-lg p-2">
                           <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-brand-500 mt-1.5" />
                           <div className="flex-1 min-w-0">

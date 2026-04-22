@@ -28,6 +28,7 @@ export interface TournamentInfo {
   team_size: number | null;
   total_holes: number;
   total_par: number;
+  course_configs?: { key: string; name: string; hole_count: number }[];
   organization: {
     id: string;
     name: string;
@@ -38,7 +39,10 @@ export interface TournamentInfo {
 export interface GroupInfo {
   id: number;
   group_number: number;
+  starting_course_key: string | null;
+  starting_course_name: string | null;
   hole_number: number | null;
+  starting_hole_description?: string | null;
   golfers: {
     id: number;
     name: string;

@@ -56,9 +56,9 @@
                 <p style="margin: 0; font-size: 48px; font-weight: bold; color: <%= @primary_color %>;">
                   <%= @hole_position || "Group #{@group.group_number}" %>
                 </p>
-                <% if @group.hole_number %>
+                <% if @group.starting_hole_description.present? %>
                 <p style="margin: 10px 0 0; font-size: 14px; color: <%= @primary_color %>;">
-                  Starting at Hole <%= @group.hole_number %>
+                  Starting at <%= @group.starting_hole_description %>
                 </p>
                 <% end %>
               </div>

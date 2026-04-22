@@ -164,6 +164,7 @@ module Api
           team_size: tournament.team_size,
           total_holes: tournament.total_holes || 18,
           total_par: tournament.total_par || 72,
+          course_configs: tournament.course_configs,
           organization: tournament.organization ? {
             id: tournament.organization.id,
             name: tournament.organization.name,
@@ -176,7 +177,10 @@ module Api
         {
           id: group.id,
           group_number: group.group_number,
+          starting_course_key: group.starting_course_key,
+          starting_course_name: group.starting_course_name,
           hole_number: group.hole_number,
+          starting_hole_description: group.starting_hole_description,
           golfers: group.golfers.map do |g|
             {
               id: g.id,

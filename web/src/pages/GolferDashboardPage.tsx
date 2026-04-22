@@ -128,9 +128,9 @@ export const GolferDashboardPage: React.FC = () => {
               <div className="text-6xl font-bold mb-2">
                 {golfer.hole_position || `Group ${group.group_number}`}
               </div>
-              {group.hole_number && (
+              {group.starting_hole_description && (
                 <p className="text-brand-200">
-                  Starting at Hole {group.hole_number}
+                  Starting at {group.starting_hole_description}
                 </p>
               )}
             </div>

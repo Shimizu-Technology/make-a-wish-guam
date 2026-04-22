@@ -123,21 +123,24 @@ export function ReportsPage() {
     };
   }, [allPaidConfirmed, golfers]);
 
-  const groupsByHole = useMemo(() => {
+  const groupsByStart = useMemo(() => {
+    const courseOrder = new Map(
+      (activeTournament?.course_configs || []).map((course, index) => [course.key, index])
+    );
+
     const sorted = [...groups].sort((a, b) => {
-      const parseLabel = (l: string | null) => {
-        if (!l) return { num: 999, letter: 'Z' };
-        const match = l.match(/^(\d+)([A-Z]?)$/);
-        if (!match) return { num: 999, letter: 'Z' };
-        return { num: parseInt(match[1]), letter: match[2] || 'A' };
-      };
-      const la = parseLabel(a.hole_position_label);
-      const lb = parseLabel(b.hole_position_label);
-      if (la.num !== lb.num) return la.num - lb.num;
-      return la.letter.localeCompare(lb.letter);
+      const courseA = a.starting_course_key ? (courseOrder.get(a.starting_course_key) ?? 999) : 999;
+      const courseB = b.starting_course_key ? (courseOrder.get(b.starting_course_key) ?? 999) : 999;
+      if (courseA !== courseB) return courseA - courseB;
+
+      const holeA = a.hole_number ?? 999;
+      const holeB = b.hole_number ?? 999;
+      if (holeA !== holeB) return holeA - holeB;
+
+      return a.group_number - b.group_number;
     });
     return sortAscending ? sorted : sorted.reverse();
-  }, [groups, sortAscending]);
+  }, [activeTournament?.course_configs, groups, sortAscending]);
 
   // --- Export ---
 
@@ -159,7 +162,7 @@ export function ReportsPage() {
           Status: g.registration_status,
           Payment: g.payment_status,
           'Payment Method': g.payment_method || g.payment_type || '',
-          Hole: g.hole_position_label || 'Unassigned',
+          'Starting Position': g.hole_position_label || 'Unassigned',
         }));
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Registrations');
         break;
@@ -170,7 +173,7 @@ export function ReportsPage() {
           'Partner Name': g.partner_name || '',
           Company: g.company || '',
           Category: g.team_category || '',
-          Hole: g.hole_position_label || 'Unassigned',
+          'Starting Position': g.hole_position_label || 'Unassigned',
           Paid: g.payment_status === 'paid' ? 'Yes' : 'No',
           'Checked In': g.checked_in ? 'Yes' : 'No',
         }));
@@ -199,19 +202,19 @@ export function ReportsPage() {
         break;
       }
       case 'groups': {
-        const data = groupsByHole.flatMap((group) => {
+        const data = groupsByStart.flatMap((group) => {
           const players = group.golfers || [];
-          const hole = group.hole_position_label && group.hole_position_label !== 'Unassigned'
-            ? `Hole ${group.hole_position_label}`
+          const start = group.hole_position_label && group.hole_position_label !== 'Unassigned'
+            ? group.hole_position_label
             : `Group ${group.group_number}`;
-          if (players.length === 0) return [{ Hole: hole, 'Player 1': '', 'Player 2': '' }];
+          if (players.length === 0) return [{ 'Starting Position': start, 'Player 1': '', 'Player 2': '' }];
           return players.map((p) => ({
-            Hole: hole,
+            'Starting Position': start,
             'Player 1': p.name,
             'Player 2': (p as any).partner_name || '',
           }));
         });
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Groups by Hole');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Groups by Start');
         break;
       }
       case 'contacts': {
@@ -239,7 +242,7 @@ export function ReportsPage() {
     { id: 'registrations', label: 'All Registrations', mobileLabel: 'All', icon: <List size={14} /> },
     { id: 'checkin', label: 'Check-In Sheet', mobileLabel: 'Check-In', icon: <ClipboardList size={14} /> },
     { id: 'payments', label: 'Payment Summary', mobileLabel: 'Payments', icon: <DollarSign size={14} /> },
-    { id: 'groups', label: 'Groups by Hole', mobileLabel: 'Groups', icon: <Grid3X3 size={14} /> },
+    { id: 'groups', label: 'Groups by Start', mobileLabel: 'Groups', icon: <Grid3X3 size={14} /> },
     { id: 'contacts', label: 'Contact List', mobileLabel: 'Contacts', icon: <Phone size={14} /> },
   ];
 
@@ -389,7 +392,7 @@ export function ReportsPage() {
         )}
         {activeTab === 'groups' && (
           <GroupsTab
-            groups={groupsByHole}
+            groups={groupsByStart}
             ascending={sortAscending}
             onToggleSort={() => setSortAscending((p) => !p)}
           />
@@ -739,7 +742,7 @@ function GroupsTab({
           onClick={onToggleSort}
           className="text-xs text-brand-600 hover:underline font-medium"
         >
-          {ascending ? '↑ 1 → 18' : '↓ 18 → 1'}
+          {ascending ? '↑ earliest start' : '↓ latest start'}
         </button>
       </div>
       <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -757,7 +760,7 @@ function GroupsTab({
               <div className="flex items-center justify-between mb-2">
                 <span className="font-semibold text-sm text-gray-900">
                   {group.hole_position_label && group.hole_position_label !== 'Unassigned'
-                    ? `Hole ${group.hole_position_label}`
+                    ? group.hole_position_label
                     : `Group ${group.group_number}`}
                 </span>
                 <span className={`text-xs font-medium ${isFull ? 'text-green-600' : 'text-gray-400'}`}>

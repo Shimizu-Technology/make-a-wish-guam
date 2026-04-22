@@ -1,9 +1,9 @@
 class GolferSerializer < ActiveModel::Serializer
   attributes :id, :tournament_id, :name, :last_name, :company, :address, :phone, :mobile, :email,
              :payment_type, :payment_status, :waiver_accepted_at,
-             :checked_in_at, :registration_status, :group_id, :hole_number,
+             :checked_in_at, :registration_status, :group_id, :starting_course_key, :starting_course_name, :hole_number,
              :position, :notes, :payment_method, :receipt_number, :payment_notes,
-             :created_at, :updated_at, :group_position_label, :hole_position_label, :checked_in, :waiver_signed,
+             :created_at, :updated_at, :group_position_label, :starting_position_label, :hole_position_label, :checked_in, :waiver_signed,
              # Payment link
              :payment_token,
              # Refund/payment detail fields
@@ -50,8 +50,20 @@ class GolferSerializer < ActiveModel::Serializer
     object.group_position_label
   end
 
+  def starting_position_label
+    object.starting_position_label
+  end
+
   def hole_position_label
     object.hole_position_label
+  end
+
+  def starting_course_key
+    object.group&.starting_course_key
+  end
+
+  def starting_course_name
+    object.group&.starting_course_name
   end
 
   # Get hole_number from the group, not from the golfer directly
