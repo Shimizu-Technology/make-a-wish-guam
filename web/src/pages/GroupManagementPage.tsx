@@ -4,10 +4,10 @@ import { useAuth } from '@clerk/clerk-react';
 import { useOrganization } from '../components/OrganizationProvider';
 import {
   DndContext,
+  DragEndEvent,
   DragOverlay,
   DragOverEvent,
   DragStartEvent,
-  DragEndEvent,
   PointerSensor,
   TouchSensor,
   closestCenter,
@@ -34,6 +34,8 @@ import toast from 'react-hot-toast';
 import {
   buildGroupedCourses,
   buildPlacementQueueGroups,
+  buildStartingHoleDescription,
+  buildStartingPositionLabel,
   hasValidStartingPosition,
 } from './groupManagementUtils';
 
@@ -123,7 +125,7 @@ const DEFAULT_COURSE_CONFIGS: CourseConfig[] = [
 const groupDropId = (groupId: number) => `group-drop-${groupId}`;
 const holeDropId = (courseKey: string, holeNumber: number) => `hole-drop-${courseKey}-${holeNumber}`;
 
-const parseGroupId = (value: string, prefix: 'group-' | 'group-drop-' | 'golfer-') => {
+const parseItemId = (value: string, prefix: 'group-' | 'group-drop-' | 'golfer-') => {
   if (!value.startsWith(prefix)) return null;
   const parsed = parseInt(value.slice(prefix.length), 10);
   return Number.isNaN(parsed) ? null : parsed;
@@ -160,6 +162,15 @@ const groupQueueSubtitle = (group: Group) => {
   if (group.golfers.length === 1) return teamSubtitle(group.golfers[0]);
   return group.golfers.map((golfer) => golfer.name).join(', ');
 };
+
+const queueOptionLabel = (item: PlacementQueueItem) =>
+  item.kind === 'group' ? `${item.title} (${item.meta})` : item.title;
+
+const golferToGroupGolfer = (golfer: UnassignedGolfer): GroupGolfer => ({
+  ...golfer,
+  payment_status: '',
+  checked_in_at: null,
+});
 
 const DraggablePlacementCard: React.FC<{ item: PlacementQueueItem }> = ({ item }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -241,6 +252,33 @@ const DroppableHoleZone: React.FC<{
   );
 };
 
+const HolePlacementPicker: React.FC<{
+  items: PlacementQueueItem[];
+  disabled?: boolean;
+  onSelect: (itemId: string) => void;
+}> = ({ items, disabled = false, onSelect }) => (
+  <select
+    defaultValue=""
+    onChange={(event) => {
+      const nextItemId = event.target.value;
+      if (!nextItemId) return;
+      onSelect(nextItemId);
+      event.currentTarget.value = '';
+    }}
+    disabled={disabled || items.length === 0}
+    className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-neutral-100"
+  >
+    <option value="">
+      {items.length === 0 ? 'No teams awaiting placement' : 'Assign awaiting team...'}
+    </option>
+    {items.map((item) => (
+      <option key={item.id} value={item.id}>
+        {queueOptionLabel(item)}
+      </option>
+    ))}
+  </select>
+);
+
 const DragOverlayContent: React.FC<{ item: PlacementQueueItem | null }> = ({ item }) => {
   if (!item) return null;
 
@@ -271,6 +309,7 @@ export const GroupManagementPage: React.FC = () => {
   const [overId, setOverId] = useState<string | null>(null);
 
   const orgSlug = organization?.slug || 'make-a-wish-guam';
+  const multiCourseSetup = courseConfigs.length > 1;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -289,31 +328,33 @@ export const GroupManagementPage: React.FC = () => {
       if (showLoader) setLoading(true);
       const headers = await authHeaders();
 
-      const tRes = await fetch(
+      const tournamentResponse = await fetch(
         `${API}/api/v1/admin/organizations/${orgSlug}/tournaments/${tournamentSlug}`,
         { headers }
       );
-      if (!tRes.ok) throw new Error('Failed to load tournament');
-      const tournamentPayload = await tRes.json();
-      const tournament = tournamentPayload.tournament || tournamentPayload;
-      const tId = tournament.id;
+      if (!tournamentResponse.ok) throw new Error('Failed to load tournament');
 
-      setTournamentId(tId);
+      const tournamentPayload = await tournamentResponse.json();
+      const tournament = tournamentPayload.tournament || tournamentPayload;
+      const nextTournamentId = tournament.id;
+
+      setTournamentId(nextTournamentId);
       setCourseConfigs(
         tournament.course_configs?.length ? tournament.course_configs : DEFAULT_COURSE_CONFIGS
       );
 
-      const gRes = await fetch(`${API}/api/v1/groups?tournament_id=${tId}`, { headers });
-      if (!gRes.ok) throw new Error('Failed to load groups');
-      const groupPayload = await gRes.json();
+      const groupsResponse = await fetch(`${API}/api/v1/groups?tournament_id=${nextTournamentId}`, { headers });
+      if (!groupsResponse.ok) throw new Error('Failed to load groups');
+
+      const groupPayload = await groupsResponse.json();
       setGroups(Array.isArray(groupPayload) ? groupPayload : groupPayload.groups || []);
 
       const golfers: TournamentGolfer[] = tournamentPayload.golfers || [];
       setUnassigned(
         golfers.filter((golfer) => golfer.registration_status === 'confirmed' && !golfer.group_id)
       );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load data');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -333,43 +374,7 @@ export const GroupManagementPage: React.FC = () => {
     [courseMap, groups]
   );
 
-  const activePlacementItem = useMemo(() => {
-    if (!activeId) return null;
-
-    const golferId = parseGroupId(activeId, 'golfer-');
-    if (golferId) {
-      const golfer = unassigned.find((entry) => entry.id === golferId);
-      if (!golfer) return null;
-      return {
-        id: `golfer-${golfer.id}`,
-        kind: 'golfer' as const,
-        title: teamTitle(golfer),
-        subtitle: teamSubtitle(golfer),
-        meta: golfer.email,
-        searchText: '',
-        golfer,
-      };
-    }
-
-    const groupId = parseGroupId(activeId, 'group-');
-    if (groupId) {
-      const group = stagedGroups.find((entry) => entry.id === groupId);
-      if (!group) return null;
-      return {
-        id: `group-${group.id}`,
-        kind: 'group' as const,
-        title: groupQueueTitle(group),
-        subtitle: groupQueueSubtitle(group),
-        meta: `${group.player_count ?? group.golfer_count} / ${group.max_golfers || 2} players`,
-        searchText: '',
-        group,
-      };
-    }
-
-    return null;
-  }, [activeId, stagedGroups, unassigned]);
-
-  const placementQueueItems = useMemo(() => {
+  const allPlacementQueueItems = useMemo(() => {
     const stagedItems: PlacementQueueItem[] = stagedGroups.map((group) => ({
       id: `group-${group.id}`,
       kind: 'group',
@@ -400,24 +405,97 @@ export const GroupManagementPage: React.FC = () => {
       golfer,
     }));
 
-    const allItems = [...stagedItems, ...golferItems];
-    if (!searchTerm) return allItems;
+    return [...stagedItems, ...golferItems];
+  }, [stagedGroups, unassigned]);
+
+  const placementQueueItems = useMemo(() => {
+    if (!searchTerm) return allPlacementQueueItems;
 
     const term = searchTerm.toLowerCase();
-    return allItems.filter((item) => item.searchText.includes(term));
-  }, [searchTerm, stagedGroups, unassigned]);
+    return allPlacementQueueItems.filter((item) => item.searchText.includes(term));
+  }, [allPlacementQueueItems, searchTerm]);
 
-  const totalPlacementQueueCount = stagedGroups.length + unassigned.length;
+  const activePlacementItem = useMemo(
+    () => allPlacementQueueItems.find((item) => item.id === activeId) || null,
+    [activeId, allPlacementQueueItems]
+  );
 
   const groupedCourses = useMemo(
     () => buildGroupedCourses(courseConfigs, groups),
     [courseConfigs, groups]
   );
 
+  const totalPlacementQueueCount = allPlacementQueueItems.length;
+
   const assignedGroupsCount = useMemo(
     () => groups.filter((group) => hasValidStartingPosition(group, courseMap)).length,
     [courseMap, groups]
   );
+
+  const replaceGroupLocally = useCallback((nextGroup: Group, options?: { tempGroupId?: number }) => {
+    setGroups((previousGroups) => {
+      const tempGroupId = options?.tempGroupId;
+      const nextGroups = previousGroups.map((group) => {
+        if (tempGroupId != null && group.id === tempGroupId) return nextGroup;
+        if (group.id === nextGroup.id) return nextGroup;
+        return group;
+      });
+
+      if (!nextGroups.some((group) => group.id === nextGroup.id)) {
+        nextGroups.push(nextGroup);
+      }
+
+      return nextGroups.sort((a, b) => a.group_number - b.group_number);
+    });
+  }, []);
+
+  const applyGroupStartLocally = useCallback((groupId: number, courseKey: string | null, holeNumber: number | null) => {
+    setGroups((previousGroups) =>
+      previousGroups.map((group) => {
+        if (group.id !== groupId) return group;
+        const courseName = courseKey ? courseMap.get(courseKey)?.name ?? null : null;
+        return {
+          ...group,
+          starting_course_key: courseKey,
+          starting_course_name: courseName,
+          hole_number: holeNumber,
+        };
+      })
+    );
+  }, [courseMap]);
+
+  const updateGroupStart = useCallback(async (
+    groupId: number,
+    startingCourseKey: string | null,
+    holeNumber: number | null
+  ) => {
+    setActionLoading(`start-${groupId}`);
+
+    try {
+      const headers = await authHeaders();
+      const response = await fetch(`${API}/api/v1/groups/${groupId}/set_hole`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          starting_course_key: startingCourseKey,
+          hole_number: holeNumber,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to update starting position');
+      }
+
+      const updatedGroup: Group = await response.json();
+      replaceGroupLocally(updatedGroup);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed');
+      fetchData(false);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [authHeaders, fetchData, replaceGroupLocally]);
 
   const autoAssign = async () => {
     if (!tournamentId) return;
@@ -425,21 +503,22 @@ export const GroupManagementPage: React.FC = () => {
 
     try {
       const headers = await authHeaders();
-      const res = await fetch(`${API}/api/v1/groups/auto_assign`, {
+      const response = await fetch(`${API}/api/v1/groups/auto_assign`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ tournament_id: tournamentId }),
       });
-      if (!res.ok) throw new Error('Failed to auto-assign');
-      const data: AutoAssignResponse = await res.json();
+      if (!response.ok) throw new Error('Failed to auto-assign');
+
+      const data: AutoAssignResponse = await response.json();
       if (data.failed_count > 0) {
         toast.error(data.message || 'Some golfers could not be auto-assigned');
       } else {
         toast.success(data.message || 'Auto-assigned');
       }
       fetchData(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed');
     } finally {
       setActionLoading(null);
     }
@@ -450,155 +529,159 @@ export const GroupManagementPage: React.FC = () => {
 
     try {
       const headers = await authHeaders();
-      const res = await fetch(`${API}/api/v1/groups/${groupId}`, {
+      const response = await fetch(`${API}/api/v1/groups/${groupId}`, {
         method: 'DELETE',
         headers,
       });
-      if (!res.ok) throw new Error('Failed to delete group');
-      toast.success('Group deleted');
+      if (!response.ok) throw new Error('Failed to delete group');
+
+      setGroups((previousGroups) => previousGroups.filter((group) => group.id !== groupId));
       fetchData(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed');
     } finally {
       setActionLoading(null);
     }
   };
 
-  const updateGroupStart = async (
-    groupId: number,
-    startingCourseKey: string | null,
-    holeNumber: number | null
-  ) => {
-    setActionLoading(`start-${groupId}`);
+  const addGolferToGroup = useCallback(async (groupId: number, golfer: UnassignedGolfer) => {
+    setActionLoading(`add-${golfer.id}`);
+
+    const incomingPlayers = golfer.partner_name ? 2 : 1;
+    setUnassigned((previousGolfers) => previousGolfers.filter((entry) => entry.id !== golfer.id));
+    setGroups((previousGroups) =>
+      previousGroups.map((group) => {
+        if (group.id !== groupId) return group;
+
+        const currentPlayers = group.player_count ?? group.golfer_count;
+        const maxGolfers = group.max_golfers || 2;
+        return {
+          ...group,
+          golfers: [...group.golfers, golferToGroupGolfer(golfer)],
+          golfer_count: group.golfer_count + 1,
+          player_count: currentPlayers + incomingPlayers,
+          is_full: currentPlayers + incomingPlayers >= maxGolfers,
+        };
+      })
+    );
 
     try {
       const headers = await authHeaders();
-      const res = await fetch(`${API}/api/v1/groups/${groupId}/set_hole`, {
+      const response = await fetch(`${API}/api/v1/groups/${groupId}/add_golfer`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          starting_course_key: startingCourseKey,
-          hole_number: holeNumber,
-        }),
+        body: JSON.stringify({ golfer_id: golfer.id }),
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to update starting position');
-      }
-
-      fetchData(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed');
-      fetchData(false);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const addGolferToGroup = async (groupId: number, golferId: number) => {
-    setActionLoading(`add-${golferId}`);
-
-    try {
-      const headers = await authHeaders();
-      const res = await fetch(`${API}/api/v1/groups/${groupId}/add_golfer`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ golfer_id: golferId }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.error || data.errors?.[0] || 'Failed to add golfer');
       }
-      fetchData(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed');
+
+      const updatedGroup: Group = await response.json();
+      replaceGroupLocally(updatedGroup);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed');
       fetchData(false);
     } finally {
       setActionLoading(null);
     }
-  };
+  }, [authHeaders, fetchData, replaceGroupLocally]);
 
-  const assignGolferToHole = async (golferId: number, courseKey: string, holeNumber: number) => {
+  const placeGolferOnHole = useCallback(async (
+    golfer: UnassignedGolfer,
+    courseKey: string,
+    holeNumber: number
+  ) => {
     if (!tournamentId) return;
 
-    setActionLoading(`place-${golferId}`);
+    const tempGroupId = -Date.now();
+    const nextGroupNumber = groups.reduce((maxGroupNumber, group) => Math.max(maxGroupNumber, group.group_number), 0) + 1;
+    const playerCount = golfer.partner_name ? 2 : 1;
+    const maxGolfers = groups[0]?.max_golfers || 2;
+    const courseName = courseMap.get(courseKey)?.name ?? 'Course';
+    const optimisticGroup: Group = {
+      id: tempGroupId,
+      tournament_id: tournamentId,
+      group_number: nextGroupNumber,
+      starting_course_key: courseKey,
+      starting_course_name: courseName,
+      hole_number: holeNumber,
+      golfer_count: 1,
+      player_count: playerCount,
+      max_golfers: maxGolfers,
+      is_full: playerCount >= maxGolfers,
+      starting_position_label: null,
+      hole_position_label: null,
+      starting_hole_description: buildStartingHoleDescription(courseKey, holeNumber, courseMap, multiCourseSetup),
+      golfers: [golferToGroupGolfer(golfer)],
+    };
 
-    let createdGroupId: number | null = null;
+    setActionLoading(`place-${golfer.id}`);
+    setUnassigned((previousGolfers) => previousGolfers.filter((entry) => entry.id !== golfer.id));
+    setGroups((previousGroups) => [...previousGroups, optimisticGroup].sort((a, b) => a.group_number - b.group_number));
 
     try {
       const headers = await authHeaders();
-      const createRes = await fetch(`${API}/api/v1/groups`, {
+      const response = await fetch(`${API}/api/v1/groups/place_golfer`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           tournament_id: tournamentId,
+          golfer_id: golfer.id,
           starting_course_key: courseKey,
           hole_number: holeNumber,
         }),
       });
 
-      if (!createRes.ok) {
-        const data = await createRes.json().catch(() => ({}));
-        throw new Error(data.errors?.[0] || 'Failed to create starting slot');
-      }
-
-      const createdGroup: Group = await createRes.json();
-      createdGroupId = createdGroup.id;
-
-      const addRes = await fetch(`${API}/api/v1/groups/${createdGroupId}/add_golfer`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ golfer_id: golferId }),
-      });
-
-      if (!addRes.ok) {
-        const data = await addRes.json().catch(() => ({}));
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.error || data.errors?.[0] || 'Failed to place team');
       }
 
-      fetchData(false);
-    } catch (err) {
-      if (createdGroupId) {
-        try {
-          const headers = await authHeaders();
-          await fetch(`${API}/api/v1/groups/${createdGroupId}`, {
-            method: 'DELETE',
-            headers,
-          });
-        } catch {
-          // Best effort cleanup for an empty slot created before add_golfer failed.
-        }
-      }
-
-      toast.error(err instanceof Error ? err.message : 'Failed');
+      const placedGroup: Group = await response.json();
+      replaceGroupLocally(placedGroup, { tempGroupId });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed');
       fetchData(false);
     } finally {
       setActionLoading(null);
     }
-  };
+  }, [authHeaders, courseMap, fetchData, groups, multiCourseSetup, replaceGroupLocally, tournamentId]);
 
   const removeGolferFromGroup = async (groupId: number, golferId: number) => {
     setActionLoading(`remove-${golferId}`);
 
     try {
       const headers = await authHeaders();
-      const res = await fetch(`${API}/api/v1/groups/${groupId}/remove_golfer`, {
+      const response = await fetch(`${API}/api/v1/groups/${groupId}/remove_golfer`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ golfer_id: golferId }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.error || data.errors?.[0] || 'Failed to remove golfer');
       }
+
       fetchData(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed');
     } finally {
       setActionLoading(null);
     }
   };
+
+  const placeQueueItemOnHole = useCallback((item: PlacementQueueItem, courseKey: string, holeNumber: number) => {
+    if (item.kind === 'golfer') {
+      void placeGolferOnHole(item.golfer, courseKey, holeNumber);
+      return;
+    }
+
+    applyGroupStartLocally(item.group.id, courseKey, holeNumber);
+    void updateGroupStart(item.group.id, courseKey, holeNumber);
+  }, [applyGroupStartLocally, placeGolferOnHole, updateGroupStart]);
 
   const handleDragStart = (event: DragStartEvent) => {
     if (typeof event.active?.id === 'string') {
@@ -619,8 +702,8 @@ export const GroupManagementPage: React.FC = () => {
     if (!active || !over) return;
 
     if (over.startsWith('group-drop-') && active.startsWith('golfer-')) {
-      const groupId = parseGroupId(over, 'group-drop-');
-      const golferId = parseGroupId(active, 'golfer-');
+      const groupId = parseItemId(over, 'group-drop-');
+      const golferId = parseItemId(active, 'golfer-');
       if (!groupId || !golferId) return;
 
       const group = groups.find((entry) => entry.id === groupId);
@@ -635,7 +718,7 @@ export const GroupManagementPage: React.FC = () => {
         return;
       }
 
-      addGolferToGroup(groupId, golferId);
+      void addGolferToGroup(groupId, golfer);
       return;
     }
 
@@ -644,21 +727,20 @@ export const GroupManagementPage: React.FC = () => {
     const target = parseHoleDropId(over);
     if (!target) return;
 
-    if (active.startsWith('golfer-')) {
-      const golferId = parseGroupId(active, 'golfer-');
-      if (golferId) assignGolferToHole(golferId, target.courseKey, target.holeNumber);
-      return;
-    }
-
-    if (active.startsWith('group-')) {
-      const groupId = parseGroupId(active, 'group-');
-      if (groupId) updateGroupStart(groupId, target.courseKey, target.holeNumber);
+    const item = allPlacementQueueItems.find((entry) => entry.id === active);
+    if (item) {
+      placeQueueItemOnHole(item, target.courseKey, target.holeNumber);
     }
   };
 
   const handleCourseChange = (group: Group, nextCourseKey: string) => {
+    const currentCourseKey = group.starting_course_key ?? '';
+    if (nextCourseKey === currentCourseKey) return;
+
     if (!nextCourseKey) {
-      updateGroupStart(group.id, null, null);
+      if (!group.starting_course_key && !group.hole_number) return;
+      applyGroupStartLocally(group.id, null, null);
+      void updateGroupStart(group.id, null, null);
       return;
     }
 
@@ -670,15 +752,24 @@ export const GroupManagementPage: React.FC = () => {
         ? group.hole_number
         : 1;
 
-    updateGroupStart(group.id, nextCourseKey, nextHole);
+    applyGroupStartLocally(group.id, nextCourseKey, nextHole);
+    void updateGroupStart(group.id, nextCourseKey, nextHole);
+  };
+
+  const handleHolePickerSelect = (itemId: string, courseKey: string, holeNumber: number) => {
+    const selectedItem = allPlacementQueueItems.find((item) => item.id === itemId);
+    if (!selectedItem) return;
+    placeQueueItemOnHole(selectedItem, courseKey, holeNumber);
   };
 
   const renderGroupCard = (group: Group) => {
+    const isTemporaryGroup = group.id < 0;
     const selectedCourse = group.starting_course_key ? courseMap.get(group.starting_course_key) : null;
-    const label =
-      group.starting_position_label && group.starting_position_label !== 'Unassigned'
-        ? group.starting_position_label
-        : groupQueueTitle(group);
+    const localStartingPositionLabel = buildStartingPositionLabel(group, groups, courseMap, multiCourseSetup);
+    const localStartingHoleDescription =
+      buildStartingHoleDescription(group.starting_course_key, group.hole_number, courseMap, multiCourseSetup) ||
+      group.starting_hole_description;
+    const label = localStartingPositionLabel || groupQueueTitle(group);
 
     return (
       <div
@@ -697,15 +788,20 @@ export const GroupManagementPage: React.FC = () => {
                     Complete
                   </span>
                 )}
+                {isTemporaryGroup && (
+                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700 sm:text-xs">
+                    Saving
+                  </span>
+                )}
               </div>
               <p className="mt-1 text-xs text-neutral-500">
                 {group.player_count ?? group.golfer_count} / {group.max_golfers || 2} players
-                {group.starting_hole_description ? ` · ${group.starting_hole_description}` : ''}
+                {localStartingHoleDescription ? ` · ${localStartingHoleDescription}` : ''}
               </p>
             </div>
             <button
               onClick={() => deleteGroup(group.id)}
-              disabled={actionLoading === `delete-${group.id}`}
+              disabled={isTemporaryGroup || actionLoading === `delete-${group.id}`}
               className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
               title="Delete group"
             >
@@ -721,6 +817,7 @@ export const GroupManagementPage: React.FC = () => {
             <select
               value={group.starting_course_key ?? ''}
               onChange={(event) => handleCourseChange(group, event.target.value)}
+              disabled={isTemporaryGroup}
               className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-500"
             >
               <option value="">No course</option>
@@ -732,14 +829,13 @@ export const GroupManagementPage: React.FC = () => {
             </select>
             <select
               value={group.hole_number ?? ''}
-              onChange={(event) =>
-                updateGroupStart(
-                  group.id,
-                  group.starting_course_key,
-                  event.target.value ? parseInt(event.target.value, 10) : null
-                )
-              }
-              disabled={!selectedCourse}
+              onChange={(event) => {
+                const nextHole = event.target.value ? parseInt(event.target.value, 10) : null;
+                if (group.hole_number === nextHole) return;
+                applyGroupStartLocally(group.id, group.starting_course_key, nextHole);
+                void updateGroupStart(group.id, group.starting_course_key, nextHole);
+              }}
+              disabled={isTemporaryGroup || !selectedCourse}
               className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-neutral-100"
             >
               <option value="">{selectedCourse ? 'Select hole' : 'Select course'}</option>
@@ -764,7 +860,7 @@ export const GroupManagementPage: React.FC = () => {
                   </div>
                   <button
                     onClick={() => removeGolferFromGroup(group.id, golfer.id)}
-                    disabled={actionLoading === `remove-${golfer.id}`}
+                    disabled={isTemporaryGroup || actionLoading === `remove-${golfer.id}`}
                     className="shrink-0 rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                     title="Remove team from group"
                   >
@@ -783,7 +879,7 @@ export const GroupManagementPage: React.FC = () => {
             </div>
           )}
 
-          {!group.is_full && (
+          {!isTemporaryGroup && !group.is_full && (
             <DroppableGroupZone
               groupId={group.id}
               isOver={overId === groupDropId(group.id) && activeId?.startsWith('golfer-') === true}
@@ -842,7 +938,7 @@ export const GroupManagementPage: React.FC = () => {
                   Teams Awaiting Placement ({totalPlacementQueueCount})
                 </h2>
                 <p className="mt-1 text-xs text-amber-800">
-                  Drag teams straight onto a course and hole. Existing grouped teams stay here until they get a valid start.
+                  Drag teams straight onto a course and hole, or use a hole picker below. Existing grouped teams stay here until they get a valid start.
                 </p>
               </div>
 
@@ -916,22 +1012,20 @@ export const GroupManagementPage: React.FC = () => {
 
                         <div className="space-y-3 p-3">
                           {hole.groups.length > 0 ? (
-                            <>
-                              {hole.groups.map(renderGroupCard)}
-                              <DroppableHoleZone
-                                courseKey={course.key}
-                                holeNumber={hole.holeNumber}
-                                isOver={isHoleOver}
-                                compact
-                              />
-                            </>
-                          ) : (
-                            <DroppableHoleZone
-                              courseKey={course.key}
-                              holeNumber={hole.holeNumber}
-                              isOver={isHoleOver}
-                            />
-                          )}
+                            hole.groups.map(renderGroupCard)
+                          ) : null}
+
+                          <DroppableHoleZone
+                            courseKey={course.key}
+                            holeNumber={hole.holeNumber}
+                            isOver={isHoleOver}
+                            compact={hole.groups.length > 0}
+                          />
+
+                          <HolePlacementPicker
+                            items={allPlacementQueueItems}
+                            onSelect={(itemId) => handleHolePickerSelect(itemId, course.key, hole.holeNumber)}
+                          />
                         </div>
                       </div>
                     );

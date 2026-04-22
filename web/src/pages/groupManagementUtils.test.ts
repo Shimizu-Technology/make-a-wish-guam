@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildGroupedCourses,
   buildPlacementQueueGroups,
+  buildStartingPositionLabel,
   hasValidStartingPosition,
 } from './groupManagementUtils';
 
@@ -58,5 +59,27 @@ describe('groupManagementUtils', () => {
 
     expect(hibiscus?.holes[2].groups.map((group) => group.id)).toEqual([2]);
     expect(hibiscus?.holes.every((hole) => hole.groups.every((group) => group.id !== 1))).toBe(true);
+  });
+
+  it('derives stable local position labels from the current hole assignments', () => {
+    const groups = [
+      {
+        id: 2,
+        group_number: 2,
+        starting_course_key: 'hibiscus',
+        hole_number: 3,
+        golfers: [{ id: 2 }],
+      },
+      {
+        id: 5,
+        group_number: 5,
+        starting_course_key: 'hibiscus',
+        hole_number: 3,
+        golfers: [{ id: 5 }],
+      },
+    ];
+
+    expect(buildStartingPositionLabel(groups[0], groups, courseMap, true)).toBe('Hibiscus 3A');
+    expect(buildStartingPositionLabel(groups[1], groups, courseMap, true)).toBe('Hibiscus 3B');
   });
 });

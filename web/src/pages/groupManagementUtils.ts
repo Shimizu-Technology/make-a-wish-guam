@@ -21,6 +21,8 @@ export interface GroupedCourse<TGroup extends GroupManagementGroup> extends Grou
   holes: Array<GroupedCourseHole<TGroup>>;
 }
 
+const positionLetterForIndex = (index: number) => String.fromCharCode(65 + index);
+
 export const hasValidStartingPosition = (
   group: Pick<GroupManagementGroup, 'starting_course_key' | 'hole_number'>,
   courseMap: Map<string, GroupManagementCourseConfig>
@@ -45,6 +47,48 @@ export const buildPlacementQueueGroups = <TGroup extends GroupManagementGroup>(
   groups
     .filter((group) => group.golfers.length > 0 && isAwaitingPlacement(group, courseMap))
     .sort((a, b) => a.group_number - b.group_number);
+
+export const buildStartingHoleDescription = (
+  courseKey: string | null,
+  holeNumber: number | null,
+  courseMap: Map<string, GroupManagementCourseConfig>,
+  multiCourseSetup: boolean
+) => {
+  if (!courseKey || !holeNumber) return null;
+
+  const course = courseMap.get(courseKey);
+  if (!course) return null;
+
+  return multiCourseSetup ? `${course.name} Hole ${holeNumber}` : `Hole ${holeNumber}`;
+};
+
+export const buildStartingPositionLabel = <TGroup extends GroupManagementGroup>(
+  group: TGroup,
+  groups: TGroup[],
+  courseMap: Map<string, GroupManagementCourseConfig>,
+  multiCourseSetup: boolean
+) => {
+  if (!hasValidStartingPosition(group, courseMap) || !group.starting_course_key || !group.hole_number) return null;
+
+  const groupsAtStart = groups
+    .filter(
+      (entry) =>
+        hasValidStartingPosition(entry, courseMap) &&
+        entry.starting_course_key === group.starting_course_key &&
+        entry.hole_number === group.hole_number
+    )
+    .sort((a, b) => a.group_number - b.group_number);
+
+  const positionIndex = groupsAtStart.findIndex((entry) => entry.id === group.id);
+  const positionLetter = positionLetterForIndex(positionIndex >= 0 ? positionIndex : 0);
+
+  if (!multiCourseSetup) {
+    return `${group.hole_number}${positionLetter}`;
+  }
+
+  const course = courseMap.get(group.starting_course_key);
+  return course ? `${course.name} ${group.hole_number}${positionLetter}` : `${group.hole_number}${positionLetter}`;
+};
 
 export const buildGroupedCourses = <TGroup extends GroupManagementGroup>(
   courseConfigs: GroupManagementCourseConfig[],

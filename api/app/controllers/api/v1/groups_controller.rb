@@ -1,7 +1,7 @@
 module Api
   module V1
     class GroupsController < BaseController
-      before_action :authorize_collection_tournament_access!, only: [:index, :create, :batch_create, :auto_assign]
+      before_action :authorize_collection_tournament_access!, only: [:index, :create, :batch_create, :auto_assign, :place_golfer]
       before_action :authorize_group_access!, only: [:show, :update, :destroy, :set_hole, :add_golfer, :remove_golfer]
       before_action :authorize_update_positions_access!, only: [:update_positions]
 
@@ -92,7 +92,12 @@ module Api
           target: nil,
           tournament: tournament,
           details: "Deleted #{starting_position_reference(group, label: hole_label)}",
-          metadata: { group_number: group_number, hole_label: hole_label, removed_golfers: golfer_names }
+          metadata: group_metadata(group).merge(
+            group_number: group_number,
+            starting_position_label: hole_label,
+            hole_label: hole_label,
+            removed_golfers: golfer_names
+          )
         )
         
         broadcast_groups_update(tournament)
@@ -157,7 +162,10 @@ module Api
             action: 'golfer_assigned_to_group',
             target: golfer,
             details: "Added #{golfer.name} to #{starting_position_reference(group)}",
-            metadata: { group_id: group.id, group_number: group.group_number, hole_label: group.hole_position_label }
+            metadata: group_metadata(group).merge(
+              group_id: group.id,
+              group_number: group.group_number
+            )
           )
           broadcast_groups_update(group.tournament)
           render json: group, include: "golfers"
@@ -183,7 +191,12 @@ module Api
             action: 'golfer_removed_from_group',
             target: golfer,
             details: "Removed #{golfer.name} from #{starting_position_reference(group, label: hole_label)}",
-            metadata: { group_id: group.id, group_number: group.group_number, hole_label: hole_label }
+            metadata: group_metadata(group).merge(
+              group_id: group.id,
+              group_number: group.group_number,
+              starting_position_label: hole_label,
+              hole_label: hole_label
+            )
           )
           
           broadcast_groups_update(group.tournament)
@@ -217,6 +230,75 @@ module Api
         render json: { error: e.message }, status: :not_found
       rescue ActiveRecord::RecordInvalid => e
         render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      # POST /api/v1/groups/place_golfer
+      def place_golfer
+        tournament = find_tournament
+        return render_tournament_required unless tournament
+
+        golfer = tournament.golfers.find(params[:golfer_id])
+        if golfer.group_id.present?
+          render json: { error: "Golfer is already assigned to a group" }, status: :unprocessable_entity
+          return
+        end
+
+        if golfer.registration_status == "cancelled"
+          render json: { error: "Cannot add cancelled golfer to a group" }, status: :unprocessable_entity
+          return
+        end
+
+        if golfer.registration_status == "waitlist"
+          render json: { error: "Cannot add waitlist golfer to a group. Promote them to confirmed first." }, status: :unprocessable_entity
+          return
+        end
+
+        attributes, error_message = starting_position_params_for(tournament)
+        if error_message
+          render json: { error: error_message }, status: :unprocessable_entity
+          return
+        end
+
+        group = nil
+
+        ActiveRecord::Base.transaction do
+          next_number = (tournament.groups.maximum(:group_number) || 0) + 1
+          group = tournament.groups.create!(
+            group_number: next_number,
+            starting_course_key: attributes[:starting_course_key],
+            hole_number: attributes[:hole_number]
+          )
+
+          unless group.add_golfer(golfer)
+            raise ActiveRecord::RecordInvalid, golfer
+          end
+
+          ActivityLog.log(
+            admin: current_admin,
+            action: 'group_created',
+            target: group,
+            details: "Created #{starting_position_reference(group)}",
+            metadata: group_metadata(group)
+          )
+
+          ActivityLog.log(
+            admin: current_admin,
+            action: 'golfer_assigned_to_group',
+            target: golfer,
+            details: "Added #{golfer.name} to #{starting_position_reference(group)}",
+            metadata: group_metadata(group).merge(
+              group_id: group.id,
+              group_number: group.group_number
+            )
+          )
+        end
+
+        broadcast_groups_update(tournament)
+        render json: group, include: "golfers", status: :created
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Golfer not found" }, status: :not_found
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       # POST /api/v1/groups/batch_create
@@ -354,7 +436,8 @@ module Api
           starting_course_key: group.starting_course_key,
           hole_number: group.hole_number,
           group_number: group.group_number,
-          starting_position_label: group.starting_position_label
+          starting_position_label: group.starting_position_label,
+          hole_label: group.hole_position_label
         }
       end
 

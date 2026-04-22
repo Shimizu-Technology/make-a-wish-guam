@@ -179,6 +179,36 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_nil golfer.position
   end
 
+  test "place_golfer creates a started group and returns consistent metadata" do
+    tournament = tournaments(:tournament_one)
+    golfer = golfers(:confirmed_unpaid)
+
+    assert_difference "Group.count", 1 do
+      post place_golfer_api_v1_groups_url, params: {
+        tournament_id: tournament.id,
+        golfer_id: golfer.id,
+        starting_course_key: "course-1",
+        hole_number: 9
+      }, headers: auth_headers
+    end
+
+    assert_response :created
+
+    golfer.reload
+    assert_not_nil golfer.group_id
+    assert_equal 1, golfer.position
+
+    created_group = Group.find(golfer.group_id)
+    assert_equal "course-1", created_group.starting_course_key
+    assert_equal 9, created_group.hole_number
+
+    log = ActivityLog.where(action: "golfer_assigned_to_group", target_type: "Golfer", target_id: golfer.id).order(:created_at).last
+    assert_equal created_group.id, log.metadata["group_id"]
+    assert_equal created_group.group_number, log.metadata["group_number"]
+    assert_equal created_group.starting_position_label, log.metadata["starting_position_label"]
+    assert_equal created_group.hole_position_label, log.metadata["hole_label"]
+  end
+
   test "remove_golfer returns validation errors instead of bypassing them" do
     golfer = golfers(:confirmed_paid)
     group = golfer.group

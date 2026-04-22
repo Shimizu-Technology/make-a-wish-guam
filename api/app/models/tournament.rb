@@ -403,13 +403,6 @@ class Tournament < ApplicationRecord
 
   def course_configs_are_valid
     validate_raw_course_configs_input if @course_configs_input_present
-    return if errors[:config].present?
-
-    configs = course_configs
-    invalid = configs.any? do |course|
-      course['name'].blank? || course['hole_count'].to_i <= 0
-    end
-    errors.add(:config, 'Course configuration is invalid') if invalid
   end
 
   def validate_raw_course_configs_input
