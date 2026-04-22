@@ -28,27 +28,29 @@ module Api
         tournament = find_tournament
         return render_tournament_required unless tournament
 
-        # Auto-assign next group number for this tournament
-        next_number = (tournament.groups.maximum(:group_number) || 0) + 1
-        group = tournament.groups.new(
-          group_number: next_number,
-          starting_course_key: params[:starting_course_key],
-          hole_number: params[:hole_number]
-        )
+        group = nil
 
-        if group.save
-          ActivityLog.log(
-            admin: current_admin,
-            action: 'group_created',
-            target: group,
-            details: "Created #{starting_position_reference(group)}",
-            metadata: group_metadata(group)
+        ActiveRecord::Base.transaction do
+          group = tournament.groups.new(
+            group_number: allocate_next_group_number!(tournament),
+            starting_course_key: params[:starting_course_key],
+            hole_number: params[:hole_number]
           )
-          broadcast_groups_update(tournament)
-          render json: group, status: :created
-        else
-          render json: { errors: group.errors.full_messages }, status: :unprocessable_entity
+
+          group.save!
         end
+
+        ActivityLog.log(
+          admin: current_admin,
+          action: 'group_created',
+          target: group,
+          details: "Created #{starting_position_reference(group)}",
+          metadata: group_metadata(group)
+        )
+        broadcast_groups_update(tournament)
+        render json: group, status: :created
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       # PATCH /api/v1/groups/:id
@@ -332,9 +334,8 @@ module Api
 
           unless group
             created_group = true
-            next_number = (tournament.groups.maximum(:group_number) || 0) + 1
             group = tournament.groups.create!(
-              group_number: next_number,
+              group_number: allocate_next_group_number!(tournament),
               starting_course_key: attributes[:starting_course_key],
               hole_number: attributes[:hole_number]
             )
@@ -387,10 +388,14 @@ module Api
         count = 40 if count > 40 # Max 40 groups (160 golfers / 4)
 
         groups = []
-        next_number = (tournament.groups.maximum(:group_number) || 0) + 1
 
-        count.times do |i|
-          groups << tournament.groups.create!(group_number: next_number + i)
+        ActiveRecord::Base.transaction do
+          tournament.lock!
+          next_number = (tournament.groups.maximum(:group_number) || 0) + 1
+
+          count.times do |i|
+            groups << tournament.groups.create!(group_number: next_number + i)
+          end
         end
 
         broadcast_groups_update(tournament)
@@ -422,8 +427,9 @@ module Api
 
           created_group = false
           unless group
-            next_number = (tournament.groups.maximum(:group_number) || 0) + 1
-            group = tournament.groups.create!(group_number: next_number)
+            group = ActiveRecord::Base.transaction do
+              tournament.groups.create!(group_number: allocate_next_group_number!(tournament))
+            end
             created_group = true
           end
 
@@ -541,6 +547,11 @@ module Api
 
       def preload_group_position_letters(groups)
         Group.preload_position_letters(groups.to_a)
+      end
+
+      def allocate_next_group_number!(tournament)
+        tournament.lock!
+        (tournament.groups.maximum(:group_number) || 0) + 1
       end
 
       def tracked_label_changes(tournament, positions)

@@ -96,7 +96,13 @@ class Group < ApplicationRecord
   def add_golfer(golfer)
     return false unless can_add?(golfer)
 
-    next_position = golfers.maximum(:position).to_i + 1
+    next_position =
+      if golfers.loaded?
+        golfers.map(&:position).compact.max.to_i + 1
+      else
+        golfers.maximum(:position).to_i + 1
+      end
+
     golfer.assign_to_group(group: self, position: next_position)
   end
 

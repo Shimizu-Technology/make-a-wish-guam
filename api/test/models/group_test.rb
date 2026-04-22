@@ -76,7 +76,7 @@ class GroupTest < ActiveSupport::TestCase
 
   test "golfers are ordered by position" do
     group = groups(:group_one)
-    positions = group.golfers.pluck(:position).compact
+    positions = group.golfers.order(:position).pluck(:position).compact
     assert_equal positions.sort, positions
   end
 
