@@ -40,11 +40,11 @@ module Api
       private
 
       def authenticate_sponsor!
-        token = request.headers["X-Sponsor-Token"] || params[:token]
-        @sponsor = Sponsor.find_by_access_token(token)
+        session_token = request.headers["X-Sponsor-Session"] || params[:session_token]
+        @sponsor = Sponsor.find_by_portal_session_token(session_token)
 
         unless @sponsor
-          render json: { error: "Invalid or expired access token" }, status: :unauthorized
+          render json: { error: "Invalid or expired sponsor session" }, status: :unauthorized
         end
       end
     end

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 import { useGolferAuth } from '../contexts/GolferAuthContext';
@@ -14,6 +14,26 @@ export const GolferVerifyPage: React.FC = () => {
 
   const token = searchParams.get('token');
 
+  const verifyToken = useCallback(async () => {
+    try {
+      const result = await verifyMagicLink(token!);
+      
+      if (result) {
+        setSuccess(true);
+        // Short delay to show success message, then redirect
+        setTimeout(() => {
+          navigate('/golfer/dashboard');
+        }, 1500);
+      } else {
+        setError('This link is invalid or has expired. Please request a new one.');
+      }
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setVerifying(false);
+    }
+  }, [navigate, token, verifyMagicLink]);
+
   useEffect(() => {
     // If already authenticated, redirect to dashboard
     if (!isLoading && isAuthenticated) {
@@ -28,27 +48,7 @@ export const GolferVerifyPage: React.FC = () => {
       setVerifying(false);
       setError('Invalid link. No access token provided.');
     }
-  }, [isLoading, isAuthenticated, token]);
-
-  const verifyToken = async () => {
-    try {
-      const result = await verifyMagicLink(token!);
-      
-      if (result) {
-        setSuccess(true);
-        // Short delay to show success message, then redirect
-        setTimeout(() => {
-          navigate('/golfer/dashboard');
-        }, 1500);
-      } else {
-        setError('This link is invalid or has expired. Please request a new one.');
-      }
-    } catch (err) {
-      setError('Something went wrong. Please try again.');
-    } finally {
-      setVerifying(false);
-    }
-  };
+  }, [isAuthenticated, isLoading, navigate, token, verifyToken]);
 
   // Loading state
   if (isLoading || verifying) {

@@ -25,39 +25,11 @@ import {
 import toast from 'react-hot-toast';
 import { AddGolferModal } from '../components/AddGolferModal';
 import { EditGolferModal } from '../components/EditGolferModal';
-import { ActivityLog } from '../services/api';
+import type { ActivityLog, Golfer as ApiGolfer } from '../services/api';
 import { adminEventPath, adminOrgRoutes } from '../utils/adminRoutes';
 import { formatDateTime, formatShortDate } from '../utils/dates';
 
-interface Golfer {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  company: string | null;
-  registration_status: 'confirmed' | 'waitlist' | 'cancelled' | 'pending';
-  payment_status: 'paid' | 'unpaid' | 'pending' | 'refunded';
-  payment_method: string | null;
-  payment_type: string | null;
-  notes: string | null;
-  payment_notes: string | null;
-  checked_in_at: string | null;
-  created_at: string;
-  paid_at: string | null;
-  payment_verified_by_name: string | null;
-  payment_verified_at: string | null;
-  checked_in_by_name: string | null;
-  partner_name: string | null;
-  partner_email: string | null;
-  partner_phone: string | null;
-  sponsor_id: number | null;
-  sponsor_name: string | null;
-  sponsor_display_name: string | null;
-  team_category: string | null;
-  registration_source: 'admin' | 'public' | null;
-  hole_position_label: string | null;
-  starting_hole_description?: string | null;
-}
+type Golfer = ApiGolfer;
 
 interface Tournament {
   id: string;

@@ -38,7 +38,7 @@ export const GolferLoginPage: React.FC = () => {
       } else {
         toast.error(result.message);
       }
-    } catch (error) {
+    } catch {
       toast.error('Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);

@@ -221,6 +221,7 @@ module Api
           :sponsor_edit_deadline,
           :event_schedule, :payment_instructions,
           :check_in_time,
+          :banner_url_override, :use_org_branding,
           :raffle_include_with_registration,
           config: {},
           course_configs: [:key, :name, :hole_count],

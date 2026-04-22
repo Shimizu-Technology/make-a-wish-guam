@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganization } from '../components/OrganizationProvider';
+import { PublicHero } from '../components/PublicHero';
 import { SignedInAdminBar } from '../components/SignedInAdminBar';
 import { api, Tournament } from '../services/api';
 import { motion, MotionConfig, useInView } from 'framer-motion';
@@ -10,7 +11,6 @@ import {
   Users,
   Trophy,
   ChevronRight,
-  Clock,
   Mail,
   Phone,
   Globe,
@@ -22,7 +22,6 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
-import { hexToRgba } from '../utils/colors';
 import { formatEventDate } from '../utils/dates';
 
 // ---------------------------------------------------------------------------
@@ -150,74 +149,71 @@ export function OrganizationLandingPage() {
       {/* ================================================================= */}
       {/* HERO — MAW Blue header                                            */}
       {/* ================================================================= */}
-      <header
-        className="relative overflow-hidden min-h-[280px] lg:min-h-[360px] flex items-center"
-        style={{
-          background: 'linear-gradient(135deg, #0057B8 0%, #003a6e 100%)',
-        }}
+      <PublicHero
+        imageAlt={`${organization.name} header artwork`}
+        containerClassName="min-h-[280px] lg:min-h-[360px]"
+        contentClassName="max-w-3xl"
       >
-        <div className="relative z-10 max-w-5xl mx-auto px-6 lg:px-8 py-10 lg:py-20 w-full">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, ease }}
-            className="mb-8"
-          >
-            <img
-              src="/images/maw-star-icon.png"
-              alt="Make-A-Wish Guam & CNMI"
-              className="h-12 rounded-lg"
-            />
-          </motion.div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease }}
+          className="mb-8"
+        >
+          <img
+            src="/images/maw-star-icon.png"
+            alt="Make-A-Wish Guam & CNMI"
+            className="h-12 rounded-lg"
+          />
+        </motion.div>
 
-          <motion.h1
-            className="text-3xl lg:text-5xl font-bold tracking-tight text-white mb-3"
-            initial={{ opacity: 0, y: 30 }}
+        <motion.h1
+          className="text-3xl font-bold tracking-tight text-white lg:text-5xl"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.15, ease }}
+        >
+          {organization.name}
+        </motion.h1>
+
+        {(organization.settings?.homepage_tagline || organization.description) && (
+          <motion.p
+            className="mt-3 text-base text-white/90 sm:text-lg"
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.15, ease }}
+            transition={{ duration: 0.6, delay: 0.25, ease }}
           >
-            {organization.name}
-          </motion.h1>
+            {organization.settings?.homepage_tagline || organization.description}
+          </motion.p>
+        )}
 
-          {(organization.settings?.homepage_tagline || organization.description) && (
-            <motion.p
-              className="text-base sm:text-lg text-white/90 mb-4"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.25, ease }}
-            >
-              {organization.settings?.homepage_tagline || ''}
-            </motion.p>
-          )}
+        {organization.settings?.homepage_mission && (
+          <motion.p
+            className="mt-4 max-w-2xl text-base leading-relaxed text-white/75 sm:text-lg"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.35, ease }}
+          >
+            {organization.settings.homepage_mission}
+          </motion.p>
+        )}
 
-          {organization.settings?.homepage_mission && (
-            <motion.p
-              className="text-base sm:text-lg text-white/75 max-w-2xl leading-relaxed"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.35, ease }}
-            >
-              {organization.settings.homepage_mission}
-            </motion.p>
-          )}
-
-          {organization.settings?.homepage_stats && organization.settings.homepage_stats.length > 0 && (
-            <motion.div
-              className="flex gap-8 mt-8 pt-8 border-t border-white/20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.45, ease }}
-            >
-              {organization.settings.homepage_stats.map((stat: { value: string; label: string }, i: number) => (
-                <div key={i}>
-                  <div className="text-2xl font-bold text-white">{stat.value}</div>
-                  <div className="text-sm text-white/70">{stat.label}</div>
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </div>
-      </header>
+        {organization.settings?.homepage_stats && organization.settings.homepage_stats.length > 0 && (
+          <motion.div
+            className="mt-8 flex flex-wrap gap-x-8 gap-y-5 border-t border-white/20 pt-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.45, ease }}
+          >
+            {organization.settings.homepage_stats.map((stat: { value: string; label: string }, i: number) => (
+              <div key={i}>
+                <div className="text-2xl font-bold text-white">{stat.value}</div>
+                <div className="text-sm text-white/70">{stat.label}</div>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </PublicHero>
 
       {/* ================================================================= */}
       {/* UPCOMING EVENTS                                                    */}

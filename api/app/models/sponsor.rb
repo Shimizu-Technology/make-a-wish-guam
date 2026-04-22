@@ -58,6 +58,7 @@ class Sponsor < ApplicationRecord
 
   # Magic link authentication
   ACCESS_TOKEN_EXPIRY = 7.days
+  PORTAL_SESSION_EXPIRY = 12.hours
 
   def generate_access_token!
     token = SecureRandom.urlsafe_base64(32)
@@ -66,6 +67,16 @@ class Sponsor < ApplicationRecord
       access_token_expires_at: Time.current + ACCESS_TOKEN_EXPIRY
     )
     token
+  end
+
+  def generate_portal_session_token!(verified_email:)
+    normalized_email = verified_email.to_s.strip.downcase
+    raise ArgumentError, 'Verified email is required' if normalized_email.blank?
+
+    self.class.portal_session_verifier.generate(
+      { 'sponsor_id' => id, 'email' => normalized_email },
+      expires_in: PORTAL_SESSION_EXPIRY
+    )
   end
 
   def access_token_valid?
@@ -79,6 +90,27 @@ class Sponsor < ApplicationRecord
     sponsor = find_by(access_token: token)
     return nil unless sponsor&.access_token_valid?
     sponsor
+  end
+
+  def self.find_by_portal_session_token(token)
+    return nil if token.blank?
+
+    payload = portal_session_verifier.verified(token)
+    return nil unless payload.is_a?(Hash)
+
+    sponsor = find_by(id: payload['sponsor_id'])
+    return nil unless sponsor
+
+    verified_email = payload['email'].to_s.downcase
+    return nil unless sponsor.login_email.to_s.downcase == verified_email
+
+    sponsor
+  rescue ActiveSupport::MessageVerifier::InvalidSignature
+    nil
+  end
+
+  def self.portal_session_verifier
+    Rails.application.message_verifier('sponsor-portal-session')
   end
 
   private

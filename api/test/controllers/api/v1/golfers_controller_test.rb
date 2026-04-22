@@ -80,7 +80,8 @@ class Api::V1::GolfersControllerTest < ActionDispatch::IntegrationTest
         name: "New Golfer",
         email: unique_email,
         phone: "671-555-9999",
-        payment_type: "pay_on_day"
+        payment_type: "pay_on_day",
+        team_category: "Male"
       },
       waiver_accepted: true
     }
@@ -101,6 +102,29 @@ class Api::V1::GolfersControllerTest < ActionDispatch::IntegrationTest
     
     json = JSON.parse(response.body)
     assert json.key?("errors")
+  end
+
+  test "public create ignores spoofed admin registration source" do
+    tournament = tournaments(:tournament_one)
+    unique_email = "public-spoof-#{SecureRandom.hex(4)}@test.com"
+
+    post api_v1_golfers_url, params: {
+      tournament_id: tournament.id,
+      golfer: {
+        name: "Spoof Attempt",
+        email: unique_email,
+        phone: "671-555-7777",
+        payment_type: "pay_on_day",
+        team_category: "Male",
+        registration_source: "admin"
+      },
+      waiver_accepted: true
+    }
+
+    assert_response :created, "Expected 201 but got #{response.status}: #{response.body}"
+
+    golfer = Golfer.order(created_at: :desc).find_by!(email: unique_email)
+    assert_equal "public", golfer.registration_source
   end
 
   # ==================
@@ -382,4 +406,3 @@ class Api::V1::GolfersControllerTest < ActionDispatch::IntegrationTest
     assert_equal tournament.entry_fee, golfer.payment_amount_cents
   end
 end
-

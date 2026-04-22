@@ -28,6 +28,7 @@ import {
   User
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import type { ActivityLog } from '../services/api';
 import { adminEventPath } from '../utils/adminRoutes';
 import { formatDate, formatDateTime } from '../utils/dates';
 
@@ -340,7 +341,7 @@ export const RaffleManagementPage: React.FC = () => {
   const [expandedTicketId, setExpandedTicketId] = useState<number | null>(null);
 
   // Activity log
-  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
 
   // Modals
@@ -399,7 +400,7 @@ export const RaffleManagementPage: React.FC = () => {
       if (!skipTickets) {
         await fetchTickets(tid, ticketSearch, ticketFilter, ticketPage);
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to load raffle data');
     } finally {
       setLoading(false);
@@ -498,7 +499,7 @@ export const RaffleManagementPage: React.FC = () => {
       if (!res.ok) throw new Error('Failed to reset');
       toast.success('Prize reset');
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to reset prize');
     } finally {
       setActionLoading(null);
@@ -520,7 +521,7 @@ export const RaffleManagementPage: React.FC = () => {
       if (!res.ok) throw new Error('Failed to claim');
       toast.success('Prize marked as claimed');
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to claim prize');
     } finally {
       setActionLoading(null);
@@ -603,7 +604,7 @@ export const RaffleManagementPage: React.FC = () => {
       if (!res.ok) throw new Error('Failed to update raffle status');
       setTournament((prev) => prev ? { ...prev, raffle_enabled: newValue } : prev);
       toast.success(newValue ? 'Raffle enabled' : 'Raffle disabled');
-    } catch (err) {
+    } catch {
       toast.error('Failed to update raffle status');
     } finally {
       setActionLoading(null);
@@ -665,7 +666,9 @@ export const RaffleManagementPage: React.FC = () => {
       }
       const data = await res.json();
       const totalDollars = `$${(bundle.price_cents / 100).toFixed(0)}`;
-      const ticketNums = data.tickets?.map((t: any) => t.ticket_number) || [];
+      const ticketNums = Array.isArray(data.tickets)
+        ? data.tickets.map((ticket: { ticket_number: string }) => ticket.ticket_number)
+        : [];
       setLastSale({
         quantity: bundle.quantity,
         total: totalDollars,
@@ -716,7 +719,9 @@ export const RaffleManagementPage: React.FC = () => {
       }
       const data = await res.json();
       const totalDollars = `$${(priceCents / 100).toFixed(0)}`;
-      const ticketNums = data.tickets?.map((t: any) => t.ticket_number) || [];
+      const ticketNums = Array.isArray(data.tickets)
+        ? data.tickets.map((ticket: { ticket_number: string }) => ticket.ticket_number)
+        : [];
       setLastSale({
         quantity,
         total: totalDollars,
@@ -827,7 +832,9 @@ export const RaffleManagementPage: React.FC = () => {
                 View Public Board
               </Link>
               <button
-                onClick={fetchData}
+                onClick={() => {
+                  void fetchData();
+                }}
                 className="p-2 bg-white/10 rounded-lg hover:bg-white/20"
               >
                 <RefreshCw className="w-5 h-5" />
@@ -1476,7 +1483,7 @@ export const RaffleManagementPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="divide-y">
-                  {activityLogs.map((log: any) => (
+                  {activityLogs.map((log) => (
                     <div key={log.id} className="px-4 py-3 sm:px-5 sm:py-4 hover:bg-gray-50">
                       <div className="flex items-start gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
@@ -1604,7 +1611,7 @@ const PrizeModal: React.FC<{
 
       toast.success(prize ? 'Prize updated' : 'Prize created');
       onSuccess();
-    } catch (err) {
+    } catch {
       toast.error('Failed to save prize');
     } finally {
       setSaving(false);
@@ -1735,4 +1742,3 @@ const PrizeModal: React.FC<{
     </div>
   );
 };
-

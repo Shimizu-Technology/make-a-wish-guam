@@ -1,6 +1,16 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react';
 
+const MIME_BY_EXTENSION: Record<string, string> = {
+  avif: 'image/avif',
+  gif: 'image/gif',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  png: 'image/png',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
+};
+
 interface ImageUploadProps {
   label: string;
   value: string;           // Current URL
@@ -10,6 +20,7 @@ interface ImageUploadProps {
   helpText?: string;
   accept?: string;
   maxSizeMB?: number;
+  previewAspectClassName?: string;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
@@ -19,8 +30,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   getToken,
   placeholder = 'Upload an image or paste a URL',
   helpText,
-  accept = 'image/jpeg,image/png,image/gif,image/svg+xml,image/webp',
+  accept = 'image/jpeg,image/png,image/gif,image/svg+xml,image/webp,image/avif',
   maxSizeMB = 5,
+  previewAspectClassName = 'aspect-[16/8]',
 }) => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +50,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
     // Validate type
     const allowedTypes = accept.split(',');
-    if (!allowedTypes.includes(file.type)) {
+    const fileType = file.type || MIME_BY_EXTENSION[file.name.split('.').pop()?.toLowerCase() || ''] || '';
+    if (!allowedTypes.includes(fileType)) {
       setError('Invalid file type');
       return;
     }
@@ -106,21 +119,26 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
       {/* Preview */}
       {value && (
-        <div className="relative mb-2 inline-block">
-          <img
-            src={value}
-            alt={label}
-            className="h-20 w-auto rounded-lg border border-gray-200 object-contain bg-gray-50"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
+        <div className="relative mb-3 max-w-xl">
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-sm">
+            <div className={`${previewAspectClassName} w-full bg-[linear-gradient(135deg,#eff6ff_0%,#f8fafc_100%)] p-2`}>
+              <img
+                src={value}
+                alt={label}
+                className="h-full w-full rounded-xl object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            </div>
+          </div>
           <button
             type="button"
             onClick={handleClear}
-            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 shadow-sm"
+            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-white/60 bg-red-500 text-white shadow-md transition hover:bg-red-600"
+            aria-label={`Remove ${label}`}
           >
-            <X className="w-3 h-3" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}

@@ -272,7 +272,6 @@ export const PaymentReconciliationPage: React.FC = () => {
 
   const [golfers, setGolfers] = useState<Golfer[]>([]);
   const [tournamentName, setTournamentName] = useState('');
-  const [tournamentId, setTournamentId] = useState<string | null>(null);
   const [entryFee, setEntryFee] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -296,7 +295,6 @@ export const PaymentReconciliationPage: React.FC = () => {
       const data = await response.json();
       const t = data.tournament || data;
       setTournamentName(t.name || '');
-      setTournamentId(t.id || null);
       setEntryFee(t.entry_fee || 0);
 
       const confirmed = (data.golfers || []).filter(

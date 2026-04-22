@@ -65,13 +65,13 @@ module Api
       # POST /api/v1/tournaments/:tournament_id/scores
       # Auth required (admin or golfer) - create a score
       def create
-        @score = @tournament.scores.build(score_params)
+        @score = @tournament.scores.build(create_score_params)
         @score.entered_by = score_entered_by
+        assign_group_for_score!(@score)
 
-        # Auto-set group from golfer if not provided
-        if @score.group_id.blank? && @score.golfer_id.present?
-          golfer = Golfer.find_by(id: @score.golfer_id)
-          @score.group = golfer&.group
+        if golfer_authenticated? && !golfer_can_access_score?(@score)
+          render json: { success: false, error: 'You can only enter scores for your own group' }, status: :forbidden
+          return
         end
 
         if @score.save
@@ -87,7 +87,7 @@ module Api
       # PATCH /api/v1/tournaments/:tournament_id/scores/:id
       # Auth required - update a score
       def update
-        if @score.update(score_params)
+        if @score.update(update_score_params)
           render json: {
             score: score_response(@score),
             message: 'Score updated successfully'
@@ -124,28 +124,13 @@ module Api
 
         ActiveRecord::Base.transaction do
           scores_data.each do |score_data|
-            score = @tournament.scores.build(
-              hole: score_data[:hole],
-              strokes: score_data[:strokes],
-              golfer_id: score_data[:golfer_id],
-              group_id: score_data[:group_id],
-              score_type: score_data[:score_type] || 'individual',
-              entered_by: score_entered_by
-            )
+            score = @tournament.scores.build(score_attributes_from_payload(score_data))
+            score.entered_by = score_entered_by
+            assign_group_for_score!(score)
 
-            # Auto-set group from golfer if not provided
-            if score.group_id.blank? && score.golfer_id.present?
-              golfer = Golfer.find_by(id: score.golfer_id)
-              score.group = golfer&.group
-            end
-
-            # Validate golfer belongs to the group (prevent cross-group score injection)
-            if golfer_authenticated? && score_data[:golfer_id].present?
-              target_golfer = Golfer.find_by(id: score_data[:golfer_id])
-              unless target_golfer&.group_id == score.group_id
-                errors << { hole: score_data[:hole], errors: ['Golfer not in this group'] }
-                next
-              end
+            unless golfer_can_access_score?(score)
+              errors << { hole: score_data[:hole], errors: ['You can only enter scores for your own group'] }
+              next
             end
 
             if score.save
@@ -273,9 +258,13 @@ module Api
         return true if admin_authenticated?
         
         if golfer_authenticated?
-          group_id = params[:group_id]&.to_i || params.dig(:scores, 0, :group_id)&.to_i
-          
-          if group_id && current_golfer.group_id != group_id
+          requested_group_ids = if action_name == 'batch'
+            Array(params[:scores]).filter_map { |score| score[:group_id]&.to_i }.uniq
+          else
+            [params[:group_id]&.to_i].compact
+          end
+
+          if requested_group_ids.any? { |group_id| current_golfer.group_id != group_id }
             render json: { 
               success: false, 
               error: 'You can only enter scores for your own group' 
@@ -307,6 +296,25 @@ module Api
         admin_authenticated? ? current_user : nil
       end
 
+      def assign_group_for_score!(score)
+        if score.group_id.blank? && score.golfer_id.present?
+          golfer = Golfer.find_by(id: score.golfer_id)
+          score.group = golfer&.group
+        elsif score.group_id.blank? && golfer_authenticated?
+          score.group = current_golfer.group
+        end
+      end
+
+      def golfer_can_access_score?(score)
+        return true if admin_authenticated?
+        return false unless golfer_authenticated?
+        return false if current_golfer.group_id.blank?
+        return false unless score.group_id == current_golfer.group_id
+        return true if score.golfer_id.blank?
+
+        Golfer.where(id: score.golfer_id, group_id: current_golfer.group_id).exists?
+      end
+
       def set_tournament
         @tournament = Tournament.find(params[:tournament_id])
       end
@@ -315,10 +323,24 @@ module Api
         @score = @tournament.scores.find(params[:id])
       end
 
-      def score_params
-        params.require(:score).permit(
-          :hole, :strokes, :golfer_id, :group_id, :score_type, :notes
-        )
+      def create_score_params
+        params.require(:score).permit(:hole, :strokes, :golfer_id, :group_id, :score_type, :notes)
+      end
+
+      def update_score_params
+        if admin_authenticated?
+          params.require(:score).permit(:hole, :strokes, :golfer_id, :group_id, :score_type, :notes)
+        else
+          params.require(:score).permit(:hole, :strokes, :notes)
+        end
+      end
+
+      def score_attributes_from_payload(payload)
+        if payload.respond_to?(:permit)
+          payload.permit(:hole, :strokes, :golfer_id, :group_id, :score_type, :notes).to_h.symbolize_keys
+        else
+          payload.to_h.slice('hole', 'strokes', 'golfer_id', 'group_id', 'score_type', 'notes').symbolize_keys
+        end
       end
 
       def score_response(score)

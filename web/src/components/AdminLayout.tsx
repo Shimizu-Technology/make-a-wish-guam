@@ -18,7 +18,6 @@ import {
   Settings,
   ShieldCheck,
   Ticket,
-  Users,
   X,
 } from 'lucide-react';
 import { useOrganization } from './OrganizationProvider';

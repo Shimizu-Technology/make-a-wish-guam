@@ -39,6 +39,12 @@ export interface CourseConfig {
   hole_count: number;
 }
 
+export interface SponsorTier {
+  key: string;
+  label: string;
+  sort_order: number;
+}
+
 // Types for API responses
 export interface Tournament {
   id: number;
@@ -63,6 +69,7 @@ export interface Tournament {
   checks_payable_to: string | null;
   contact_name: string | null;
   contact_phone: string | null;
+  contact_email?: string | null;
   registration_open: boolean;
   can_register: boolean;
   confirmed_count: number;
@@ -113,9 +120,12 @@ export interface Tournament {
   allow_cash?: boolean;
   allow_check?: boolean;
   allow_card?: boolean;
+  banner_url_override?: string | null;
+  use_org_branding?: boolean;
   
   // Schedule
   check_in_time?: string;
+  event_schedule?: string | null;
   shotgun_start?: boolean;
   tee_times_enabled?: boolean;
   tee_time_interval_minutes?: number;
@@ -135,16 +145,19 @@ export interface Tournament {
   raffle_description?: string;
   raffle_draw_time?: string;
   raffle_auto_draw?: boolean;
+  sponsor_edit_deadline?: string | null;
   raffle_ticket_price_cents?: number;
   raffle_include_with_registration?: boolean;
   raffle_bundles?: { quantity: number; price_cents: number; label: string }[];
   course_configs?: CourseConfig[];
+  sponsor_tiers?: SponsorTier[];
 
   // Legacy compatibility fields (optional)
   employee_entry_fee?: number;
   employee_entry_fee_dollars?: number;
   employee_numbers_count?: number;
   hole_pars?: Record<string, number>;
+  registration_count?: number;
 }
 
 export interface Golfer {
@@ -157,8 +170,8 @@ export interface Golfer {
   phone: string;
   mobile: string | null;
   email: string;
-  payment_type: 'stripe' | 'pay_on_day' | 'swipe_simple';
-  payment_status: 'paid' | 'unpaid' | 'refunded';
+  payment_type: 'stripe' | 'pay_on_day' | 'swipe_simple' | 'walk_in' | 'sponsor';
+  payment_status: 'paid' | 'unpaid' | 'pending' | 'refunded';
   waiver_accepted_at: string | null;
   waiver_signed: boolean;
   checked_in_at: string | null;
@@ -177,6 +190,7 @@ export interface Golfer {
   group_position_label: string | null;
   starting_position_label: string | null;
   hole_position_label: string | null;
+  starting_hole_description?: string | null;
   checked_in: boolean;
   group?: Group | null;
   // Refund/cancel fields
@@ -210,6 +224,7 @@ export interface Golfer {
   partner_name: string | null;
   partner_email: string | null;
   partner_phone: string | null;
+  team_name?: string | null;
   team_category: string | null;
   registration_source: 'admin' | 'public' | null;
   // Verification fields
@@ -607,8 +622,8 @@ export class ApiClient {
   }
 
   // Simple axios-like interface for OrganizationProvider
-  async get(url: string): Promise<{ data: unknown }> {
-    const data = await this.request(url.startsWith('/api') ? url : `/api/v1${url}`, {}, false);
+  async get<T = unknown>(url: string): Promise<{ data: T }> {
+    const data = await this.request<T>(url.startsWith('/api') ? url : `/api/v1${url}`, {}, false);
     return { data };
   }
 

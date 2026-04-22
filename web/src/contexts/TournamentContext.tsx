@@ -4,6 +4,7 @@ import { api, Tournament } from '../services/api';
 interface TournamentContextType {
   tournaments: Tournament[];
   currentTournament: Tournament | null;
+  activeTournament: Tournament | null;
   isLoading: boolean;
   error: string | null;
   setCurrentTournament: (tournament: Tournament | null) => void;
@@ -107,6 +108,7 @@ export function TournamentProvider({ children }: TournamentProviderProps) {
       value={{
         tournaments,
         currentTournament,
+        activeTournament: currentTournament,
         isLoading,
         error,
         setCurrentTournament,
@@ -125,4 +127,3 @@ export function useTournament() {
   }
   return context;
 }
-

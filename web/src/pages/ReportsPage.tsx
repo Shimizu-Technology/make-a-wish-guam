@@ -124,8 +124,8 @@ export function ReportsPage() {
   }, [allPaidConfirmed, golfers]);
 
   const groupsByStart = useMemo(() => {
-    const courseOrder = new Map(
-      (activeTournament?.course_configs || []).map((course, index) => [course.key, index])
+    const courseOrder = new Map<string, number>(
+      (activeTournament?.course_configs || []).map((course: { key: string }, index: number) => [course.key, index])
     );
 
     const sorted = [...groups].sort((a, b) => {
@@ -211,7 +211,7 @@ export function ReportsPage() {
           return players.map((p) => ({
             'Starting Position': start,
             'Player 1': p.name,
-            'Player 2': (p as any).partner_name || '',
+            'Player 2': p.partner_name || '',
           }));
         });
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Groups by Start');
@@ -778,10 +778,10 @@ function GroupsTab({
                       )}
                       <span className={p.checked_in ? 'text-green-700 font-medium' : 'text-gray-800 font-medium'}>{p.name}</span>
                     </div>
-                    {(p as any).partner_name && (
+                    {p.partner_name && (
                       <div className="flex items-center gap-2 text-sm mt-0.5 pl-5">
                         <span className="w-3 h-3 rounded-full bg-gray-200 text-gray-500 text-[9px] font-bold flex items-center justify-center shrink-0">2</span>
-                        <span className="text-gray-600">{(p as any).partner_name}</span>
+                        <span className="text-gray-600">{p.partner_name}</span>
                       </div>
                     )}
                   </div>

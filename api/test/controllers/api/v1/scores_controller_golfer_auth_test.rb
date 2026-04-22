@@ -42,7 +42,8 @@ class Api::V1::ScoresControllerGolferAuthTest < ActionDispatch::IntegrationTest
       payment_type: "pay_on_day",
       payment_status: "paid",
       registration_status: "confirmed",
-      waiver_accepted_at: Time.current
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
     )
     
     @golfer2 = Golfer.create!(
@@ -54,7 +55,8 @@ class Api::V1::ScoresControllerGolferAuthTest < ActionDispatch::IntegrationTest
       payment_type: "pay_on_day",
       payment_status: "paid",
       registration_status: "confirmed",
-      waiver_accepted_at: Time.current
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
     )
 
     # Generate JWT for golfer1
@@ -129,6 +131,26 @@ class Api::V1::ScoresControllerGolferAuthTest < ActionDispatch::IntegrationTest
     assert_equal 2, json["scores"].length
   end
 
+  test "golfer can create a single score for their own group without providing a group id" do
+    post "/api/v1/tournaments/#{@tournament.id}/scores",
+         params: {
+           score: {
+             hole: 1,
+             golfer_id: @golfer1.id,
+             strokes: 4
+           }
+         },
+         headers: {
+           "Authorization" => "Bearer #{@golfer1_token}",
+           "Content-Type" => "application/json"
+         },
+         as: :json
+
+    assert_response :created
+    json = JSON.parse(response.body)
+    assert_equal @group1.id, json["score"]["group"]["id"]
+  end
+
   test "golfer cannot submit scores for another group" do
     scores_data = [
       { hole: 1, golfer_id: @golfer2.id, group_id: @group2.id, strokes: 4 }
@@ -141,8 +163,53 @@ class Api::V1::ScoresControllerGolferAuthTest < ActionDispatch::IntegrationTest
            "Content-Type" => "application/json"
          },
          as: :json
-    
+
     assert_response :forbidden
+  end
+
+  test "golfer cannot submit a mixed batch that includes another group" do
+    scores_data = [
+      { hole: 1, golfer_id: @golfer1.id, group_id: @group1.id, strokes: 4 },
+      { hole: 1, golfer_id: @golfer2.id, group_id: @group2.id, strokes: 5 }
+    ]
+
+    post "/api/v1/tournaments/#{@tournament.id}/scores/batch",
+         params: { scores: scores_data },
+         headers: {
+           "Authorization" => "Bearer #{@golfer1_token}",
+           "Content-Type" => "application/json"
+         },
+         as: :json
+
+    assert_response :forbidden
+  end
+
+  test "golfer cannot move an existing score to another group through update" do
+    score = @tournament.scores.create!(
+      hole: 1,
+      strokes: 4,
+      golfer: @golfer1,
+      group: @group1
+    )
+
+    patch "/api/v1/tournaments/#{@tournament.id}/scores/#{score.id}",
+          params: {
+            score: {
+              group_id: @group2.id,
+              golfer_id: @golfer2.id,
+              strokes: 5
+            }
+          },
+          headers: {
+            "Authorization" => "Bearer #{@golfer1_token}",
+            "Content-Type" => "application/json"
+          },
+          as: :json
+
+    assert_response :success
+    assert_equal @group1.id, score.reload.group_id
+    assert_equal @golfer1.id, score.golfer_id
+    assert_equal 5, score.strokes
   end
 
   test "batch score submission requires authentication" do

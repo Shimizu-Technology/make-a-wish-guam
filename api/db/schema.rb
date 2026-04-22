@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_21_103000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_22_233000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -124,7 +124,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_21_103000) do
     t.index ["sponsor_id"], name: "index_golfers_on_sponsor_id"
     t.index ["stripe_checkout_session_id"], name: "index_golfers_on_stripe_checkout_session_id", unique: true, where: "(stripe_checkout_session_id IS NOT NULL)"
     t.index ["stripe_refund_id"], name: "index_golfers_on_stripe_refund_id", unique: true, where: "(stripe_refund_id IS NOT NULL)"
-    t.index ["tournament_id", "email"], name: "index_golfers_on_tournament_id_and_email", unique: true
+    t.index ["tournament_id", "email"], name: "index_golfers_on_tournament_id_and_email"
+    t.index ["tournament_id", "email"], name: "index_golfers_on_tournament_id_and_email_public_unique", unique: true, where: "(((COALESCE(registration_source, 'public'::character varying))::text <> 'admin'::text) AND ((registration_status)::text IS DISTINCT FROM 'cancelled'::text))"
     t.index ["tournament_id"], name: "index_golfers_on_tournament_id"
   end
 

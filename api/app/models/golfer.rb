@@ -51,10 +51,12 @@ class Golfer < ApplicationRecord
 
   def email_unique_for_active_registration
     return if email.blank? || tournament_id.blank?
+    return if registration_source == "admin"
 
     existing = Golfer.where(tournament_id: tournament_id, email: email)
                      .where.not(registration_status: 'cancelled')
     existing = existing.where.not(id: id) if persisted?
+    existing = existing.where.not(registration_source: "admin")
 
     if existing.exists?
       errors.add(:email, 'has already registered for this tournament')

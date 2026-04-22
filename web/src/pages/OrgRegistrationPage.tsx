@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { Button, Card, PageTransition } from '../components/ui';
 import { LiabilityWaiver } from '../components/LiabilityWaiver';
+import { PublicHero } from '../components/PublicHero';
 import { Trophy, AlertCircle, Loader2, Calendar, MapPin, ChevronLeft, Check, DollarSign, ChevronRight } from 'lucide-react';
 import { api, Tournament } from '../services/api';
 import { useOrganization } from '../components/OrganizationProvider';
@@ -290,6 +291,7 @@ export const OrgRegistrationPage: React.FC = () => {
   const displayTeamName = formData.teamName || (formData.player1Name && formData.player2Name
     ? `${formData.player1Name} & ${formData.player2Name}`
     : 'TBD');
+  const heroBannerUrl = tournament.banner_url_override || null;
 
   return (
     <MotionConfig reducedMotion="user">
@@ -299,49 +301,51 @@ export const OrgRegistrationPage: React.FC = () => {
       {/* ================================================================= */}
       {/* HERO HEADER                                                        */}
       {/* ================================================================= */}
-      <header
-        className="relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #0057B8 0%, #003a6e 100%)' }}
+      <PublicHero
+        imageUrl={heroBannerUrl}
+        imageAlt={`${tournament.name} registration header artwork`}
+        imageDisplay="showcase"
+        maxWidthClassName="max-w-6xl"
+        containerClassName="min-h-[280px] lg:min-h-[320px]"
+        contentClassName="max-w-3xl"
       >
-        <div className="relative z-10 max-w-6xl mx-auto px-6 py-8 sm:py-10">
-          <button
-            onClick={() => navigate(`/${tournamentSlug}`)}
-            className="inline-flex items-center gap-1 text-sm text-white/70 hover:text-white transition-colors duration-200 mb-4"
-          >
-            <ChevronLeft className="w-4 h-4" strokeWidth={2} />
-            Back to Tournament
-          </button>
+        <button
+          onClick={() => navigate(`/${tournamentSlug}`)}
+          className="inline-flex items-center gap-1 text-sm text-white/70 transition-colors duration-200 hover:text-white"
+        >
+          <ChevronLeft className="w-4 h-4" strokeWidth={2} />
+          Back to Tournament
+        </button>
 
-          <motion.h1
-            className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1, ease }}
-          >
-            Register for {tournament.name}
-          </motion.h1>
+        <motion.h1
+          className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl lg:text-4xl"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1, ease }}
+        >
+          Register for {tournament.name}
+        </motion.h1>
 
-          <motion.div
-            className="flex flex-wrap items-center gap-4 text-white/80 text-sm"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25, ease }}
-          >
-            {tournament.event_date && (
-              <span className="inline-flex items-center gap-1.5">
-                <Calendar className="w-4 h-4" strokeWidth={1.5} />
-                {formatEventDate(tournament.event_date)}
-              </span>
-            )}
-            {tournament.location_name && (
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="w-4 h-4" strokeWidth={1.5} />
-                {tournament.location_name}
-              </span>
-            )}
-          </motion.div>
-        </div>
-      </header>
+        <motion.div
+          className="mt-4 flex flex-wrap items-center gap-4 text-sm text-white/82"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.25, ease }}
+        >
+          {tournament.event_date && (
+            <span className="inline-flex items-center gap-1.5">
+              <Calendar className="w-4 h-4" strokeWidth={1.5} />
+              {formatEventDate(tournament.event_date)}
+            </span>
+          )}
+          {tournament.location_name && (
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="w-4 h-4" strokeWidth={1.5} />
+              {tournament.location_name}
+            </span>
+          )}
+        </motion.div>
+      </PublicHero>
 
       {(tournament.at_capacity || tournament.public_at_capacity) && tournament.waitlist_enabled && (
         <div className="bg-amber-50 border-b border-amber-200">

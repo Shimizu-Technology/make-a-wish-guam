@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { useOrganization } from '../components/OrganizationProvider';
 import { useTournament } from '../contexts';
+import type { ActivityLog } from '../services/api';
 import {
   Clock,
   RefreshCw,
@@ -10,7 +10,6 @@ import {
   DollarSign,
   UserPlus,
   ShieldCheck,
-  Ticket,
   Play,
   Ban,
   Send,
@@ -66,10 +65,9 @@ const ACTION_CATEGORIES = [
 
 export const ActivityLogPage: React.FC = () => {
   const { getToken } = useAuth();
-  const { organization } = useOrganization();
   const { activeTournament } = useTournament();
 
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -200,7 +198,7 @@ export const ActivityLogPage: React.FC = () => {
           </div>
         ) : (
           <div className="divide-y divide-neutral-100">
-            {logs.map((log: any) => {
+            {logs.map((log) => {
               const Icon = getActionIcon(log.action);
               const colorClass = getActionColor(log.action);
               return (

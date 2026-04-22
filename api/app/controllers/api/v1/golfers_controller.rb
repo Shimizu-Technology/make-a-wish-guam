@@ -927,8 +927,7 @@ module Api
           :payment_type, :payment_status, :notes, :is_team_captain,
           :partner_name, :partner_email, :partner_phone, :partner_waiver_accepted_at,
           :team_name, :team_category, :tshirt_size, :partner_tshirt_size,
-          :raffle_tickets_requested, :raffle_bundle_label,
-          :registration_source
+          :raffle_tickets_requested, :raffle_bundle_label
         )
       end
 
