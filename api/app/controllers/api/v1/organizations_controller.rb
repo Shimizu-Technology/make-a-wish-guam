@@ -235,6 +235,7 @@ module Api
                      :sponsor_id, :sponsor_name, :notes]
             ).merge(
               "hole_position_label" => hole_labels[g.id],
+              "starting_hole_description" => g.group&.starting_hole_description,
               "sponsor_display_name" => g.sponsor_name.presence || g.sponsor&.name
             )
           },

@@ -94,6 +94,20 @@ class GolferTest < ActiveSupport::TestCase
     assert_includes golfer.errors[:waiver_accepted_at], "can't be blank"
   end
 
+  test "team category is optional" do
+    golfer = Golfer.new(
+      tournament: tournaments(:tournament_one),
+      name: "Category Optional",
+      email: "category-optional@example.com",
+      phone: "671-555-1234",
+      payment_type: "pay_on_day",
+      waiver_accepted_at: Time.current,
+      team_category: nil
+    )
+
+    assert golfer.valid?, golfer.errors.full_messages.join(", ")
+  end
+
   # ==================
   # Scopes
   # ==================

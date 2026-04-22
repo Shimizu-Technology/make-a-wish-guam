@@ -206,7 +206,7 @@ class GroupTest < ActiveSupport::TestCase
     assert_equal 1, golfer.position
   end
 
-  test "add_golfer does not bypass golfer validations" do
+  test "add_golfer persists group assignment without re-running unrelated golfer validations" do
     group = groups(:group_three)
     group.golfers.destroy_all
     golfer = Golfer.create!(
@@ -220,15 +220,14 @@ class GroupTest < ActiveSupport::TestCase
       waiver_accepted_at: Time.current,
       team_category: "Male"
     )
-    golfer.name = nil
+    golfer.update_columns(name: nil, updated_at: Time.current)
 
     result = group.add_golfer(golfer)
 
-    assert_not result
-    assert_includes golfer.errors[:name], "can't be blank"
+    assert result
     golfer.reload
-    assert_nil golfer.group_id
-    assert_nil golfer.position
+    assert_equal group.id, golfer.group_id
+    assert_equal 1, golfer.position
   end
 
   test "remove_golfer unassigns golfer from group" do
@@ -254,7 +253,7 @@ class GroupTest < ActiveSupport::TestCase
     assert_nil golfer.position
   end
 
-  test "remove_golfer does not bypass golfer validations" do
+  test "remove_golfer clears assignment without re-running unrelated golfer validations" do
     group = groups(:group_one)
     golfer = Golfer.create!(
       tournament: group.tournament,
@@ -269,15 +268,13 @@ class GroupTest < ActiveSupport::TestCase
       team_category: "Male",
       position: group.golfers.maximum(:position).to_i + 1
     )
-    original_position = golfer.position
-    golfer.name = nil
+    golfer.update_columns(name: nil, updated_at: Time.current)
 
     result = group.remove_golfer(golfer)
 
-    assert_not result
-    assert_includes golfer.errors[:name], "can't be blank"
+    assert result
     golfer.reload
-    assert_equal group.id, golfer.group_id
-    assert_equal original_position, golfer.position
+    assert_nil golfer.group_id
+    assert_nil golfer.position
   end
 end

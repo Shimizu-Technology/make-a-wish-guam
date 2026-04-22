@@ -18,7 +18,7 @@ class Golfer < ApplicationRecord
   validates :registration_status, inclusion: { in: %w[confirmed waitlist cancelled pending], allow_nil: true }
   validates :waiver_accepted_at, presence: true, unless: :sponsored?
   validates :tournament_id, presence: true
-  validates :team_category, presence: true, inclusion: { in: %w[Male Female Co-Ed] }, unless: :sponsored?
+  validates :team_category, inclusion: { in: %w[Male Female Co-Ed] }, allow_blank: true, unless: :sponsored?
 
   # Scopes - Active golfers (not cancelled)
   scope :active, -> { where.not(registration_status: "cancelled") }
@@ -93,6 +93,16 @@ class Golfer < ApplicationRecord
 
   def can_cancel?
     !cancelled?
+  end
+
+  def assign_to_group(group:, position:)
+    assign_attributes(group: group, position: position)
+    save(validate: false)
+  end
+
+  def clear_group_assignment
+    assign_attributes(group: nil, position: nil)
+    save(validate: false)
   end
 
   # Magic Link methods

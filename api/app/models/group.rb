@@ -87,14 +87,12 @@ class Group < ApplicationRecord
   def add_golfer(golfer)
     return false unless can_add?(golfer)
 
-    next_position = golfers.count + 1
-    golfer.assign_attributes(group_id: id, position: next_position)
-    golfer.save
+    next_position = golfers.maximum(:position).to_i + 1
+    golfer.assign_to_group(group: self, position: next_position)
   end
 
   def remove_golfer(golfer)
-    golfer.assign_attributes(group_id: nil, position: nil)
-    return false unless golfer.save
+    return false unless golfer.clear_group_assignment
 
     reorder_positions
     true

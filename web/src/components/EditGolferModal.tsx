@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { X, Loader2, Save, Banknote, CreditCard, Building2, AlertTriangle, Star } from 'lucide-react';
+import { X, Loader2, Save, Banknote, CreditCard, Building2, AlertTriangle, Star, Flag } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Golfer {
@@ -23,6 +23,8 @@ interface Golfer {
   sponsor_name?: string | null;
   sponsor_display_name?: string | null;
   team_category?: string | null;
+  hole_position_label?: string | null;
+  starting_hole_description?: string | null;
 }
 
 interface EditGolferModalProps {
@@ -225,6 +227,19 @@ export const EditGolferModal: React.FC<EditGolferModalProps> = ({
             <span className="text-sm text-blue-800">
               Sponsored by <strong>{golfer.sponsor_display_name}</strong>
             </span>
+          </div>
+        )}
+
+        {(golfer.hole_position_label || golfer.starting_hole_description) && (
+          <div className="mx-6 mt-4 p-3 bg-brand-50 border border-brand-200 rounded-lg flex items-start gap-2">
+            <Flag className="w-4 h-4 text-brand-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-brand-900">
+              <p className="font-medium">Starting position</p>
+              {golfer.hole_position_label && <p>Start {golfer.hole_position_label}</p>}
+              {golfer.starting_hole_description && (
+                <p className="text-brand-700">{golfer.starting_hole_description}</p>
+              )}
+            </div>
           </div>
         )}
 

@@ -164,19 +164,18 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_nil group.hole_number
   end
 
-  test "add_golfer returns validation errors instead of bypassing them" do
+  test "add_golfer persists assignment even when golfer has unrelated invalid registration fields" do
     group = groups(:group_three)
     group.golfers.destroy_all
     golfer = golfers(:confirmed_unpaid)
-    golfer.update_column(:name, nil)
+    golfer.update_columns(name: nil, updated_at: Time.current)
 
     post add_golfer_api_v1_group_url(group), params: { golfer_id: golfer.id }, headers: auth_headers
 
-    assert_response :unprocessable_entity
-    assert_includes JSON.parse(response.body)["errors"], "Name can't be blank"
+    assert_response :success
     golfer.reload
-    assert_nil golfer.group_id
-    assert_nil golfer.position
+    assert_equal group.id, golfer.group_id
+    assert_equal 1, golfer.position
   end
 
   test "place_golfer creates a started group and returns consistent metadata" do
@@ -209,22 +208,47 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal created_group.hole_position_label, log.metadata["hole_label"]
   end
 
-  test "remove_golfer returns validation errors instead of bypassing them" do
+  test "place_golfer persists assignment when golfer has blank category and duplicate active email" do
+    tournament = tournaments(:tournament_one)
+    golfer = golfers(:confirmed_unpaid)
+    duplicate = golfers(:confirmed_paid)
+
+    golfer.update_columns(
+      email: duplicate.email,
+      team_category: nil,
+      updated_at: Time.current
+    )
+
+    assert_difference "Group.count", 1 do
+      post place_golfer_api_v1_groups_url, params: {
+        tournament_id: tournament.id,
+        golfer_id: golfer.id,
+        starting_course_key: "course-1",
+        hole_number: 10
+      }, headers: auth_headers
+    end
+
+    assert_response :created
+
+    golfer.reload
+    assert_not_nil golfer.group_id
+    assert_equal 1, golfer.position
+  end
+
+  test "remove_golfer clears assignment even when golfer has unrelated invalid registration fields" do
     golfer = golfers(:confirmed_paid)
     group = golfer.group
-    original_position = golfer.position
-    golfer.update_column(:name, nil)
+    golfer.update_columns(name: nil, updated_at: Time.current)
 
     post remove_golfer_api_v1_group_url(group), params: { golfer_id: golfer.id }, headers: auth_headers
 
-    assert_response :unprocessable_entity
-    assert_includes JSON.parse(response.body)["errors"], "Name can't be blank"
+    assert_response :success
     golfer.reload
-    assert_equal group.id, golfer.group_id
-    assert_equal original_position, golfer.position
+    assert_nil golfer.group_id
+    assert_nil golfer.position
   end
 
-  test "auto_assign reports failures and cleans up empty groups created for invalid golfers" do
+  test "auto_assign places golfers even when unrelated registration validations would fail" do
     tournament = tournaments(:tournament_one)
     tournament.update_column(:team_size, 1)
     groups(:group_three).golfers.create!(
@@ -243,9 +267,9 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     )
 
     golfer = golfers(:confirmed_unpaid)
-    golfer.update_column(:name, nil)
+    golfer.update_columns(name: nil, updated_at: Time.current)
 
-    assert_no_difference "Group.count" do
+    assert_difference "Group.count", 1 do
       post auto_assign_api_v1_groups_url, params: {
         tournament_id: tournament.id
       }, headers: auth_headers
@@ -254,15 +278,12 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     json = JSON.parse(response.body)
-    assert_equal 0, json["assigned_count"]
-    assert_equal 1, json["failed_count"]
-    assert_equal golfer.id, json.dig("failures", 0, "golfer_id")
-    assert_includes json.dig("failures", 0, "errors"), "Name can't be blank"
-    assert_includes json["message"], "1 could not be assigned"
+    assert_equal 1, json["assigned_count"]
+    assert_equal 0, json["failed_count"]
 
     golfer.reload
-    assert_nil golfer.group_id
-    assert_nil golfer.position
+    assert_not_nil golfer.group_id
+    assert_equal 1, golfer.position
   end
 
   # ==================

@@ -607,7 +607,7 @@ export class ApiClient {
   }
 
   // Simple axios-like interface for OrganizationProvider
-  async get(url: string): Promise<{ data: any }> {
+  async get(url: string): Promise<{ data: unknown }> {
     const data = await this.request(url.startsWith('/api') ? url : `/api/v1${url}`, {}, false);
     return { data };
   }
@@ -633,6 +633,7 @@ export class ApiClient {
       partner_phone?: string;
       partner_waiver_accepted_at?: string;
       team_name?: string;
+      team_category?: string;
       tshirt_size?: string;
       partner_tshirt_size?: string;
       raffle_tickets_requested?: number;

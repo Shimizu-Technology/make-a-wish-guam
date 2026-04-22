@@ -23,6 +23,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   Building2,
+  ChevronDown,
+  ChevronUp,
   Flag,
   GripVertical,
   Loader2,
@@ -307,6 +309,7 @@ export const GroupManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [collapsedCourseKeys, setCollapsedCourseKeys] = useState<string[]>([]);
 
   const orgSlug = organization?.slug || 'make-a-wish-guam';
   const multiCourseSetup = courseConfigs.length > 1;
@@ -363,6 +366,19 @@ export const GroupManagementPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    setCollapsedCourseKeys((previousKeys) => {
+      const validKeys = courseConfigs.map((course) => course.key);
+      const retainedKeys = previousKeys.filter((key) => validKeys.includes(key));
+
+      if (previousKeys.length === 0 && validKeys.length > 1) {
+        return validKeys.slice(1);
+      }
+
+      return retainedKeys;
+    });
+  }, [courseConfigs]);
 
   const courseMap = useMemo(
     () => new Map(courseConfigs.map((course) => [course.key, course])),
@@ -762,6 +778,21 @@ export const GroupManagementPage: React.FC = () => {
     placeQueueItemOnHole(selectedItem, courseKey, holeNumber);
   };
 
+  const toggleCourseSection = (courseKey: string) => {
+    setCollapsedCourseKeys((previousKeys) =>
+      previousKeys.includes(courseKey)
+        ? previousKeys.filter((key) => key !== courseKey)
+        : [...previousKeys, courseKey]
+    );
+  };
+
+  const setAllCourseSectionsCollapsed = (collapsed: boolean) => {
+    setCollapsedCourseKeys(collapsed ? courseConfigs.map((course) => course.key) : []);
+  };
+
+  const allCoursesCollapsed =
+    multiCourseSetup && courseConfigs.length > 0 && collapsedCourseKeys.length === courseConfigs.length;
+
   const renderGroupCard = (group: Group) => {
     const isTemporaryGroup = group.id < 0;
     const selectedCourse = group.starting_course_key ? courseMap.get(group.starting_course_key) : null;
@@ -919,6 +950,15 @@ export const GroupManagementPage: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {multiCourseSetup && (
+              <button
+                onClick={() => setAllCourseSectionsCollapsed(!allCoursesCollapsed)}
+                className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:border-brand-200 hover:text-brand-700"
+              >
+                {allCoursesCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                {allCoursesCollapsed ? 'Expand Courses' : 'Collapse Courses'}
+              </button>
+            )}
             <button
               onClick={autoAssign}
               disabled={actionLoading === 'auto' || unassigned.length === 0}
@@ -979,58 +1019,82 @@ export const GroupManagementPage: React.FC = () => {
           <div className="space-y-5 lg:col-span-2">
             {groupedCourses.map((course) => (
               <section key={course.key} className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-brand-50 p-2 text-brand-600">
-                    <Building2 className="h-4 w-4" />
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-xl bg-brand-50 p-2 text-brand-600">
+                      <Building2 className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-neutral-900">{course.name}</h2>
+                      <p className="text-sm text-neutral-500">
+                        {course.hole_count} starting hole{course.hole_count !== 1 ? 's' : ''} ·{' '}
+                        {course.holes.reduce((count, hole) => count + hole.groups.length, 0)} placed start
+                        {course.holes.reduce((count, hole) => count + hole.groups.length, 0) !== 1 ? 's' : ''}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-neutral-900">{course.name}</h2>
-                    <p className="text-sm text-neutral-500">{course.hole_count} starting hole{course.hole_count !== 1 ? 's' : ''}</p>
-                  </div>
+                  <button
+                    onClick={() => toggleCourseSection(course.key)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:border-brand-200 hover:text-brand-700"
+                  >
+                    {collapsedCourseKeys.includes(course.key) ? (
+                      <>
+                        <ChevronDown className="h-4 w-4" />
+                        Expand
+                      </>
+                    ) : (
+                      <>
+                        <ChevronUp className="h-4 w-4" />
+                        Collapse
+                      </>
+                    )}
+                  </button>
                 </div>
 
-                <div className="grid gap-3 xl:grid-cols-2">
-                  {course.holes.map((hole) => {
-                    const currentHoleDropId = holeDropId(course.key, hole.holeNumber);
-                    const isHoleOver = overId === currentHoleDropId;
+                {!collapsedCourseKeys.includes(course.key) && (
+                  <div className="grid gap-3 xl:grid-cols-2">
+                    {course.holes.map((hole) => {
+                      const currentHoleDropId = holeDropId(course.key, hole.holeNumber);
+                      const isHoleOver = overId === currentHoleDropId;
 
-                    return (
-                      <div key={`${course.key}-${hole.holeNumber}`} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-                        <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-neutral-900">Hole {hole.holeNumber}</p>
-                              <p className="text-xs text-neutral-500">
-                                {hole.groups.length} group{hole.groups.length !== 1 ? 's' : ''} assigned
-                              </p>
+                      return (
+                        <div key={`${course.key}-${hole.holeNumber}`} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+                          <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-neutral-900">Hole {hole.holeNumber}</p>
+                                <p className="text-xs text-neutral-500">
+                                  {hole.groups.length} group{hole.groups.length !== 1 ? 's' : ''} assigned
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-600">
+                                {course.name}
+                              </span>
                             </div>
-                            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-600">
-                              {course.name}
-                            </span>
+                          </div>
+
+                          <div className="space-y-3 p-3">
+                            {hole.groups.length > 0 ? (
+                              hole.groups.map(renderGroupCard)
+                            ) : null}
+
+                            <DroppableHoleZone
+                              courseKey={course.key}
+                              holeNumber={hole.holeNumber}
+                              isOver={isHoleOver}
+                              compact={hole.groups.length > 0}
+                            />
+
+                            <HolePlacementPicker
+                              items={allPlacementQueueItems}
+                              onSelect={(itemId) => handleHolePickerSelect(itemId, course.key, hole.holeNumber)}
+                            />
                           </div>
                         </div>
-
-                        <div className="space-y-3 p-3">
-                          {hole.groups.length > 0 ? (
-                            hole.groups.map(renderGroupCard)
-                          ) : null}
-
-                          <DroppableHoleZone
-                            courseKey={course.key}
-                            holeNumber={hole.holeNumber}
-                            isOver={isHoleOver}
-                            compact={hole.groups.length > 0}
-                          />
-
-                          <HolePlacementPicker
-                            items={allPlacementQueueItems}
-                            onSelect={(itemId) => handleHolePickerSelect(itemId, course.key, hole.holeNumber)}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </section>
             ))}
           </div>

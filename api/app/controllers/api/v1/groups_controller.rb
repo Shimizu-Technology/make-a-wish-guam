@@ -1,6 +1,8 @@
 module Api
   module V1
     class GroupsController < BaseController
+      class PlacementError < StandardError; end
+
       before_action :authorize_collection_tournament_access!, only: [:index, :create, :batch_create, :auto_assign, :place_golfer]
       before_action :authorize_group_access!, only: [:show, :update, :destroy, :set_hole, :add_golfer, :remove_golfer]
       before_action :authorize_update_positions_access!, only: [:update_positions]
@@ -156,6 +158,11 @@ module Api
           return
         end
 
+        if golfer.group_id.present?
+          render json: { error: "Golfer is already assigned to a group" }, status: :unprocessable_entity
+          return
+        end
+
         if group.add_golfer(golfer)
           ActivityLog.log(
             admin: current_admin,
@@ -237,22 +244,6 @@ module Api
         tournament = find_tournament
         return render_tournament_required unless tournament
 
-        golfer = tournament.golfers.find(params[:golfer_id])
-        if golfer.group_id.present?
-          render json: { error: "Golfer is already assigned to a group" }, status: :unprocessable_entity
-          return
-        end
-
-        if golfer.registration_status == "cancelled"
-          render json: { error: "Cannot add cancelled golfer to a group" }, status: :unprocessable_entity
-          return
-        end
-
-        if golfer.registration_status == "waitlist"
-          render json: { error: "Cannot add waitlist golfer to a group. Promote them to confirmed first." }, status: :unprocessable_entity
-          return
-        end
-
         attributes, error_message = starting_position_params_for(tournament)
         if error_message
           render json: { error: error_message }, status: :unprocessable_entity
@@ -262,6 +253,14 @@ module Api
         group = nil
 
         ActiveRecord::Base.transaction do
+          golfer = tournament.golfers.lock.find(params[:golfer_id])
+
+          raise PlacementError, "Golfer is already assigned to a group" if golfer.group_id.present?
+          raise PlacementError, "Cannot add cancelled golfer to a group" if golfer.registration_status == "cancelled"
+          if golfer.registration_status == "waitlist"
+            raise PlacementError, "Cannot add waitlist golfer to a group. Promote them to confirmed first."
+          end
+
           next_number = (tournament.groups.maximum(:group_number) || 0) + 1
           group = tournament.groups.create!(
             group_number: next_number,
@@ -297,6 +296,8 @@ module Api
         render json: group, include: "golfers", status: :created
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Golfer not found" }, status: :not_found
+      rescue PlacementError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       rescue ActiveRecord::RecordInvalid => e
         render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
