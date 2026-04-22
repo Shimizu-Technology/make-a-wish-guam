@@ -12,6 +12,7 @@ module Api
         tournament = find_tournament
         return render_tournament_required unless tournament
 
+        cleanup_empty_groups!(tournament)
         groups = preload_group_position_letters(tournament.groups.with_golfers)
 
         render json: groups, each_serializer: GroupSerializer, include: "golfers"
@@ -509,6 +510,13 @@ module Api
 
       def preload_group_position_letters(groups)
         Group.preload_position_letters(groups.to_a)
+      end
+
+      def cleanup_empty_groups!(tournament)
+        tournament.groups.without_golfers.find_each do |group|
+          group.scores.destroy_all
+          group.destroy!
+        end
       end
 
       def broadcast_groups_update(tournament)

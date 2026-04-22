@@ -28,6 +28,18 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
       starting_course_key: "course-1",
       hole_number: 1
     )
+    tournament.golfers.create!(
+      group: second_group,
+      name: "Second Start Golfer",
+      email: "second-start-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0199",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      position: 1
+    )
 
     get api_v1_groups_url, headers: auth_headers
     assert_response :success
@@ -38,6 +50,25 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal "1A", first["starting_position_label"]
     assert_equal "1B", second["starting_position_label"]
+  end
+
+  test "index removes empty leftover groups before rendering holes" do
+    tournament = tournaments(:tournament_one)
+    empty_group = tournament.groups.create!(
+      group_number: 4,
+      starting_course_key: "course-1",
+      hole_number: 1
+    )
+
+    assert_difference "Group.count", -2 do
+      get api_v1_groups_url, headers: auth_headers
+    end
+
+    assert_response :success
+    refute Group.exists?(empty_group.id)
+
+    json = JSON.parse(response.body)
+    refute json.any? { |group| group["id"] == empty_group.id }
   end
 
   test "index requires authentication" do

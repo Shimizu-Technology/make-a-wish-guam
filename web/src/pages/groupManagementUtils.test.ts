@@ -82,4 +82,36 @@ describe('groupManagementUtils', () => {
     expect(buildStartingPositionLabel(groups[0], groups, courseMap, true)).toBe('Hibiscus 3A');
     expect(buildStartingPositionLabel(groups[1], groups, courseMap, true)).toBe('Hibiscus 3B');
   });
+
+  it('ignores empty groups when rendering holes and deriving labels', () => {
+    const groups = [
+      {
+        id: 1,
+        group_number: 1,
+        starting_course_key: 'hibiscus',
+        hole_number: 1,
+        golfers: [{ id: 1 }],
+      },
+      {
+        id: 2,
+        group_number: 2,
+        starting_course_key: 'hibiscus',
+        hole_number: 1,
+        golfers: [],
+      },
+      {
+        id: 3,
+        group_number: 3,
+        starting_course_key: 'hibiscus',
+        hole_number: 1,
+        golfers: [{ id: 3 }],
+      },
+    ];
+
+    const hibiscus = buildGroupedCourses(courseConfigs, groups).find((course) => course.key === 'hibiscus');
+
+    expect(hibiscus?.holes[0].groups.map((group) => group.id)).toEqual([1, 3]);
+    expect(buildStartingPositionLabel(groups[0], groups, courseMap, true)).toBe('Hibiscus 1A');
+    expect(buildStartingPositionLabel(groups[2], groups, courseMap, true)).toBe('Hibiscus 1B');
+  });
 });

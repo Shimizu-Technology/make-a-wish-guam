@@ -452,7 +452,7 @@ export const GroupManagementPage: React.FC = () => {
   const totalPlacementQueueCount = allPlacementQueueItems.length;
 
   const assignedGroupsCount = useMemo(
-    () => groups.filter((group) => hasValidStartingPosition(group, courseMap)).length,
+    () => groups.filter((group) => group.golfers.length > 0 && hasValidStartingPosition(group, courseMap)).length,
     [courseMap, groups]
   );
 

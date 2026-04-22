@@ -22,6 +22,7 @@ export interface GroupedCourse<TGroup extends GroupManagementGroup> extends Grou
 }
 
 const positionLetterForIndex = (index: number) => String.fromCharCode(65 + index);
+const hasGolfers = <TGroup extends GroupManagementGroup>(group: TGroup) => group.golfers.length > 0;
 
 export const hasValidStartingPosition = (
   group: Pick<GroupManagementGroup, 'starting_course_key' | 'hole_number'>,
@@ -73,6 +74,7 @@ export const buildStartingPositionLabel = <TGroup extends GroupManagementGroup>(
   const groupsAtStart = groups
     .filter(
       (entry) =>
+        hasGolfers(entry) &&
         hasValidStartingPosition(entry, courseMap) &&
         entry.starting_course_key === group.starting_course_key &&
         entry.hole_number === group.hole_number
@@ -103,6 +105,7 @@ export const buildGroupedCourses = <TGroup extends GroupManagementGroup>(
       const holeGroups = groups
         .filter(
           (group) =>
+            hasGolfers(group) &&
             hasValidStartingPosition(group, courseMap) &&
             group.starting_course_key === course.key &&
             group.hole_number === holeNumber
