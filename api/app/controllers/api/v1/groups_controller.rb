@@ -217,21 +217,25 @@ module Api
 
       # POST /api/v1/groups/:id/remove_golfer
       def remove_golfer
-        group = Group.find(params[:id])
-        golfer = Golfer.find(params[:golfer_id])
+        group = nil
+        golfer = nil
 
-        unless golfer.group_id == group.id
-          render json: { error: "Golfer is not in this group" }, status: :unprocessable_entity
-          return
-        end
-
-        hole_label = group.starting_position_label
+        hole_label = nil
         group_deleted = false
         removed_group_id = nil
         label_changes = {}
-        tournament = group.tournament
+        tournament = nil
 
         ActiveRecord::Base.transaction do
+          golfer = Golfer.lock.find(params[:golfer_id])
+          group = Group.lock.find(params[:id])
+
+          unless golfer.group_id == group.id
+            raise PlacementError, "Golfer is not in this group"
+          end
+
+          hole_label = group.starting_position_label
+          tournament = group.tournament
           label_changes = tracked_label_changes(tournament, [starting_position_key(group)])
           raise ActiveRecord::RecordInvalid, golfer unless group.remove_golfer(golfer)
 
@@ -273,8 +277,12 @@ module Api
         else
           render json: { errors: golfer.errors.full_messages }, status: :unprocessable_entity
         end
+      rescue PlacementError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       rescue ActiveRecord::RecordInvalid => e
         render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Group or golfer not found" }, status: :not_found
       end
 
       # POST /api/v1/groups/update_positions
