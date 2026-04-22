@@ -4,7 +4,7 @@ class TournamentSerializer < ActiveModel::Serializer
              :location_name, :location_address,
              :max_capacity, :reserved_slots,
              :entry_fee, :entry_fee_dollars,
-             :format_name, :fee_includes, :checks_payable_to,
+             :format_name, :fee_includes, :tournament_info, :checks_payable_to,
              :contact_name, :contact_phone, :contact_email,
              :registration_open, :can_register,
              :confirmed_count, :public_confirmed_count, :sponsor_confirmed_count,

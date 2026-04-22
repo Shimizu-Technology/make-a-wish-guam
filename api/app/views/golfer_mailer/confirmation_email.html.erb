@@ -153,6 +153,19 @@
         </tr>
         <% end %>
 
+        <% if @tournament.tournament_info.present? %>
+        <tr>
+          <td style="padding: 0 32px 8px;">
+            <div style="color: #6b7280; font-size: 12px; line-height: 1.6;">
+              <strong style="color: #374151; display: block; margin-bottom: 6px;">Tournament Info</strong>
+              <% @tournament.tournament_info.to_s.split(/\r?\n/).reject(&:blank?).each do |line| %>
+                <p style="margin: 0 0 4px;"><%= line %></p>
+              <% end %>
+            </div>
+          </td>
+        </tr>
+        <% end %>
+
         <!-- Contact -->
         <tr>
           <td style="padding: 8px 32px 28px;">

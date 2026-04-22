@@ -165,6 +165,7 @@ interface TournamentSettings {
   check_in_time: string;
   start_time: string;
   fee_includes: string;
+  tournament_info: string;
 }
 
 function deriveRegistrationMode(registration_open: boolean, walkin_registration_open: boolean): RegistrationMode {
@@ -433,6 +434,7 @@ export const OrgSettingsPage: React.FC = () => {
                 { key: 'hole', label: 'Hole Sponsor', sort_order: 5 },
               ],
               event_schedule: t.event_schedule || '',
+              tournament_info: t.tournament_info || '',
               payment_instructions: t.payment_instructions || '',
               check_in_time: t.check_in_time || '',
               start_time: t.start_time || '',
@@ -536,6 +538,7 @@ export const OrgSettingsPage: React.FC = () => {
       sponsor_edit_deadline: tournamentSettings.sponsor_edit_deadline || null,
       sponsor_tiers: tournamentSettings.sponsor_tiers,
       event_schedule: tournamentSettings.event_schedule || null,
+      tournament_info: tournamentSettings.tournament_info || null,
       payment_instructions: tournamentSettings.payment_instructions || null,
       check_in_time: tournamentSettings.check_in_time || null,
       start_time: tournamentSettings.start_time || null,
@@ -1422,6 +1425,20 @@ export const OrgSettingsPage: React.FC = () => {
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                   <p className="mt-1 text-xs sm:text-sm text-gray-500">Shown on the public event page under tournament details</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tournament Info
+                  </label>
+                  <textarea
+                    value={tournamentSettings.tournament_info}
+                    onChange={(e) => handleTournamentChange('tournament_info', e.target.value)}
+                    rows={3}
+                    placeholder={"e.g. Team photos will be taken before tee-off.\nGolf attire required.\nBanquet immediately follows play."}
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                  <p className="mt-1 text-xs sm:text-sm text-gray-500">Shown anywhere registrants see tournament details. Preserves line breaks.</p>
                 </div>
 
                 <div>

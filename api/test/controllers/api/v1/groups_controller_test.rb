@@ -432,6 +432,35 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, golfer.position
   end
 
+  test "auto_assign includes pending golfers created by admins" do
+    tournament = tournaments(:tournament_one)
+    pending_golfer = tournament.golfers.create!(
+      name: "Pending Admin Golfer",
+      email: "pending-admin-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0111",
+      payment_type: "stripe",
+      payment_status: "unpaid",
+      registration_status: "pending",
+      registration_source: "admin",
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
+    )
+
+    post auto_assign_api_v1_groups_url, params: {
+      tournament_id: tournament.id
+    }, headers: auth_headers
+
+    assert_response :success
+
+    json = JSON.parse(response.body)
+    assert_equal 2, json["assigned_count"]
+    assert_equal 0, json["failed_count"]
+
+    pending_golfer.reload
+    assert_not_nil pending_golfer.group_id
+    assert_operator pending_golfer.position, :>=, 1
+  end
+
   # ==================
   # DELETE /api/v1/groups/:id
   # ==================

@@ -66,6 +66,7 @@ export interface Tournament {
   organization_slug?: string;
   format_name: string | null;
   fee_includes: string | null;
+  tournament_info?: string | null;
   checks_payable_to: string | null;
   contact_name: string | null;
   contact_phone: string | null;
@@ -374,6 +375,7 @@ export interface RegistrationStatus {
   location_name: string;
   location_address: string;
   format_name: string;
+  tournament_info?: string | null;
   // Stripe configuration
   stripe_configured: boolean;
   stripe_public_key: string | null;

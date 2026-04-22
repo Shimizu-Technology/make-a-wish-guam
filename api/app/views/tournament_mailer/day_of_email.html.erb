@@ -96,6 +96,15 @@
                 </p>
               <% end %>
 
+              <% if @tournament.tournament_info.present? %>
+                <div style="margin: 0 0 20px 0; color: #4a5568; font-size: 14px; background-color: #f8fafc; padding: 15px; border-radius: 8px;">
+                  <p style="margin: 0 0 8px; color: #1e3a5f; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Tournament Info</p>
+                  <% @tournament.tournament_info.to_s.split(/\r?\n/).reject(&:blank?).each do |line| %>
+                    <p style="margin: 0 0 4px;"><%= line %></p>
+                  <% end %>
+                </div>
+              <% end %>
+
               <% if @tournament.contact_phone.present? %>
                 <p style="margin: 0 0 15px 0; color: #4a5568; font-size: 15px;">
                   <strong>Questions?</strong> Call <%= @tournament.contact_name || 'us' %> at <strong><%= @tournament.contact_phone %></strong>

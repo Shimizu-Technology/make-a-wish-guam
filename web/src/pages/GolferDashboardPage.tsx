@@ -239,6 +239,12 @@ export const GolferDashboardPage: React.FC = () => {
                 )}
               </div>
             )}
+            {tournament.tournament_info && (
+              <div className="pt-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Tournament Info</p>
+                <p className="text-sm text-gray-700 whitespace-pre-line">{tournament.tournament_info}</p>
+              </div>
+            )}
           </div>
         </div>
       </main>

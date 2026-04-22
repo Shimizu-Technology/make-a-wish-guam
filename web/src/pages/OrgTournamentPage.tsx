@@ -292,6 +292,13 @@ export function OrgTournamentPage() {
                   </div>
                 )}
 
+                {tournament.tournament_info && (
+                  <div className="mt-6 p-4 rounded-2xl bg-[#F5F5F5]">
+                    <p className="font-medium text-neutral-900 mb-1">Tournament Info</p>
+                    <p className="text-neutral-600 text-sm leading-relaxed whitespace-pre-line">{tournament.tournament_info}</p>
+                  </div>
+                )}
+
                 {(tournament.contact_name || tournament.contact_phone || tournament.contact_email) && (
                   <div className="mt-6 pt-5 border-t border-neutral-100">
                     {tournament.contact_name && (
@@ -416,7 +423,7 @@ export function OrgTournamentPage() {
                 <div className="bg-white rounded-2xl border border-neutral-200 p-6">
                   <h3 className="font-bold tracking-tight mb-4">Payment Options</h3>
                   {tournament.payment_instructions ? (
-                    <p className="text-sm text-neutral-600 leading-relaxed">{tournament.payment_instructions}</p>
+                    <p className="text-sm text-neutral-600 leading-relaxed whitespace-pre-line">{tournament.payment_instructions}</p>
                   ) : (
                     <ul className="space-y-2.5 text-sm text-neutral-600">
                       {tournament.allow_card && (

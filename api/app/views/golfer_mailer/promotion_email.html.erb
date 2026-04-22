@@ -129,6 +129,19 @@
           </td>
         </tr>
 
+        <% if @tournament.tournament_info.present? %>
+        <tr>
+          <td style="padding: 0 32px 20px;">
+            <div style="background-color: #f9fafb; border-radius: 12px; padding: 16px;">
+              <p style="margin: 0 0 8px; color: <%= brand %>; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Tournament Info</p>
+              <% @tournament.tournament_info.to_s.split(/\r?\n/).reject(&:blank?).each do |line| %>
+                <p style="margin: 0 0 4px; color: #4b5563; font-size: 13px; line-height: 1.6;"><%= line %></p>
+              <% end %>
+            </div>
+          </td>
+        </tr>
+        <% end %>
+
         <!-- Contact -->
         <tr>
           <td style="padding: 8px 32px 28px;">

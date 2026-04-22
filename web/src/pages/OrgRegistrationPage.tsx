@@ -767,6 +767,13 @@ export const OrgRegistrationPage: React.FC = () => {
                       <p className="text-sm text-neutral-600 leading-relaxed">{tournament.fee_includes}</p>
                     </div>
                   )}
+
+                  {tournament.tournament_info && (
+                    <div className="mt-4 space-y-1.5">
+                      <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Tournament Info</p>
+                      <p className="text-sm text-neutral-600 leading-relaxed whitespace-pre-line">{tournament.tournament_info}</p>
+                    </div>
+                  )}
                 </div>
 
                 {(tournament.at_capacity || tournament.public_at_capacity) && tournament.waitlist_enabled ? (

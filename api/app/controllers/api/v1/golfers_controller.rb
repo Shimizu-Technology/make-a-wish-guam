@@ -836,6 +836,7 @@ module Api
             location_address: tournament.location_address,
             format_name: tournament.format_name,
             fee_includes: tournament.fee_includes,
+            tournament_info: tournament.tournament_info,
             checks_payable_to: tournament.checks_payable_to,
             contact_name: tournament.contact_name,
             contact_phone: tournament.contact_phone,

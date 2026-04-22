@@ -219,7 +219,7 @@ module Api
           :raffle_max_tickets_per_person, :raffle_tickets_per_purchase,
           :walkin_fee, :walkin_registration_open,
           :sponsor_edit_deadline,
-          :event_schedule, :payment_instructions,
+          :event_schedule, :tournament_info, :payment_instructions,
           :check_in_time,
           :banner_url_override, :use_org_branding,
           :raffle_include_with_registration,

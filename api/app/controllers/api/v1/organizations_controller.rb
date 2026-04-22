@@ -683,7 +683,7 @@ module Api
           :entry_fee, :early_bird_fee, :early_bird_deadline,
           :allow_cash, :allow_check, :allow_card, :checks_payable_to, :payment_instructions,
           :registration_deadline,
-          :contact_name, :contact_phone, :fee_includes,
+          :contact_name, :contact_phone, :fee_includes, :tournament_info,
           :walkin_fee, :walkin_registration_open,
           course_configs: [:key, :name, :hole_count]
         )

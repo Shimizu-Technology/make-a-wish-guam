@@ -418,10 +418,10 @@ module Api
         tournament = find_tournament
         return render_tournament_required unless tournament
 
-        unassigned = tournament.golfers.confirmed.unassigned.order(:created_at)
+        unassigned = tournament.golfers.where(registration_status: %w[confirmed pending]).unassigned.order(:created_at)
 
         if unassigned.empty?
-          render json: { message: "No unassigned confirmed golfers" }
+          render json: { message: "No unassigned teams eligible for hole assignment" }
           return
         end
 
