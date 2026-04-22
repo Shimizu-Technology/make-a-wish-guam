@@ -14,6 +14,7 @@ class Group < ApplicationRecord
 
   scope :with_golfers, -> { includes(:golfers, :tournament).order(:group_number) }
   scope :for_tournament, ->(tournament_id) { where(tournament_id: tournament_id) }
+  scope :without_golfers, -> { left_outer_joins(:golfers).where(golfers: { id: nil }).distinct }
 
   MAX_GOLFERS_DEFAULT = 4
   MAX_GOLFERS = MAX_GOLFERS_DEFAULT
@@ -29,6 +30,14 @@ class Group < ApplicationRecord
     end
 
     groups
+  end
+
+  def self.reusable_slot_for(tournament:, course_key:, hole_number:)
+    for_tournament(tournament.id)
+      .where(starting_course_key: course_key, hole_number: hole_number)
+      .without_golfers
+      .order(:group_number)
+      .first
   end
 
   def max_golfers
@@ -96,6 +105,10 @@ class Group < ApplicationRecord
 
     reorder_positions
     true
+  end
+
+  def empty_slot?
+    golfers.loaded? ? golfers.empty? : !golfers.exists?
   end
 
   private

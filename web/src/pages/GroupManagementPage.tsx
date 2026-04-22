@@ -174,6 +174,14 @@ const golferToGroupGolfer = (golfer: UnassignedGolfer): GroupGolfer => ({
   checked_in_at: null,
 });
 
+const groupGolferToUnassigned = (golfer: GroupGolfer): UnassignedGolfer => ({
+  id: golfer.id,
+  name: golfer.name,
+  partner_name: golfer.partner_name,
+  team_name: golfer.team_name,
+  email: golfer.email,
+});
+
 const DraggablePlacementCard: React.FC<{ item: PlacementQueueItem }> = ({ item }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -503,8 +511,13 @@ export const GroupManagementPage: React.FC = () => {
         throw new Error(data.error || 'Failed to update starting position');
       }
 
-      const updatedGroup: Group = await response.json();
-      replaceGroupLocally(updatedGroup);
+      const payload = await response.json();
+      if (payload?.removed_group_id) {
+        setGroups((previousGroups) => previousGroups.filter((group) => group.id !== payload.removed_group_id));
+        return;
+      }
+
+      replaceGroupLocally(payload as Group);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed');
       fetchData(false);
@@ -532,26 +545,6 @@ export const GroupManagementPage: React.FC = () => {
       } else {
         toast.success(data.message || 'Auto-assigned');
       }
-      fetchData(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const deleteGroup = async (groupId: number) => {
-    setActionLoading(`delete-${groupId}`);
-
-    try {
-      const headers = await authHeaders();
-      const response = await fetch(`${API}/api/v1/groups/${groupId}`, {
-        method: 'DELETE',
-        headers,
-      });
-      if (!response.ok) throw new Error('Failed to delete group');
-
-      setGroups((previousGroups) => previousGroups.filter((group) => group.id !== groupId));
       fetchData(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed');
@@ -604,12 +597,31 @@ export const GroupManagementPage: React.FC = () => {
     }
   }, [authHeaders, fetchData, replaceGroupLocally]);
 
+  const findReusableHoleSlot = useCallback(
+    (courseKey: string, holeNumber: number) =>
+      groups
+        .filter(
+          (group) =>
+            group.starting_course_key === courseKey &&
+            group.hole_number === holeNumber &&
+            group.golfers.length === 0
+        )
+        .sort((a, b) => a.group_number - b.group_number)[0] || null,
+    [groups]
+  );
+
   const placeGolferOnHole = useCallback(async (
     golfer: UnassignedGolfer,
     courseKey: string,
     holeNumber: number
   ) => {
     if (!tournamentId) return;
+
+    const reusableSlot = findReusableHoleSlot(courseKey, holeNumber);
+    if (reusableSlot) {
+      void addGolferToGroup(reusableSlot.id, golfer);
+      return;
+    }
 
     const tempGroupId = -Date.now();
     const nextGroupNumber = groups.reduce((maxGroupNumber, group) => Math.max(maxGroupNumber, group.group_number), 0) + 1;
@@ -663,10 +675,42 @@ export const GroupManagementPage: React.FC = () => {
     } finally {
       setActionLoading(null);
     }
-  }, [authHeaders, courseMap, fetchData, groups, multiCourseSetup, replaceGroupLocally, tournamentId]);
+  }, [addGolferToGroup, authHeaders, courseMap, fetchData, findReusableHoleSlot, groups, multiCourseSetup, replaceGroupLocally, tournamentId]);
 
   const removeGolferFromGroup = async (groupId: number, golferId: number) => {
     setActionLoading(`remove-${golferId}`);
+
+    const currentGroup = groups.find((group) => group.id === groupId);
+    const removedGolfer = currentGroup?.golfers.find((golfer) => golfer.id === golferId);
+    if (!currentGroup || !removedGolfer) {
+      setActionLoading(null);
+      return;
+    }
+
+    const removedPlayers = removedGolfer.partner_name ? 2 : 1;
+    setGroups((previousGroups) =>
+      previousGroups.flatMap((group) => {
+        if (group.id !== groupId) return [group];
+
+        const remainingGolfers = group.golfers.filter((golfer) => golfer.id !== golferId);
+        if (remainingGolfers.length === 0) return [];
+
+        const nextPlayerCount = Math.max(0, (group.player_count ?? group.golfer_count) - removedPlayers);
+        return [
+          {
+            ...group,
+            golfers: remainingGolfers,
+            golfer_count: Math.max(0, group.golfer_count - 1),
+            player_count: nextPlayerCount,
+            is_full: nextPlayerCount >= (group.max_golfers || 2),
+          },
+        ];
+      })
+    );
+    setUnassigned((previousGolfers) => [
+      groupGolferToUnassigned(removedGolfer),
+      ...previousGolfers.filter((golfer) => golfer.id !== removedGolfer.id),
+    ]);
 
     try {
       const headers = await authHeaders();
@@ -680,10 +724,9 @@ export const GroupManagementPage: React.FC = () => {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || data.errors?.[0] || 'Failed to remove golfer');
       }
-
-      fetchData(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed');
+      fetchData(false);
     } finally {
       setActionLoading(null);
     }
@@ -830,18 +873,6 @@ export const GroupManagementPage: React.FC = () => {
                 {localStartingHoleDescription ? ` · ${localStartingHoleDescription}` : ''}
               </p>
             </div>
-            <button
-              onClick={() => deleteGroup(group.id)}
-              disabled={isTemporaryGroup || actionLoading === `delete-${group.id}`}
-              className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-              title="Delete group"
-            >
-              {actionLoading === `delete-${group.id}` ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </button>
           </div>
 
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_110px]">
@@ -863,13 +894,18 @@ export const GroupManagementPage: React.FC = () => {
               onChange={(event) => {
                 const nextHole = event.target.value ? parseInt(event.target.value, 10) : null;
                 if (group.hole_number === nextHole) return;
+                if (nextHole == null) {
+                  applyGroupStartLocally(group.id, null, null);
+                  void updateGroupStart(group.id, null, null);
+                  return;
+                }
                 applyGroupStartLocally(group.id, group.starting_course_key, nextHole);
                 void updateGroupStart(group.id, group.starting_course_key, nextHole);
               }}
               disabled={isTemporaryGroup || !selectedCourse}
               className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-neutral-100"
             >
-              <option value="">{selectedCourse ? 'Select hole' : 'Select course'}</option>
+              <option value="">{selectedCourse ? 'Clear start' : 'Select course'}</option>
               {selectedCourse &&
                 Array.from({ length: selectedCourse.hole_count }, (_, index) => index + 1).map((hole) => (
                   <option key={hole} value={hole}>

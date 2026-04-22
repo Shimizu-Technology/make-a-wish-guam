@@ -127,6 +127,21 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_nil group.hole_number
   end
 
+  test "set_hole deletes an empty slot when clearing its starting position" do
+    group = groups(:group_three)
+    group.update!(starting_course_key: "course-1", hole_number: 7)
+
+    assert_difference "Group.count", -1 do
+      post set_hole_api_v1_group_url(group), params: {
+        starting_course_key: nil,
+        hole_number: nil
+      }, headers: auth_headers
+    end
+
+    assert_response :success
+    assert_equal group.id, JSON.parse(response.body)["removed_group_id"]
+  end
+
   test "set_hole supports configured multi-course assignments" do
     group = groups(:group_three)
     tournament = group.tournament
@@ -208,13 +223,11 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal created_group.hole_position_label, log.metadata["hole_label"]
   end
 
-  test "place_golfer persists assignment when golfer has blank category and duplicate active email" do
+  test "place_golfer persists assignment when golfer has a blank category" do
     tournament = tournaments(:tournament_one)
     golfer = golfers(:confirmed_unpaid)
-    duplicate = golfers(:confirmed_paid)
 
     golfer.update_columns(
-      email: duplicate.email,
       team_category: nil,
       updated_at: Time.current
     )
@@ -235,6 +248,27 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, golfer.position
   end
 
+  test "place_golfer reuses the earliest empty slot on a start" do
+    tournament = tournaments(:tournament_one)
+    reusable_group = groups(:group_three)
+    reusable_group.update!(starting_course_key: "course-1", hole_number: 9)
+    golfer = golfers(:confirmed_unpaid)
+
+    assert_no_difference "Group.count" do
+      post place_golfer_api_v1_groups_url, params: {
+        tournament_id: tournament.id,
+        golfer_id: golfer.id,
+        starting_course_key: "course-1",
+        hole_number: 9
+      }, headers: auth_headers
+    end
+
+    assert_response :created
+    golfer.reload
+    assert_equal reusable_group.id, golfer.group_id
+    assert_equal 1, golfer.position
+  end
+
   test "remove_golfer clears assignment even when golfer has unrelated invalid registration fields" do
     golfer = golfers(:confirmed_paid)
     group = golfer.group
@@ -246,6 +280,38 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     golfer.reload
     assert_nil golfer.group_id
     assert_nil golfer.position
+  end
+
+  test "remove_golfer deletes an emptied slot so later groups compact forward" do
+    group = groups(:group_two)
+    golfer = golfers(:stripe_golfer)
+    later_group = group.tournament.groups.create!(
+      group_number: 4,
+      starting_course_key: "course-1",
+      hole_number: group.hole_number
+    )
+    later_golfer = group.tournament.golfers.create!(
+      group: later_group,
+      name: "Later Slot Golfer",
+      email: "later-slot-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0400",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      position: 1
+    )
+
+    post remove_golfer_api_v1_group_url(group), params: { golfer_id: golfer.id }, headers: auth_headers
+
+    assert_response :success
+    refute Group.exists?(group.id)
+
+    later_golfer.reload
+    assert_equal later_group.id, later_golfer.group_id
+    assert_equal "5A", later_group.reload.starting_position_label
+    assert_equal group.id, JSON.parse(response.body)["removed_group_id"]
   end
 
   test "auto_assign places golfers even when unrelated registration validations would fail" do

@@ -118,6 +118,16 @@ module Api
         end
 
         if group.update(attributes)
+          if !group.assigned_start? && group.empty_slot?
+            removed_group_id = group.id
+            tournament = group.tournament
+            group.scores.destroy_all
+            group.destroy!
+            broadcast_groups_update(tournament)
+            render json: { removed_group_id: removed_group_id, deleted: true }
+            return
+          end
+
           ActivityLog.log(
             admin: current_admin,
             action: 'group_updated',
@@ -192,7 +202,21 @@ module Api
         end
 
         hole_label = group.starting_position_label
-        if group.remove_golfer(golfer)
+        group_deleted = false
+        removed_group_id = nil
+
+        ActiveRecord::Base.transaction do
+          raise ActiveRecord::RecordInvalid, golfer unless group.remove_golfer(golfer)
+
+          if group.empty_slot?
+            removed_group_id = group.id
+            group.scores.destroy_all
+            group.destroy!
+            group_deleted = true
+          end
+        end
+
+        if golfer.errors.empty?
           ActivityLog.log(
             admin: current_admin,
             action: 'golfer_removed_from_group',
@@ -207,10 +231,16 @@ module Api
           )
           
           broadcast_groups_update(group.tournament)
-          render json: group, include: "golfers"
+          if group_deleted
+            render json: { removed_group_id: removed_group_id, deleted: true }
+          else
+            render json: group, include: "golfers"
+          end
         else
           render json: { errors: golfer.errors.full_messages }, status: :unprocessable_entity
         end
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       # POST /api/v1/groups/update_positions
@@ -251,6 +281,7 @@ module Api
         end
 
         group = nil
+        created_group = false
 
         ActiveRecord::Base.transaction do
           golfer = tournament.golfers.lock.find(params[:golfer_id])
@@ -261,24 +292,35 @@ module Api
             raise PlacementError, "Cannot add waitlist golfer to a group. Promote them to confirmed first."
           end
 
-          next_number = (tournament.groups.maximum(:group_number) || 0) + 1
-          group = tournament.groups.create!(
-            group_number: next_number,
-            starting_course_key: attributes[:starting_course_key],
+          group = Group.reusable_slot_for(
+            tournament: tournament,
+            course_key: attributes[:starting_course_key],
             hole_number: attributes[:hole_number]
           )
+
+          unless group
+            created_group = true
+            next_number = (tournament.groups.maximum(:group_number) || 0) + 1
+            group = tournament.groups.create!(
+              group_number: next_number,
+              starting_course_key: attributes[:starting_course_key],
+              hole_number: attributes[:hole_number]
+            )
+          end
 
           unless group.add_golfer(golfer)
             raise ActiveRecord::RecordInvalid, golfer
           end
 
-          ActivityLog.log(
-            admin: current_admin,
-            action: 'group_created',
-            target: group,
-            details: "Created #{starting_position_reference(group)}",
-            metadata: group_metadata(group)
-          )
+          if created_group
+            ActivityLog.log(
+              admin: current_admin,
+              action: 'group_created',
+              target: group,
+              details: "Created #{starting_position_reference(group)}",
+              metadata: group_metadata(group)
+            )
+          end
 
           ActivityLog.log(
             admin: current_admin,
