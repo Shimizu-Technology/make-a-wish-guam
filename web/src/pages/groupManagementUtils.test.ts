@@ -4,6 +4,7 @@ import {
   buildPlacementQueueGroups,
   buildStartingPositionLabel,
   hasValidStartingPosition,
+  isEligibleForHoleAssignment,
 } from './groupManagementUtils';
 
 describe('groupManagementUtils', () => {
@@ -113,5 +114,13 @@ describe('groupManagementUtils', () => {
     expect(hibiscus?.holes[0].groups.map((group) => group.id)).toEqual([1, 3]);
     expect(buildStartingPositionLabel(groups[0], groups, courseMap, true)).toBe('Hibiscus 1A');
     expect(buildStartingPositionLabel(groups[2], groups, courseMap, true)).toBe('Hibiscus 1B');
+  });
+
+  it('treats pending ungrouped golfers as eligible for hole assignment', () => {
+    expect(isEligibleForHoleAssignment({ registration_status: 'confirmed', group_id: null })).toBe(true);
+    expect(isEligibleForHoleAssignment({ registration_status: 'pending', group_id: null })).toBe(true);
+    expect(isEligibleForHoleAssignment({ registration_status: 'waitlist', group_id: null })).toBe(false);
+    expect(isEligibleForHoleAssignment({ registration_status: 'cancelled', group_id: null })).toBe(false);
+    expect(isEligibleForHoleAssignment({ registration_status: 'pending', group_id: 42 })).toBe(false);
   });
 });

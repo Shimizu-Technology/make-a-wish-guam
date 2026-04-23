@@ -24,6 +24,7 @@ export interface TournamentInfo {
   event_date: string | null;
   location_name: string | null;
   start_time: string | null;
+  tournament_info?: string | null;
   format: string | null;
   team_size: number | null;
   total_holes: number;

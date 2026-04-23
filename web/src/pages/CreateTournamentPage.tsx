@@ -55,6 +55,7 @@ interface TournamentFormData {
   allow_check: boolean;
   allow_card: boolean;
   checks_payable_to: string;
+  tournament_info: string;
   payment_instructions: string;
   
   // Registration
@@ -97,6 +98,7 @@ const defaultFormData: TournamentFormData = {
   allow_check: true,
   allow_card: true,
   checks_payable_to: '',
+  tournament_info: '',
   payment_instructions: '',
   
   registration_deadline: '',
@@ -625,6 +627,20 @@ export const CreateTournamentPage: React.FC = () => {
                   />
                 )}
                 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tournament Info
+                  </label>
+                  <textarea
+                    name="tournament_info"
+                    value={formData.tournament_info}
+                    onChange={handleChange}
+                    rows={3}
+                    placeholder="Additional details registrants should know..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Payment Instructions

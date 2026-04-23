@@ -7,6 +7,12 @@ Event: <%= formatted_date %> | <%= @tournament.location_name %><%= ", #{@tournam
 
 <% if @is_swipe_simple %>Payment is being handled by your team captain. You're all set!<% end %>
 
+<% if @tournament.tournament_info.present? %>
+
+Tournament Info:
+<%= @tournament.tournament_info %>
+<% end %>
+
 Questions? Contact <%= @tournament.contact_name.presence || 'us' %><%= " at #{@tournament.contact_phone}" if @tournament.contact_phone.present? %><%= " or #{@tournament.contact_email}" if @tournament.respond_to?(:contact_email) && @tournament.contact_email.present? %>.
 
 See you on the course!

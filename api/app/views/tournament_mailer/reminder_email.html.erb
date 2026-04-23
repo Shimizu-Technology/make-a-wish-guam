@@ -72,6 +72,15 @@
                 </tr>
               </table>
 
+              <% if @tournament.tournament_info.present? %>
+              <div style="margin: 0 0 25px 0; background-color: #f8fafc; border-radius: 8px; padding: 16px;">
+                <p style="margin: 0 0 8px; color: #1e3a5f; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Tournament Info</p>
+                <% @tournament.tournament_info.to_s.split(/\r?\n/).reject(&:blank?).each do |line| %>
+                  <p style="margin: 0 0 4px; color: #4a5568; font-size: 14px; line-height: 1.6;"><%= line %></p>
+                <% end %>
+              </div>
+              <% end %>
+
               <!-- Checklist -->
               <h3 style="margin: 0 0 15px 0; color: #1e3a5f; font-size: 16px;">📋 Pre-Tournament Checklist</h3>
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin-bottom: 25px;">

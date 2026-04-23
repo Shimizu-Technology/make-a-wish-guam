@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_22_233000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_23_093000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -391,6 +391,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_22_233000) do
     t.integer "total_holes", default: 18
     t.integer "total_par"
     t.string "tournament_format", default: "scramble"
+    t.text "tournament_info"
     t.datetime "updated_at", null: false
     t.boolean "use_flights", default: false
     t.boolean "use_org_branding", default: true, null: false

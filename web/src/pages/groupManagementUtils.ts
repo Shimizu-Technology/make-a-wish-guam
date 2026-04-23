@@ -21,6 +21,11 @@ export interface GroupedCourse<TGroup extends GroupManagementGroup> extends Grou
   holes: Array<GroupedCourseHole<TGroup>>;
 }
 
+export interface HoleAssignmentCandidate {
+  registration_status: string;
+  group_id: number | null;
+}
+
 const positionLetterForIndex = (index: number) => String.fromCharCode(65 + index);
 const hasGolfers = <TGroup extends GroupManagementGroup>(group: TGroup) => group.golfers.length > 0;
 
@@ -40,6 +45,10 @@ export const isAwaitingPlacement = (
   group: Pick<GroupManagementGroup, 'starting_course_key' | 'hole_number'>,
   courseMap: Map<string, GroupManagementCourseConfig>
 ) => !hasValidStartingPosition(group, courseMap);
+
+export const isEligibleForHoleAssignment = (
+  golfer: Pick<HoleAssignmentCandidate, 'registration_status' | 'group_id'>
+) => !golfer.group_id && ['confirmed', 'pending'].includes(golfer.registration_status);
 
 export const buildPlacementQueueGroups = <TGroup extends GroupManagementGroup>(
   groups: TGroup[],

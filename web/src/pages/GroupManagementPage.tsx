@@ -39,6 +39,7 @@ import {
   buildStartingHoleDescription,
   buildStartingPositionLabel,
   hasValidStartingPosition,
+  isEligibleForHoleAssignment,
 } from './groupManagementUtils';
 
 const API = import.meta.env.VITE_API_URL;
@@ -361,9 +362,7 @@ export const GroupManagementPage: React.FC = () => {
       setGroups(Array.isArray(groupPayload) ? groupPayload : groupPayload.groups || []);
 
       const golfers: TournamentGolfer[] = tournamentPayload.golfers || [];
-      setUnassigned(
-        golfers.filter((golfer) => golfer.registration_status === 'confirmed' && !golfer.group_id)
-      );
+      setUnassigned(golfers.filter(isEligibleForHoleAssignment));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load data');
     } finally {

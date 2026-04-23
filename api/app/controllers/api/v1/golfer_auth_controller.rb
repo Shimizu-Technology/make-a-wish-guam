@@ -159,6 +159,7 @@ module Api
           event_date: tournament.event_date,
           location_name: tournament.location_name,
           start_time: tournament.start_time,
+          tournament_info: tournament.tournament_info,
           format: tournament.tournament_format,
           team_size: tournament.team_size,
           total_holes: tournament.total_holes || 18,
