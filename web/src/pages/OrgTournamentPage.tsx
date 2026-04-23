@@ -149,6 +149,7 @@ export function OrgTournamentPage() {
     if (!tournament.registration_open) return { label: 'Registration Closed', bg: 'bg-neutral-200', text: 'text-neutral-600' };
     const statusLabel = getRegistrationStatusLabel(tournament);
     if (statusLabel === 'Waitlist Open') return { label: 'Waitlist Open', bg: 'bg-amber-500', text: 'text-white' };
+    if (statusLabel === 'At Capacity') return { label: 'At Capacity', bg: 'bg-neutral-200', text: 'text-neutral-600' };
     if (statusLabel === 'Public Registration Full') return { label: 'Public Registration Full', bg: 'bg-neutral-200', text: 'text-neutral-600' };
     return { label: 'Registration Open', bg: 'bg-[#E31837]', text: 'text-white' };
   };
