@@ -9,6 +9,7 @@ import { api, Tournament } from '../services/api';
 import { useOrganization } from '../components/OrganizationProvider';
 import { formatEventDate } from '../utils/dates';
 import { SignedInAdminBar } from '../components/SignedInAdminBar';
+import { getPublicFacingCapacitySummary } from '../utils/capacity';
 
 // ---------------------------------------------------------------------------
 // Animation helpers
@@ -260,17 +261,22 @@ export const OrgRegistrationPage: React.FC = () => {
 
   if (!tournament.can_register) {
     const isAtCapacity = tournament.at_capacity || tournament.public_at_capacity;
+    const publicOnlyFull = tournament.public_at_capacity && !tournament.at_capacity;
     const waitlistEnabled = tournament.waitlist_enabled;
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <Card className="p-8 max-w-md text-center">
           <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-neutral-900 mb-2">
-            {isAtCapacity && !waitlistEnabled ? 'Event Full' : 'Registration Closed'}
+            {isAtCapacity && !waitlistEnabled
+              ? (publicOnlyFull ? 'Public Registration Full' : 'Event Full')
+              : 'Registration Closed'}
           </h1>
           <p className="text-neutral-600 mb-4">
             {isAtCapacity && !waitlistEnabled
-              ? `${tournament.name} has reached maximum capacity.`
+              ? (publicOnlyFull
+                ? `Public registration for ${tournament.name} is full because sponsor-reserved slots are held separately.`
+                : `${tournament.name} has reached maximum capacity.`)
               : `Registration for ${tournament.name} is currently closed.`}
           </p>
           {tournament.contact_name && (
@@ -287,6 +293,8 @@ export const OrgRegistrationPage: React.FC = () => {
       </div>
     );
   }
+
+  const capacitySummary = getPublicFacingCapacitySummary(tournament);
 
   const displayTeamName = formData.teamName || (formData.player1Name && formData.player2Name
     ? `${formData.player1Name} & ${formData.player2Name}`
@@ -761,6 +769,16 @@ export const OrgRegistrationPage: React.FC = () => {
                   </div>
                   <p className="text-xs text-neutral-400">per team (2 players)</p>
 
+                  {capacitySummary.label && (
+                    <div className="mt-4 space-y-1.5">
+                      <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Capacity</p>
+                      <p className="text-sm text-neutral-600 leading-relaxed">{capacitySummary.label}</p>
+                      {capacitySummary.secondaryLabel && (
+                        <p className="text-xs text-neutral-400">{capacitySummary.secondaryLabel}</p>
+                      )}
+                    </div>
+                  )}
+
                   {tournament.fee_includes && (
                     <div className="mt-4 space-y-1.5">
                       <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Includes</p>
@@ -780,7 +798,9 @@ export const OrgRegistrationPage: React.FC = () => {
                   <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3">
                     <p className="text-xs text-amber-800 font-medium mb-1">Waitlist Registration</p>
                     <p className="text-xs text-amber-700">
-                      This event is at capacity. Your team will be added to the waitlist and you'll be notified if a spot opens up. No payment is required until confirmed.
+                      {tournament.public_at_capacity && !tournament.at_capacity
+                        ? 'Public registration is currently full. Your team will be added to the waitlist and notified if sponsor-reserved or public spots open up. No payment is required until confirmed.'
+                        : 'This event is at capacity. Your team will be added to the waitlist and you\'ll be notified if a spot opens up. No payment is required until confirmed.'}
                     </p>
                   </div>
                 ) : (

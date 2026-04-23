@@ -17,6 +17,7 @@ import {
   Flag,
   DollarSign,
 } from 'lucide-react';
+import { getPublicFacingCapacitySummary, getRegistrationStatusLabel } from '../utils/capacity';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -397,19 +398,15 @@ function getSmartStatus(tournament: TournamentCardProps['tournament']) {
   if (tournament.status === 'archived') return { label: 'Archived', bg: 'bg-neutral-200', text: 'text-neutral-600' };
   if (tournament.status === 'draft') return { label: 'Coming Soon', bg: 'bg-[#0057B8]', text: 'text-white' };
   if (!tournament.registration_open) return { label: 'Registration Closed', bg: 'bg-neutral-200', text: 'text-neutral-600' };
-  const isFull = tournament.at_capacity || tournament.public_at_capacity;
-  if (isFull && tournament.waitlist_enabled) return { label: 'Waitlist Open', bg: 'bg-amber-500', text: 'text-white' };
-  if (isFull) return { label: 'At Capacity', bg: 'bg-neutral-200', text: 'text-neutral-600' };
+  const statusLabel = getRegistrationStatusLabel(tournament);
+  if (statusLabel === 'Waitlist Open') return { label: 'Waitlist Open', bg: 'bg-amber-500', text: 'text-white' };
+  if (statusLabel === 'Public Registration Full') return { label: 'Public Registration Full', bg: 'bg-neutral-200', text: 'text-neutral-600' };
   return { label: 'Registration Open', bg: 'bg-[#E31837]', text: 'text-white' };
 }
 
 function TournamentCard({ tournament }: TournamentCardProps) {
   const status = getSmartStatus(tournament);
-
-  const capacityPercent =
-    tournament.max_capacity && tournament.paid_count != null
-      ? Math.min(100, Math.round((tournament.paid_count / tournament.max_capacity) * 100))
-      : null;
+  const capacitySummary = getPublicFacingCapacitySummary(tournament);
 
   return (
     <div className="rounded-2xl border border-neutral-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
@@ -446,21 +443,24 @@ function TournamentCard({ tournament }: TournamentCardProps) {
         </div>
 
         {/* Capacity bar */}
-        {tournament.max_capacity != null && capacityPercent != null && (
+        {capacitySummary.percent != null && (
           <div className="mt-5">
             <div className="flex items-center justify-between text-xs text-neutral-500 mb-1.5">
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" strokeWidth={1.5} />
-                {tournament.paid_count ?? 0} / {tournament.max_capacity} teams registered
+                {capacitySummary.label}
               </span>
-              <span>{capacityPercent}%</span>
+              <span>{capacitySummary.percent}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-neutral-100 overflow-hidden">
               <div
                 className="h-full rounded-full bg-[#0057B8] transition-all duration-700 ease-out"
-                style={{ width: `${capacityPercent}%` }}
+                style={{ width: `${capacitySummary.percent}%` }}
               />
             </div>
+            {capacitySummary.secondaryLabel && (
+              <p className="mt-1.5 text-xs text-neutral-400">{capacitySummary.secondaryLabel}</p>
+            )}
           </div>
         )}
 

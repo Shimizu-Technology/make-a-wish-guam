@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganization } from '../components/OrganizationProvider';
 import { ImageUpload } from '../components/ImageUpload';
+import { Skeleton } from '../components/LoadingStates';
 import { useOrganizationStore } from '../stores/organizationStore';
 import type { OrganizationSettings as OrganizationContentSettings } from '../stores/organizationStore';
 import { useAuthToken } from '../hooks/useAuthToken';
@@ -315,6 +316,60 @@ const SponsorTierEditor: React.FC<{
   );
 };
 
+function SettingsSectionSkeleton({
+  titleWidth = 'w-40',
+  fieldRows = 3,
+}: {
+  titleWidth?: string;
+  fieldRows?: number;
+}) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <Skeleton className="h-10 w-10 rounded-xl" />
+        <div className="space-y-2">
+          <Skeleton className={`h-5 ${titleWidth}`} />
+          <Skeleton className="h-4 w-48" />
+        </div>
+      </div>
+      <div className="space-y-4">
+        {Array.from({ length: fieldRows }).map((_, index) => (
+          <div key={index} className="space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-11 w-full rounded-xl" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SettingsPageSkeleton({ organizationName }: { organizationName?: string }) {
+  return (
+    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <Skeleton className="h-4 w-32 mb-4" />
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-14 w-14 rounded-xl flex-shrink-0" />
+            <div className="space-y-2 min-w-0 flex-1">
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className={`h-4 ${organizationName ? 'w-48' : 'w-32'}`} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        <SettingsSectionSkeleton titleWidth="w-44" fieldRows={4} />
+        <SettingsSectionSkeleton titleWidth="w-36" fieldRows={3} />
+        <SettingsSectionSkeleton titleWidth="w-40" fieldRows={5} />
+        <SettingsSectionSkeleton titleWidth="w-32" fieldRows={3} />
+      </div>
+    </div>
+  );
+}
+
 export const OrgSettingsPage: React.FC = () => {
   const { organization } = useOrganization();
   const { getToken } = useAuthToken();
@@ -327,6 +382,7 @@ export const OrgSettingsPage: React.FC = () => {
   const [addingMember, setAddingMember] = useState(false);
   const [tournamentSettings, setTournamentSettings] = useState<TournamentSettings | null>(null);
   const [sponsorReservedTeams, setSponsorReservedTeams] = useState(0);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   useEffect(() => {
     if (organization) {
@@ -348,8 +404,8 @@ export const OrgSettingsPage: React.FC = () => {
     }
   }, [organization]);
 
-  const fetchMembers = async () => {
-    if (!organization?.slug) return;
+  const fetchMembers = async (): Promise<OrgMember[]> => {
+    if (!organization?.slug) return [];
     try {
       const token = await getToken();
       const res = await fetch(
@@ -358,23 +414,21 @@ export const OrgSettingsPage: React.FC = () => {
       );
       if (res.ok) {
         const data = await res.json();
-        setMembers(data.members || []);
+        return data.members || [];
       }
     } catch (err) {
       console.error('Failed to fetch members:', err);
     }
+    return [];
   };
 
-  useEffect(() => {
-    if (organization?.slug) {
-      fetchMembers();
-      fetchTournamentSettings();
+  const fetchTournamentSettings = async (): Promise<{
+    settings: TournamentSettings | null;
+    sponsorReservedTeams: number;
+  }> => {
+    if (!organization?.slug) {
+      return { settings: null, sponsorReservedTeams: 0 };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organization?.slug]);
-
-  const fetchTournamentSettings = async () => {
-    if (!organization?.slug) return;
     try {
       const token = await getToken();
       const res = await fetch(
@@ -393,60 +447,92 @@ export const OrgSettingsPage: React.FC = () => {
           if (detailRes.ok) {
             const detail = await detailRes.json();
             const t = detail.tournament || detail;
-            setSponsorReservedTeams(t.sponsor_reserved_teams || 0);
-            setTournamentSettings({
-              id: t.id?.toString() || '',
-              name: t.name || '',
-              event_date: t.event_date || '',
-              location_name: t.location_name || '',
-              location_address: t.location_address || '',
-              format_name: t.format_name || '',
-              tournament_format: t.tournament_format || '',
-              team_size: t.team_size?.toString() || '2',
-              registration_mode: deriveRegistrationMode(t.registration_open ?? false, t.walkin_registration_open ?? false),
-              registration_deadline: t.registration_deadline || '',
-              entry_fee_display: t.entry_fee_display || '',
-              walkin_fee: t.walkin_fee != null ? (t.walkin_fee / 100).toString() : '',
-              walkin_fee_display: t.walkin_fee != null ? `$${(t.walkin_fee / 100).toFixed(0)}/team` : '',
-              max_capacity: t.max_capacity?.toString() || '',
-              waitlist_enabled: t.waitlist_enabled ?? false,
-              waitlist_max: t.waitlist_max?.toString() || '',
-              banner_url_override: t.banner_url_override || '',
-              swipe_simple_url: t.swipe_simple_url || '',
-              walkin_swipe_simple_url: t.walkin_swipe_simple_url || '',
-              contact_name: t.contact_name || '',
-              contact_phone: t.contact_phone || '',
-              contact_email: t.contact_email || '',
-              raffle_enabled: t.raffle_enabled ?? false,
-              raffle_description: t.raffle_description || '',
-              raffle_draw_time: t.raffle_draw_time || '',
-              raffle_ticket_price_cents: t.raffle_ticket_price_cents?.toString() || '500',
-              raffle_include_with_registration: t.raffle_include_with_registration ?? false,
-              raffle_bundles: t.raffle_bundles || DEFAULT_RAFFLE_BUNDLES,
-              course_configs: t.course_configs?.length ? t.course_configs : DEFAULT_COURSE_CONFIGS,
-              sponsor_edit_deadline: t.sponsor_edit_deadline || '',
-              sponsor_tiers: t.sponsor_tiers || [
-                { key: 'title', label: 'Title Sponsor', sort_order: 0 },
-                { key: 'platinum', label: 'Platinum', sort_order: 1 },
-                { key: 'gold', label: 'Gold', sort_order: 2 },
-                { key: 'silver', label: 'Silver', sort_order: 3 },
-                { key: 'bronze', label: 'Bronze', sort_order: 4 },
-                { key: 'hole', label: 'Hole Sponsor', sort_order: 5 },
-              ],
-              event_schedule: t.event_schedule || '',
-              tournament_info: t.tournament_info || '',
-              payment_instructions: t.payment_instructions || '',
-              check_in_time: t.check_in_time || '',
-              start_time: t.start_time || '',
-              fee_includes: t.fee_includes || '',
-            });
+            return {
+              sponsorReservedTeams: t.sponsor_reserved_teams || 0,
+              settings: {
+                id: t.id?.toString() || '',
+                name: t.name || '',
+                event_date: t.event_date || '',
+                location_name: t.location_name || '',
+                location_address: t.location_address || '',
+                format_name: t.format_name || '',
+                tournament_format: t.tournament_format || '',
+                team_size: t.team_size?.toString() || '2',
+                registration_mode: deriveRegistrationMode(t.registration_open ?? false, t.walkin_registration_open ?? false),
+                registration_deadline: t.registration_deadline || '',
+                entry_fee_display: t.entry_fee_display || '',
+                walkin_fee: t.walkin_fee != null ? (t.walkin_fee / 100).toString() : '',
+                walkin_fee_display: t.walkin_fee != null ? `$${(t.walkin_fee / 100).toFixed(0)}/team` : '',
+                max_capacity: t.max_capacity?.toString() || '',
+                waitlist_enabled: t.waitlist_enabled ?? false,
+                waitlist_max: t.waitlist_max?.toString() || '',
+                banner_url_override: t.banner_url_override || '',
+                swipe_simple_url: t.swipe_simple_url || '',
+                walkin_swipe_simple_url: t.walkin_swipe_simple_url || '',
+                contact_name: t.contact_name || '',
+                contact_phone: t.contact_phone || '',
+                contact_email: t.contact_email || '',
+                raffle_enabled: t.raffle_enabled ?? false,
+                raffle_description: t.raffle_description || '',
+                raffle_draw_time: t.raffle_draw_time || '',
+                raffle_ticket_price_cents: t.raffle_ticket_price_cents?.toString() || '500',
+                raffle_include_with_registration: t.raffle_include_with_registration ?? false,
+                raffle_bundles: t.raffle_bundles || DEFAULT_RAFFLE_BUNDLES,
+                course_configs: t.course_configs?.length ? t.course_configs : DEFAULT_COURSE_CONFIGS,
+                sponsor_edit_deadline: t.sponsor_edit_deadline || '',
+                sponsor_tiers: t.sponsor_tiers || [
+                  { key: 'title', label: 'Title Sponsor', sort_order: 0 },
+                  { key: 'platinum', label: 'Platinum', sort_order: 1 },
+                  { key: 'gold', label: 'Gold', sort_order: 2 },
+                  { key: 'silver', label: 'Silver', sort_order: 3 },
+                  { key: 'bronze', label: 'Bronze', sort_order: 4 },
+                  { key: 'hole', label: 'Hole Sponsor', sort_order: 5 },
+                ],
+                event_schedule: t.event_schedule || '',
+                tournament_info: t.tournament_info || '',
+                payment_instructions: t.payment_instructions || '',
+                check_in_time: t.check_in_time || '',
+                start_time: t.start_time || '',
+                fee_includes: t.fee_includes || '',
+              },
+            };
           }
         }
       }
     } catch (err) {
       console.error('Failed to fetch tournament settings:', err);
     }
+    return { settings: null, sponsorReservedTeams: 0 };
   };
+
+  useEffect(() => {
+    if (!organization?.slug) return;
+
+    let isCancelled = false;
+
+    async function bootstrapSettingsPage() {
+      setIsInitialLoading(true);
+
+      const [membersResult, tournamentResult] = await Promise.all([
+        fetchMembers(),
+        fetchTournamentSettings(),
+      ]);
+
+      if (isCancelled) return;
+
+      setMembers(membersResult);
+      setTournamentSettings(tournamentResult.settings);
+      setSponsorReservedTeams(tournamentResult.sponsorReservedTeams);
+      setIsInitialLoading(false);
+    }
+
+    bootstrapSettingsPage();
+
+    return () => {
+      isCancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organization?.slug]);
 
   const handleTournamentChange = <K extends keyof TournamentSettings>(
     field: K,
@@ -718,12 +804,8 @@ export const OrgSettingsPage: React.FC = () => {
     }
   };
 
-  if (!organization || !formData) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
-      </div>
-    );
+  if (!organization || !formData || isInitialLoading) {
+    return <SettingsPageSkeleton organizationName={organization?.name} />;
   }
 
   const registrationModeOptions: { value: RegistrationMode; label: string; description: string }[] = [

@@ -539,6 +539,9 @@ export const OrgTournamentAdmin: React.FC = () => {
               const publicFilled = stats.public_confirmed || 0;
               const publicOpen = Math.max(0, publicCap - publicFilled);
               const sponsorOpen = Math.max(0, sponsorTeams - sponsorFilled);
+              const statusLabel = stats.at_capacity
+                ? (stats.waitlisted > 0 ? `Waitlist Active (${stats.waitlisted})` : 'At Capacity')
+                : (stats.public_at_capacity ? 'Public Registration Full' : `${publicOpen} public spots open`);
 
               return (
                 <>
@@ -551,9 +554,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                           <span className="text-gray-400"> / {cap} teams</span>
                         </p>
                         <span className={`text-xs font-semibold ${isFull ? 'text-amber-600' : 'text-green-600'}`}>
-                          {isFull
-                            ? (stats.waitlisted > 0 ? `Waitlist (${stats.waitlisted})` : 'Full')
-                            : `${pct}% full`}
+                          {isFull ? statusLabel : `${pct}% full`}
                         </span>
                       </div>
                       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -601,9 +602,7 @@ export const OrgTournamentAdmin: React.FC = () => {
                           <div>
                             <p className="text-sm text-gray-500">Status</p>
                             <p className={`text-lg font-semibold ${isFull ? 'text-amber-600' : 'text-green-600'}`}>
-                              {isFull
-                                ? (stats.waitlisted > 0 ? `Waitlist Active (${stats.waitlisted})` : 'At Capacity')
-                                : `${publicOpen} public spots open`}
+                              {statusLabel}
                             </p>
                           </div>
                         </div>
@@ -653,7 +652,7 @@ export const OrgTournamentAdmin: React.FC = () => {
               <div className="grid grid-cols-4 gap-2">
                 <div className="bg-white rounded-xl shadow-sm p-3 text-center">
                   <p className="text-lg font-bold text-green-600">{stats.confirmed}</p>
-                  <p className="text-[10px] text-gray-500 leading-tight">Confirmed</p>
+                  <p className="text-[10px] text-gray-500 leading-tight">Paid / Sponsored</p>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-3 text-center">
                   <p className="text-lg font-bold text-orange-500">{stats.pending_payment}</p>
@@ -677,9 +676,9 @@ export const OrgTournamentAdmin: React.FC = () => {
             {/* Desktop: 5-column stat cards */}
             <div className="hidden lg:grid lg:grid-cols-5 gap-3">
               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500">
-                <p className="text-sm text-gray-500 mb-1">Confirmed</p>
+                <p className="text-sm text-gray-500 mb-1">Paid / Sponsored</p>
                 <p className="text-2xl font-bold text-green-600">{stats.confirmed}</p>
-                <p className="text-xs text-gray-400 mt-0.5">paid / sponsored</p>
+                <p className="text-xs text-gray-400 mt-0.5">confirmed and financially cleared</p>
               </div>
               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-400">
                 <p className="text-sm text-gray-500 mb-1">Pending Payment</p>

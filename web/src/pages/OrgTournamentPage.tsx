@@ -15,6 +15,7 @@ import {
 
 import { formatDate, formatEventDate } from '../utils/dates';
 import { SignedInAdminBar } from '../components/SignedInAdminBar';
+import { getPublicFacingCapacitySummary, getRegistrationStatusLabel } from '../utils/capacity';
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -146,13 +147,14 @@ export function OrgTournamentPage() {
     if (tournament.status === 'archived') return { label: 'Archived', bg: 'bg-neutral-200', text: 'text-neutral-600' };
     if (tournament.status === 'draft') return { label: 'Coming Soon', bg: 'bg-[#0057B8]', text: 'text-white' };
     if (!tournament.registration_open) return { label: 'Registration Closed', bg: 'bg-neutral-200', text: 'text-neutral-600' };
-    const isFull = tournament.at_capacity || tournament.public_at_capacity;
-    if (isFull && tournament.waitlist_enabled) return { label: 'Waitlist Open', bg: 'bg-amber-500', text: 'text-white' };
-    if (isFull) return { label: 'At Capacity', bg: 'bg-neutral-200', text: 'text-neutral-600' };
+    const statusLabel = getRegistrationStatusLabel(tournament);
+    if (statusLabel === 'Waitlist Open') return { label: 'Waitlist Open', bg: 'bg-amber-500', text: 'text-white' };
+    if (statusLabel === 'Public Registration Full') return { label: 'Public Registration Full', bg: 'bg-neutral-200', text: 'text-neutral-600' };
     return { label: 'Registration Open', bg: 'bg-[#E31837]', text: 'text-white' };
   };
 
   const status = getStatusBadge();
+  const capacitySummary = getPublicFacingCapacitySummary(tournament);
   const heroBannerUrl = tournament.banner_url_override || null;
   const sponsorTiers = [...(tournament.sponsor_tiers || FALLBACK_SPONSOR_TIERS)].sort(
     (a, b) => a.sort_order - b.sort_order
@@ -224,10 +226,10 @@ export function OrgTournamentPage() {
               <DollarSign className="w-4 h-4 text-[#0057B8]" strokeWidth={1.5} />
               <span>{tournament.entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}</span>
             </div>
-            {tournament.max_capacity && (
+            {capacitySummary.label && (
               <div className="flex items-center gap-2 text-neutral-600">
                 <Users className="w-4 h-4 text-[#0057B8]" strokeWidth={1.5} />
-                <span>{tournament.confirmed_count || 0} / {tournament.max_capacity} teams registered</span>
+                <span>{capacitySummary.label}</span>
               </div>
             )}
           </div>
@@ -345,12 +347,12 @@ export function OrgTournamentPage() {
               <div className="bg-white rounded-2xl shadow-lg border border-neutral-200 p-6">
                 <h3 className="font-bold tracking-tight mb-4 text-lg">Registration</h3>
 
-                <div className="space-y-3 mb-6">
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-neutral-500 text-sm">Entry Fee</span>
-                    <span className="font-bold text-xl text-neutral-900">
+                <div className="space-y-4 mb-6">
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Entry Fee</p>
+                    <p className="mt-2 text-2xl font-bold tracking-tight text-neutral-900 break-words">
                       {tournament.entry_fee_display || `$${((tournament.entry_fee || 0) / 100).toFixed(0)}/team`}
-                    </span>
+                    </p>
                   </div>
 
                   {tournament.early_bird_active && tournament.early_bird_deadline && (
@@ -360,14 +362,19 @@ export function OrgTournamentPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-between text-sm">
-                    <span className="text-neutral-400 flex items-center gap-1">
+                  <div className="rounded-2xl border border-neutral-200 p-4">
+                    <div className="flex items-center gap-2 text-neutral-500">
                       <Users className="w-3.5 h-3.5" strokeWidth={1.5} />
-                      Capacity
-                    </span>
-                    <span className="text-neutral-600">
-                      {tournament.confirmed_count || 0} / {tournament.max_capacity} teams registered
-                    </span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.14em]">Capacity</span>
+                    </div>
+                    <p className="mt-2 text-base font-semibold leading-tight text-neutral-800 sm:text-lg">
+                      {capacitySummary.label}
+                    </p>
+                    {capacitySummary.secondaryLabel && (
+                      <p className="mt-2 text-sm leading-relaxed text-neutral-500">
+                        {capacitySummary.secondaryLabel}
+                      </p>
+                    )}
                   </div>
 
                   {tournament.waitlist_count > 0 && (
@@ -395,9 +402,13 @@ export function OrgTournamentPage() {
                       <ChevronRight className="w-4 h-4" strokeWidth={2} />
                     </Link>
                   )
-                ) : (tournament.at_capacity || tournament.public_at_capacity) ? (
+                ) : tournament.at_capacity ? (
                   <div className="w-full text-center px-5 py-3 text-sm font-semibold text-neutral-400 bg-neutral-100 rounded-full cursor-not-allowed">
                     At Capacity
+                  </div>
+                ) : tournament.public_at_capacity ? (
+                  <div className="w-full text-center px-5 py-3 text-sm font-semibold text-neutral-400 bg-neutral-100 rounded-full cursor-not-allowed">
+                    Public Registration Full
                   </div>
                 ) : !tournament.registration_open ? (
                   <div className="w-full text-center px-5 py-3 text-sm font-semibold text-neutral-400 bg-neutral-100 rounded-full cursor-not-allowed">
