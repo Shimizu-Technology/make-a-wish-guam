@@ -581,6 +581,55 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     refute Group.exists?(source_group.id)
   end
 
+  test "set_hole rejects moving a waiting team onto a full hole when pairing limit is reached" do
+    tournament = tournaments(:tournament_one)
+    tournament.update!(
+      team_size: 2,
+      config: (tournament.config || {}).merge(
+        "teams_per_start_position" => 2,
+        "start_positions_per_hole" => 2
+      )
+    )
+
+    first_pairing = groups(:group_one)
+    first_pairing.update!(starting_course_key: "course-1", hole_number: 9)
+    golfers(:confirmed_paid).update_columns(partner_name: "First Pairing Partner 1", updated_at: Time.current)
+    golfers(:confirmed_checked_in).update_columns(partner_name: "First Pairing Partner 2", updated_at: Time.current)
+
+    second_pairing = groups(:group_two)
+    second_pairing.update!(starting_course_key: "course-1", hole_number: 9)
+    golfers(:stripe_golfer).update_columns(partner_name: "Second Pairing Partner 1", updated_at: Time.current)
+    tournament.golfers.create!(
+      group: second_pairing,
+      name: "Second Pairing Team 2",
+      partner_name: "Second Pairing Team 2 Partner",
+      email: "set-hole-second-pairing-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0313",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      position: 2
+    )
+
+    source_group = groups(:group_three)
+    source_team = golfers(:confirmed_unpaid)
+    source_team.update_columns(group_id: source_group.id, position: 1, partner_name: "Overflow Partner", updated_at: Time.current)
+
+    assert_no_difference "Group.count" do
+      post set_hole_api_v1_group_url(source_group), params: {
+        starting_course_key: "course-1",
+        hole_number: 9
+      }, headers: auth_headers
+    end
+
+    assert_response :unprocessable_entity
+    assert_equal "Hole 9 already has 2 pairings", JSON.parse(response.body)["error"]
+    assert_equal source_group.id, source_team.reload.group_id
+    refute_equal "course-1", source_group.reload.starting_course_key
+  end
+
   test "remove_golfer clears assignment even when golfer has unrelated invalid registration fields" do
     golfer = golfers(:confirmed_paid)
     group = golfer.group

@@ -127,6 +127,8 @@ module Api
         label_changes = {}
 
         ActiveRecord::Base.transaction do
+          tournament.lock!
+          group = Group.lock.includes(:golfers, :tournament).find(params[:id])
           label_changes = tracked_label_changes(tournament, positions_to_track)
 
           merge_target = nil
@@ -134,21 +136,20 @@ module Api
              attributes[:starting_course_key].present? &&
              attributes[:hole_number].present? &&
              group.golfers.any?
-            merge_target = Group.available_slot_for(
-              tournament: tournament,
-              course_key: attributes[:starting_course_key],
-              hole_number: attributes[:hole_number],
-              incoming_players: group.player_count,
-              exclude_group_id: group.id
-            )
+            groups_at_target_start = Group.lock
+                                          .includes(:golfers)
+                                          .for_start_position(
+                                            tournament: tournament,
+                                            course_key: attributes[:starting_course_key],
+                                            hole_number: attributes[:hole_number]
+                                          )
+                                          .where.not(id: group.id)
+                                          .to_a
+
+            merge_target = available_slot_from_groups(groups_at_target_start, group.player_count)
 
             if merge_target.nil? &&
-               !Group.start_position_available?(
-                 tournament: tournament,
-                 course_key: attributes[:starting_course_key],
-                 hole_number: attributes[:hole_number],
-                 exclude_group_id: group.id
-               )
+               !start_position_available_from_groups?(tournament, groups_at_target_start)
               raise PlacementError, start_position_limit_error(
                 tournament,
                 attributes[:starting_course_key],
