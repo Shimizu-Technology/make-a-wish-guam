@@ -126,4 +126,63 @@ class TournamentTest < ActiveSupport::TestCase
     assert_equal({ "sponsor_tiers" => [] }, tournament.reload.config)
     assert_equal "course-1", tournament.course_configs.first["key"]
   end
+
+  test "teams_per_start_position defaults to one team per start position" do
+    tournament = tournaments(:tournament_one)
+
+    assert_equal 1, tournament.teams_per_start_position
+  end
+
+  test "start_positions_per_hole defaults to unlimited" do
+    tournament = tournaments(:tournament_one)
+
+    assert_nil tournament.start_positions_per_hole
+  end
+
+  test "players_per_start_position multiplies team size by teams per start position" do
+    tournament = tournaments(:tournament_one)
+    tournament.team_size = 2
+    tournament.config = { "teams_per_start_position" => 2 }
+
+    assert_equal 2, tournament.teams_per_start_position
+    assert_equal 4, tournament.players_per_start_position
+  end
+
+  test "players_per_hole multiplies start slot capacity by pairings per hole" do
+    tournament = tournaments(:tournament_one)
+    tournament.team_size = 2
+    tournament.config = {
+      "teams_per_start_position" => 2,
+      "start_positions_per_hole" => 2
+    }
+
+    assert_equal 2, tournament.start_positions_per_hole
+    assert_equal 4, tournament.players_per_start_position
+    assert_equal 4, tournament.teams_per_hole
+    assert_equal 8, tournament.players_per_hole
+  end
+
+  test "rejects invalid teams_per_start_position config" do
+    tournament = tournaments(:tournament_one)
+    tournament.config = { "teams_per_start_position" => 0 }
+
+    assert_not tournament.valid?
+    assert_includes tournament.errors[:config], "Teams per start position must be an integer between 1 and 4"
+  end
+
+  test "allows blank start_positions_per_hole config" do
+    tournament = tournaments(:tournament_one)
+    tournament.config = { "start_positions_per_hole" => "" }
+
+    assert tournament.valid?
+    assert_nil tournament.start_positions_per_hole
+  end
+
+  test "rejects invalid start_positions_per_hole config" do
+    tournament = tournaments(:tournament_one)
+    tournament.config = { "start_positions_per_hole" => 0 }
+
+    assert_not tournament.valid?
+    assert_includes tournament.errors[:config], "Start positions per hole must be blank or an integer between 1 and 26"
+  end
 end

@@ -74,6 +74,42 @@ class Api::V1::OrganizationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Config Course configuration keys must be unique", json["error"]
   end
 
+  test "create_tournament persists teams_per_start_position in config" do
+    organization = organizations(:org_one)
+
+    post "/api/v1/admin/organizations/#{organization.slug}/tournaments", params: {
+      tournament: {
+        name: "Configured Start Capacity Tournament",
+        year: 2027,
+        status: "draft",
+        teams_per_start_position: 2
+      }
+    }, headers: auth_headers
+
+    assert_response :created
+
+    tournament = Tournament.order(:created_at).last
+    assert_equal 2, tournament.config["teams_per_start_position"]
+  end
+
+  test "create_tournament persists start_positions_per_hole in config" do
+    organization = organizations(:org_one)
+
+    post "/api/v1/admin/organizations/#{organization.slug}/tournaments", params: {
+      tournament: {
+        name: "Configured Pairings Tournament",
+        year: 2027,
+        status: "draft",
+        start_positions_per_hole: 2
+      }
+    }, headers: auth_headers
+
+    assert_response :created
+
+    tournament = Tournament.order(:created_at).last
+    assert_equal 2, tournament.config["start_positions_per_hole"]
+  end
+
   test "public tournaments endpoint excludes non-public tournaments" do
     organization = organizations(:org_one)
     hidden_tournament = organization.tournaments.create!(

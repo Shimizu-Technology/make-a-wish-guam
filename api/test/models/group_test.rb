@@ -113,6 +113,63 @@ class GroupTest < ActiveSupport::TestCase
     assert_equal 4, Group::MAX_GOLFERS
   end
 
+  test "max_golfers uses teams per start position when configured" do
+    tournament = tournaments(:tournament_one)
+    tournament.update!(
+      team_size: 2,
+      config: (tournament.config || {}).merge("teams_per_start_position" => 2)
+    )
+
+    group = Group.new(
+      tournament: tournament,
+      group_number: 105
+    )
+
+    assert_equal 4, group.max_golfers
+  end
+
+  test "allows additional start positions on a hole when no limit is configured" do
+    tournament = tournaments(:tournament_one)
+
+    tournament.groups.create!(
+      group_number: 4,
+      starting_course_key: "course-1",
+      hole_number: 1
+    )
+
+    extra_group = Group.new(
+      tournament: tournament,
+      group_number: 5,
+      starting_course_key: "course-1",
+      hole_number: 1
+    )
+
+    assert extra_group.valid?
+  end
+
+  test "rejects creating more start positions on a hole than the tournament allows" do
+    tournament = tournaments(:tournament_one)
+    tournament.update!(
+      config: (tournament.config || {}).merge("start_positions_per_hole" => 2)
+    )
+
+    tournament.groups.create!(
+      group_number: 4,
+      starting_course_key: "course-1",
+      hole_number: 1
+    )
+
+    extra_group = Group.new(
+      tournament: tournament,
+      group_number: 5,
+      starting_course_key: "course-1",
+      hole_number: 1
+    )
+
+    assert_not extra_group.valid?
+    assert_includes extra_group.errors[:base], "Only 2 start positions are allowed on this hole"
+  end
+
   test "assigns default course key for legacy single-course holes" do
     group = Group.new(
       tournament: tournaments(:tournament_one),
@@ -150,6 +207,9 @@ class GroupTest < ActiveSupport::TestCase
 
   test "starting_position_label ignores empty groups at the same start" do
     tournament = tournaments(:tournament_one)
+    tournament.update!(
+      config: (tournament.config || {}).merge("start_positions_per_hole" => 3)
+    )
     empty_group = tournament.groups.create!(
       group_number: 4,
       starting_course_key: "course-1",

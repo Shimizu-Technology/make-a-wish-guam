@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_23_093000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_24_161500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -293,6 +293,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_23_093000) do
     t.string "access_token"
     t.datetime "access_token_expires_at"
     t.boolean "active", default: true
+    t.string "course_key"
     t.datetime "created_at", null: false
     t.text "description"
     t.integer "hole_number"
@@ -306,6 +307,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_23_093000) do
     t.datetime "updated_at", null: false
     t.string "website_url"
     t.index ["access_token"], name: "index_sponsors_on_access_token", unique: true, where: "(access_token IS NOT NULL)"
+    t.index ["tournament_id", "course_key", "hole_number"], name: "index_sponsors_on_tournament_id_and_course_key_and_hole_number"
     t.index ["tournament_id", "hole_number"], name: "index_sponsors_on_tournament_id_and_hole_number"
     t.index ["tournament_id", "position"], name: "index_sponsors_on_tournament_id_and_position"
     t.index ["tournament_id", "tier"], name: "index_sponsors_on_tournament_id_and_tier"

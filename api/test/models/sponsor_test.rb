@@ -17,7 +17,13 @@ class SponsorTest < ActiveSupport::TestCase
       name: "Test Tournament",
       slug: "test-tournament-sponsor-2026",
       year: 2026,
-      status: "open"
+      status: "open",
+      config: {
+        course_configs: [
+          { key: "hibiscus", name: "Hibiscus", hole_count: 9 },
+          { key: "bouganvillea", name: "Bouganvillea", hole_count: 9 }
+        ]
+      }
     )
     
     @sponsor = @tournament.sponsors.create!(
@@ -59,36 +65,41 @@ class SponsorTest < ActiveSupport::TestCase
     
     Sponsor::TIERS.each do |valid_tier|
       @sponsor.tier = valid_tier
-      @sponsor.hole_number = 1 if valid_tier == "hole"
+      if valid_tier == "hole"
+        @sponsor.course_key = "hibiscus"
+        @sponsor.hole_number = 1
+      end
       assert @sponsor.valid?, "#{valid_tier} should be valid"
     end
   end
 
-  test "hole sponsor requires hole_number" do
+  test "hole sponsor requires hole_number and course_key" do
     hole_sponsor = @tournament.sponsors.build(
       name: "Hole Sponsor",
       tier: "hole",
       position: 2
     )
     assert_not hole_sponsor.valid?
-    
+
+    hole_sponsor.course_key = "hibiscus"
     hole_sponsor.hole_number = 9
     assert hole_sponsor.valid?
   end
 
-  test "hole_number must be 1-18" do
+  test "hole_number must stay within the configured course range" do
     hole_sponsor = @tournament.sponsors.build(
       name: "Hole Sponsor",
       tier: "hole",
       position: 2,
+      course_key: "hibiscus",
       hole_number: 0
     )
     assert_not hole_sponsor.valid?
-    
-    hole_sponsor.hole_number = 19
+
+    hole_sponsor.hole_number = 10
     assert_not hole_sponsor.valid?
-    
-    hole_sponsor.hole_number = 18
+
+    hole_sponsor.hole_number = 9
     assert hole_sponsor.valid?
   end
 
@@ -96,14 +107,16 @@ class SponsorTest < ActiveSupport::TestCase
     assert_equal "Title Sponsor", @sponsor.tier_display
     
     @sponsor.tier = "platinum"
-    assert_equal "Platinum Sponsor", @sponsor.tier_display
+    assert_equal "Platinum", @sponsor.tier_display
     
     @sponsor.tier = "hole"
+    @sponsor.course_key = "hibiscus"
     @sponsor.hole_number = 9
-    assert_equal "Hole 9 Sponsor", @sponsor.tier_display
+    assert_equal "Hole Sponsor", @sponsor.tier_display
+    assert_equal "Hibiscus 9", @sponsor.display_label
   end
 
-  test "major? returns true for title/platinum/gold" do
+  test "major? returns true for title and platinum only" do
     @sponsor.tier = "title"
     assert @sponsor.major?
     
@@ -111,7 +124,7 @@ class SponsorTest < ActiveSupport::TestCase
     assert @sponsor.major?
     
     @sponsor.tier = "gold"
-    assert @sponsor.major?
+    assert_not @sponsor.major?
     
     @sponsor.tier = "silver"
     assert_not @sponsor.major?
@@ -125,7 +138,22 @@ class SponsorTest < ActiveSupport::TestCase
     assert_not @sponsor.hole_sponsor?
     
     @sponsor.tier = "hole"
+    @sponsor.course_key = "hibiscus"
+    @sponsor.hole_number = 1
     assert @sponsor.hole_sponsor?
+  end
+
+  test "hole sponsor rejects course keys not configured for the tournament" do
+    hole_sponsor = @tournament.sponsors.build(
+      name: "Hole Sponsor",
+      tier: "hole",
+      position: 2,
+      course_key: "unknown",
+      hole_number: 1
+    )
+
+    assert_not hole_sponsor.valid?
+    assert_includes hole_sponsor.errors[:course_key], "is not configured for this event"
   end
 
   test "active scope filters inactive sponsors" do

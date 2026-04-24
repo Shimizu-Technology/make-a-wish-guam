@@ -18,6 +18,9 @@ import { formatDate, formatShortDate } from '../utils/dates';
 
 type ReportTab = 'registrations' | 'checkin' | 'payments' | 'groups' | 'contacts';
 
+const startingPositionText = (golfer: Pick<Golfer, 'hole_position_label'>) =>
+  golfer.hole_position_label || 'Unassigned';
+
 export function ReportsPage() {
   const { activeTournament } = useTournament();
 
@@ -242,7 +245,7 @@ export function ReportsPage() {
     { id: 'registrations', label: 'All Registrations', mobileLabel: 'All', icon: <List size={14} /> },
     { id: 'checkin', label: 'Check-In Sheet', mobileLabel: 'Check-In', icon: <ClipboardList size={14} /> },
     { id: 'payments', label: 'Payment Summary', mobileLabel: 'Payments', icon: <DollarSign size={14} /> },
-    { id: 'groups', label: 'Groups by Start', mobileLabel: 'Groups', icon: <Grid3X3 size={14} /> },
+    { id: 'groups', label: 'Pairings by Start', mobileLabel: 'Pairings', icon: <Grid3X3 size={14} /> },
     { id: 'contacts', label: 'Contact List', mobileLabel: 'Contacts', icon: <Phone size={14} /> },
   ];
 
@@ -316,7 +319,7 @@ export function ReportsPage() {
                 <Grid3X3 size={14} className="text-purple-600" />
               </div>
             </div>
-            <p className="text-[10px] lg:text-xs text-purple-600 font-medium">Groups</p>
+            <p className="text-[10px] lg:text-xs text-purple-600 font-medium">Pairings</p>
             <p className="text-lg lg:text-2xl font-bold text-purple-900">{groups.length}</p>
           </div>
         </div>
@@ -429,7 +432,7 @@ function RegistrationsTab({ golfers }: { golfers: Golfer[] }) {
                   <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium whitespace-nowrap">{g.sponsor_display_name}</span>
                 )}
               </div>
-              <span className="text-xs text-gray-400 flex-shrink-0 ml-2">{g.hole_position_label || 'Unassigned'}</span>
+              <span className="text-xs text-gray-400 flex-shrink-0 ml-2">{startingPositionText(g)}</span>
             </div>
             <div className="text-xs text-gray-500">{g.email}</div>
             <div className="flex items-center gap-2 mt-1">
@@ -450,7 +453,7 @@ function RegistrationsTab({ golfers }: { golfers: Golfer[] }) {
               <th className="px-4 py-3 font-medium">Company / Sponsor</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Payment</th>
-              <th className="px-4 py-3 font-medium">Hole</th>
+              <th className="px-4 py-3 font-medium">Starting Position</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -471,7 +474,7 @@ function RegistrationsTab({ golfers }: { golfers: Golfer[] }) {
                 </td>
                 <td className="px-4 py-2.5"><StatusBadge status={g.registration_status} /></td>
                 <td className="px-4 py-2.5"><PaymentBadge status={g.payment_status} /></td>
-                <td className="px-4 py-2.5 text-gray-500">{g.hole_position_label || 'Unassigned'}</td>
+                <td className="px-4 py-2.5 text-gray-500">{startingPositionText(g)}</td>
               </tr>
             ))}
           </tbody>
@@ -502,7 +505,7 @@ function CheckInTab({ golfers }: { golfers: Golfer[] }) {
                 {g.name}
                 {g.partner_name && <span className="text-gray-400 font-normal"> &amp; {g.partner_name}</span>}
               </div>
-              <div className="text-xs text-gray-400">{g.hole_position_label || 'Unassigned'}</div>
+              <div className="text-xs text-gray-400">{startingPositionText(g)}</div>
             </div>
             <div className="flex items-center gap-2">
               {g.payment_status === 'paid' && (
@@ -523,7 +526,7 @@ function CheckInTab({ golfers }: { golfers: Golfer[] }) {
             <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
               <th className="px-4 py-3 font-medium">Team</th>
               <th className="px-4 py-3 font-medium">Company</th>
-              <th className="px-4 py-3 font-medium">Hole</th>
+              <th className="px-4 py-3 font-medium">Starting Position</th>
               <th className="px-4 py-3 font-medium text-center">Paid</th>
               <th className="px-4 py-3 font-medium text-center">Checked In</th>
             </tr>
@@ -536,7 +539,7 @@ function CheckInTab({ golfers }: { golfers: Golfer[] }) {
                   {g.partner_name && <span className="text-gray-400 font-normal"> &amp; {g.partner_name}</span>}
                 </td>
                 <td className="px-4 py-2.5 text-gray-500">{g.company || '-'}</td>
-                <td className="px-4 py-2.5 text-gray-500">{g.hole_position_label || 'Unassigned'}</td>
+                <td className="px-4 py-2.5 text-gray-500">{startingPositionText(g)}</td>
                 <td className="px-4 py-2.5 text-center">
                   {g.payment_status === 'paid' && <DollarSign size={14} className="inline text-green-500" />}
                 </td>
@@ -737,7 +740,7 @@ function GroupsTab({
   return (
     <>
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <span className="text-sm text-gray-500">{groups.length} groups</span>
+        <span className="text-sm text-gray-500">{groups.length} pairings</span>
         <button
           onClick={onToggleSort}
           className="text-xs text-brand-600 hover:underline font-medium"
@@ -767,6 +770,9 @@ function GroupsTab({
                   {players.length} team{players.length !== 1 ? 's' : ''}
                 </span>
               </div>
+              {group.starting_hole_description && (
+                <p className="mb-2 text-xs text-gray-500">{group.starting_hole_description}</p>
+              )}
               <div className="space-y-2">
                 {players.map((p) => (
                   <div key={p.id} className="bg-gray-50 rounded-lg px-2.5 py-1.5">
@@ -795,7 +801,7 @@ function GroupsTab({
         })}
         {groups.length === 0 && (
           <div className="col-span-full text-center py-8 text-sm text-gray-400">
-            No groups created yet
+            No pairings created yet
           </div>
         )}
       </div>

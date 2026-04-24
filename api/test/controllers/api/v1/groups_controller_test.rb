@@ -273,6 +273,57 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, golfer.position
   end
 
+  test "add_golfer response includes the newly assigned team immediately" do
+    group = groups(:group_three)
+    group.golfers.destroy_all
+    golfer = golfers(:confirmed_unpaid)
+    golfer.update_columns(partner_name: "Fresh Partner", updated_at: Time.current)
+
+    post add_golfer_api_v1_group_url(group), params: { golfer_id: golfer.id }, headers: auth_headers
+
+    assert_response :success
+
+    payload = JSON.parse(response.body)
+    assert_equal group.id, payload["id"]
+    assert_equal 1, payload["golfers"].length
+    assert_equal golfer.id, payload["golfers"].first["id"]
+    assert_equal 2, payload["player_count"]
+    assert_equal false, payload["is_full"]
+  end
+
+  test "merge_into merges a waiting team into the specified pairing" do
+    tournament = tournaments(:tournament_one)
+    tournament.update!(
+      team_size: 2,
+      config: (tournament.config || {}).merge(
+        "teams_per_start_position" => 2,
+        "start_positions_per_hole" => 2
+      )
+    )
+
+    target_group = groups(:group_one)
+    golfers(:confirmed_paid).update_columns(partner_name: "Target Partner", updated_at: Time.current)
+    golfers(:confirmed_checked_in).destroy!
+
+    source_group = groups(:group_three)
+    source_team = golfers(:confirmed_unpaid)
+    source_team.update_columns(group_id: source_group.id, position: 1, partner_name: "Source Partner", updated_at: Time.current)
+
+    assert_difference "Group.count", -1 do
+      post merge_into_api_v1_group_url(source_group), params: {
+        target_group_id: target_group.id
+      }, headers: auth_headers
+    end
+
+    assert_response :success
+
+    payload = JSON.parse(response.body)
+    assert_equal source_group.id, payload["removed_group_id"]
+    assert_equal target_group.id, payload["id"]
+    assert_equal 2, payload["golfers"].length
+    assert_equal target_group.id, source_team.reload.group_id
+  end
+
   test "place_golfer creates a started group and returns consistent metadata" do
     tournament = tournaments(:tournament_one)
     golfer = golfers(:confirmed_unpaid)
@@ -301,6 +352,11 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal created_group.group_number, log.metadata["group_number"]
     assert_equal created_group.starting_position_label, log.metadata["starting_position_label"]
     assert_equal created_group.hole_position_label, log.metadata["hole_label"]
+
+    payload = JSON.parse(response.body)
+    assert_equal created_group.id, payload["id"]
+    assert_equal 1, payload["golfers"].length
+    assert_equal golfer.id, payload["golfers"].first["id"]
   end
 
   test "place_golfer persists assignment when golfer has a blank category" do
@@ -347,6 +403,231 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     golfer.reload
     assert_equal reusable_group.id, golfer.group_id
     assert_equal 1, golfer.position
+  end
+
+  test "place_golfer with new_pairing mode creates a fresh pairing even when another pairing has room" do
+    tournament = tournaments(:tournament_one)
+    tournament.update!(
+      team_size: 2,
+      config: (tournament.config || {}).merge(
+        "teams_per_start_position" => 2,
+        "start_positions_per_hole" => 2
+      )
+    )
+
+    open_pairing = groups(:group_three)
+    open_pairing.update!(starting_course_key: "course-1", hole_number: 9)
+    tournament.golfers.create!(
+      group: open_pairing,
+      name: "Open Pairing Team 1",
+      partner_name: "Open Pairing Team 1 Partner",
+      email: "open-pairing-new-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0312",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      position: 1
+    )
+
+    golfer = golfers(:confirmed_unpaid)
+    golfer.update_columns(partner_name: "Second Pairing Partner", updated_at: Time.current)
+
+    assert_difference "Group.count", 1 do
+      post place_golfer_api_v1_groups_url, params: {
+        tournament_id: tournament.id,
+        golfer_id: golfer.id,
+        starting_course_key: "course-1",
+        hole_number: 9,
+        placement_mode: "new_pairing"
+      }, headers: auth_headers
+    end
+
+    assert_response :created
+
+    golfer.reload
+    refute_equal open_pairing.id, golfer.group_id
+    assert_equal "9B", Group.find(golfer.group_id).starting_position_label
+  end
+
+  test "place_golfer fills an existing open pairing before creating a new one" do
+    tournament = tournaments(:tournament_one)
+    tournament.update!(
+      team_size: 2,
+      config: (tournament.config || {}).merge(
+        "teams_per_start_position" => 2,
+        "start_positions_per_hole" => 2
+      )
+    )
+
+    open_pairing = groups(:group_three)
+    open_pairing.update!(starting_course_key: "course-1", hole_number: 9)
+    tournament.golfers.create!(
+      group: open_pairing,
+      name: "Open Pairing Team 1",
+      partner_name: "Open Pairing Team 1 Partner",
+      email: "open-pairing-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0310",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      position: 1
+    )
+
+    golfer = golfers(:confirmed_unpaid)
+    golfer.update_columns(partner_name: "Second Team Partner", updated_at: Time.current)
+
+    assert_no_difference "Group.count" do
+      post place_golfer_api_v1_groups_url, params: {
+        tournament_id: tournament.id,
+        golfer_id: golfer.id,
+        starting_course_key: "course-1",
+        hole_number: 9
+      }, headers: auth_headers
+    end
+
+    assert_response :created
+
+    golfer.reload
+    assert_equal open_pairing.id, golfer.group_id
+    assert_equal 2, golfer.position
+  end
+
+  test "place_golfer rejects creating a third pairing on a hole when only two are allowed" do
+    tournament = tournaments(:tournament_one)
+    tournament.update!(
+      team_size: 2,
+      config: (tournament.config || {}).merge(
+        "teams_per_start_position" => 2,
+        "start_positions_per_hole" => 2
+      )
+    )
+
+    first_pairing = groups(:group_one)
+    first_pairing.update!(starting_course_key: "course-1", hole_number: 9)
+    golfers(:confirmed_paid).update_columns(partner_name: "First Pairing Partner 1", updated_at: Time.current)
+    golfers(:confirmed_checked_in).update_columns(partner_name: "First Pairing Partner 2", updated_at: Time.current)
+
+    second_pairing = groups(:group_two)
+    second_pairing.update!(starting_course_key: "course-1", hole_number: 9)
+    golfers(:stripe_golfer).update_columns(partner_name: "Second Pairing Partner 1", updated_at: Time.current)
+    tournament.golfers.create!(
+      group: second_pairing,
+      name: "Second Pairing Team 2",
+      partner_name: "Second Pairing Team 2 Partner",
+      email: "second-pairing-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0311",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      position: 2
+    )
+
+    golfer = golfers(:confirmed_unpaid)
+    golfer.update_columns(partner_name: "Overflow Partner", updated_at: Time.current)
+
+    assert_no_difference "Group.count" do
+      post place_golfer_api_v1_groups_url, params: {
+        tournament_id: tournament.id,
+        golfer_id: golfer.id,
+        starting_course_key: "course-1",
+        hole_number: 9
+      }, headers: auth_headers
+    end
+
+    assert_response :unprocessable_entity
+    assert_equal "Hole 9 already has 2 pairings", JSON.parse(response.body)["error"]
+    assert_nil golfer.reload.group_id
+  end
+
+  test "set_hole merges a waiting team into an open pairing on the target hole" do
+    tournament = tournaments(:tournament_one)
+    tournament.update!(
+      team_size: 2,
+      config: (tournament.config || {}).merge(
+        "teams_per_start_position" => 2,
+        "start_positions_per_hole" => 2
+      )
+    )
+
+    target_group = groups(:group_one)
+    target_group.update!(starting_course_key: "course-1", hole_number: 9)
+    golfers(:confirmed_paid).update_columns(partner_name: "Target Partner", updated_at: Time.current)
+    golfers(:confirmed_checked_in).destroy!
+
+    source_group = groups(:group_three)
+    source_team = golfers(:confirmed_unpaid)
+    source_team.update_columns(group_id: source_group.id, position: 1, partner_name: "Source Partner", updated_at: Time.current)
+
+    assert_difference "Group.count", -1 do
+      post set_hole_api_v1_group_url(source_group), params: {
+        starting_course_key: "course-1",
+        hole_number: 9
+      }, headers: auth_headers
+    end
+
+    assert_response :success
+
+    payload = JSON.parse(response.body)
+    assert_equal source_group.id, payload["removed_group_id"]
+    assert_equal target_group.id, payload["id"]
+    assert_equal 2, payload["golfers"].length
+    assert_equal target_group.id, source_team.reload.group_id
+    refute Group.exists?(source_group.id)
+  end
+
+  test "set_hole rejects moving a waiting team onto a full hole when pairing limit is reached" do
+    tournament = tournaments(:tournament_one)
+    tournament.update!(
+      team_size: 2,
+      config: (tournament.config || {}).merge(
+        "teams_per_start_position" => 2,
+        "start_positions_per_hole" => 2
+      )
+    )
+
+    first_pairing = groups(:group_one)
+    first_pairing.update!(starting_course_key: "course-1", hole_number: 9)
+    golfers(:confirmed_paid).update_columns(partner_name: "First Pairing Partner 1", updated_at: Time.current)
+    golfers(:confirmed_checked_in).update_columns(partner_name: "First Pairing Partner 2", updated_at: Time.current)
+
+    second_pairing = groups(:group_two)
+    second_pairing.update!(starting_course_key: "course-1", hole_number: 9)
+    golfers(:stripe_golfer).update_columns(partner_name: "Second Pairing Partner 1", updated_at: Time.current)
+    tournament.golfers.create!(
+      group: second_pairing,
+      name: "Second Pairing Team 2",
+      partner_name: "Second Pairing Team 2 Partner",
+      email: "set-hole-second-pairing-#{SecureRandom.hex(4)}@example.com",
+      phone: "671-555-0313",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      position: 2
+    )
+
+    source_group = groups(:group_three)
+    source_team = golfers(:confirmed_unpaid)
+    source_team.update_columns(group_id: source_group.id, position: 1, partner_name: "Overflow Partner", updated_at: Time.current)
+
+    assert_no_difference "Group.count" do
+      post set_hole_api_v1_group_url(source_group), params: {
+        starting_course_key: "course-1",
+        hole_number: 9
+      }, headers: auth_headers
+    end
+
+    assert_response :unprocessable_entity
+    assert_equal "Hole 9 already has 2 pairings", JSON.parse(response.body)["error"]
+    assert_equal source_group.id, source_team.reload.group_id
+    refute_equal "course-1", source_group.reload.starting_course_key
   end
 
   test "remove_golfer clears assignment even when golfer has unrelated invalid registration fields" do

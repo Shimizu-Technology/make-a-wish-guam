@@ -37,6 +37,8 @@ interface TournamentFormData {
   tournament_format: string;
   scoring_type: string;
   team_size: number;
+  teams_per_start_position: number;
+  start_positions_per_hole: string;
   shotgun_start: boolean;
   
   // Capacity
@@ -83,6 +85,8 @@ const defaultFormData: TournamentFormData = {
   tournament_format: 'scramble',
   scoring_type: 'gross',
   team_size: 4,
+  teams_per_start_position: 1,
+  start_positions_per_hole: '',
   shotgun_start: true,
   
   max_capacity: 144,
@@ -140,7 +144,14 @@ export const CreateTournamentPage: React.FC = () => {
     
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? Number(value) : value,
+      [name]:
+        type === 'checkbox'
+          ? checked
+          : type === 'number'
+            ? name === 'start_positions_per_hole'
+              ? value
+              : Number(value)
+            : value,
     }));
     
     // Clear error when field is edited
@@ -190,6 +201,7 @@ export const CreateTournamentPage: React.FC = () => {
       const payload = {
         tournament: {
           ...formData,
+          start_positions_per_hole: formData.start_positions_per_hole || null,
           entry_fee: Math.round(formData.entry_fee * 100),
           early_bird_fee: formData.early_bird_fee ? Math.round(formData.early_bird_fee * 100) : null,
           organization_id: organization?.id,
@@ -323,7 +335,7 @@ export const CreateTournamentPage: React.FC = () => {
                   error={errors.name}
                 />
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <InputField
                     label="Year"
                     name="year"
@@ -459,8 +471,38 @@ export const CreateTournamentPage: React.FC = () => {
                     max={4}
                     value={formData.team_size}
                   />
-                  
-                  <div className="flex items-center gap-3 pt-6">
+                  <InputField
+                    label="Teams Per Start Position"
+                    name="teams_per_start_position"
+                    type="number"
+                    min={1}
+                    max={4}
+                    value={formData.teams_per_start_position}
+                  />
+                  <InputField
+                    label="Start Positions Per Hole"
+                    name="start_positions_per_hole"
+                    type="number"
+                    min={1}
+                    max={26}
+                    value={formData.start_positions_per_hole}
+                    placeholder="Unlimited"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-600">
+                    {formData.team_size * formData.teams_per_start_position} players per start slot
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-600">
+                    {formData.start_positions_per_hole
+                      ? `${formData.team_size * formData.teams_per_start_position * Number(formData.start_positions_per_hole)} players per hole`
+                      : 'Unlimited pairings per hole'}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3 pt-2">
                     <input
                       type="checkbox"
                       name="shotgun_start"

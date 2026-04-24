@@ -14,11 +14,16 @@ class Sponsor < ApplicationRecord
   # Validations
   validates :name, presence: true
   validate :tier_must_be_valid
+  validate :course_key_must_exist_in_tournament, if: :hole_sponsor?
+  validate :hole_number_within_course_range, if: :hole_sponsor?
   validates :hole_number,
-            numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 18 },
+            numericality: { only_integer: true, greater_than: 0 },
             allow_nil: true
   validates :hole_number, presence: true, if: -> { tier == 'hole' }
+  validates :course_key, presence: true, if: -> { tier == 'hole' }
   validates :position, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+
+  before_validation :normalize_hole_assignment
 
   # Scopes
   scope :active, -> { where(active: true) }
@@ -26,7 +31,7 @@ class Sponsor < ApplicationRecord
   scope :ordered, -> { order(:tier, :position, :name) }
   scope :title_sponsors, -> { where(tier: 'title') }
   scope :major_sponsors, -> { where(tier: %w[title platinum gold]) }
-  scope :hole_sponsors, -> { where(tier: 'hole').order(:hole_number) }
+  scope :hole_sponsors, -> { where(tier: 'hole').order(:course_key, :hole_number, :position, :name) }
 
   def tier_display
     tier_def = tournament&.sponsor_tier_list&.find { |t| t['key'] == tier }
@@ -45,12 +50,20 @@ class Sponsor < ApplicationRecord
   end
 
   def hole_sponsor?
-    hole_number.present?
+    tier == 'hole'
+  end
+
+  def course_name
+    return nil unless course_key.present?
+
+    tournament&.course_name_for(course_key)
   end
 
   # Display label
   def display_label
-    hole_sponsor? ? "Hole #{hole_number}" : tier_display
+    return tier_display unless hole_sponsor? && course_key.present? && hole_number.present?
+
+    "#{course_name} #{hole_number}"
   end
 
   # Auto-sync SponsorSlot records when slot_count changes
@@ -115,11 +128,47 @@ class Sponsor < ApplicationRecord
 
   private
 
+  def normalize_hole_assignment
+    self.course_key = course_key.presence
+    self.hole_number = hole_number.presence
+
+    unless hole_sponsor?
+      self.course_key = nil
+      self.hole_number = nil
+      return
+    end
+
+    if course_key.blank? && tournament.present? && !tournament.multi_course_setup?
+      self.course_key = tournament.default_course_key
+    end
+  end
+
   def tier_must_be_valid
     return if tier.blank?
     allowed = tournament&.sponsor_tier_keys || DEFAULT_TIERS
     return if allowed.include?(tier)
     errors.add(:tier, "must be one of: #{allowed.join(', ')}")
+  end
+
+  def course_key_must_exist_in_tournament
+    return unless course_key.present? && tournament.present?
+    return if tournament.course_config_for(course_key).present?
+
+    errors.add(:course_key, "is not configured for this event")
+  end
+
+  def hole_number_within_course_range
+    return unless course_key.present? && hole_number.present? && tournament.present?
+    return if errors[:course_key].present?
+
+    max_holes = tournament.hole_count_for_course(course_key)
+    unless max_holes.positive?
+      errors.add(:course_key, "is not configured for a valid hole range")
+      return
+    end
+    return if hole_number <= max_holes
+
+    errors.add(:hole_number, "must be between 1 and #{max_holes} for #{course_name}")
   end
 
   def sync_sponsor_slots

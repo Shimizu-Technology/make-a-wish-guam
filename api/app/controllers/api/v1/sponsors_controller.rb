@@ -39,13 +39,16 @@ module Api
       end
 
       # GET /api/v1/tournaments/:tournament_id/sponsors/by_hole
-      # Public - get hole sponsors indexed by hole number
+      # Public - get hole sponsors indexed by course and hole number
       def by_hole
         hole_sponsors = @tournament.sponsors.active.hole_sponsors
 
-        by_hole = (1..18).each_with_object({}) do |hole, hash|
-          sponsor = hole_sponsors.find { |s| s.hole_number == hole }
-          hash[hole] = sponsor_response(sponsor) if sponsor
+        by_hole = @tournament.course_configs.each_with_object({}) do |course, hash|
+          holes = (1..course['hole_count'].to_i).each_with_object({}) do |hole, course_hash|
+            sponsor = hole_sponsors.find { |s| s.course_key == course['key'] && s.hole_number == hole }
+            course_hash[hole] = sponsor_response(sponsor) if sponsor
+          end
+          hash[course['key']] = holes if holes.any?
         end
 
         render json: { by_hole: by_hole }
@@ -164,7 +167,7 @@ module Api
       def sponsor_params
         params.require(:sponsor).permit(
           :name, :tier, :logo_url, :website_url, :description,
-          :hole_number, :position, :active, :login_email, :slot_count, :logo
+          :course_key, :hole_number, :position, :active, :login_email, :slot_count, :logo
         )
       end
 
@@ -186,6 +189,8 @@ module Api
           logo_url: logo,
           website_url: sponsor.website_url,
           description: sponsor.description,
+          course_key: sponsor.course_key,
+          course_name: sponsor.course_name,
           hole_number: sponsor.hole_number,
           position: sponsor.position,
           active: sponsor.active,

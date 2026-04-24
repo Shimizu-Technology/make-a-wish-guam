@@ -38,6 +38,15 @@ const QUEUE_CONFIG: { key: QueueTab; label: string; activeColor: string }[] = [
 const formatCurrency = (cents: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 
+const startingPositionSummary = (golfer: Pick<ApiGolfer, 'hole_position_label' | 'starting_hole_description'>) => {
+  if (!golfer.hole_position_label && !golfer.starting_hole_description) return null;
+
+  return {
+    label: golfer.hole_position_label ? `Start ${golfer.hole_position_label}` : 'Start assigned',
+    description: golfer.starting_hole_description || null,
+  };
+};
+
 export const OrgCheckInPage: React.FC = () => {
   const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
   const { organization } = useOrganization();
@@ -429,10 +438,15 @@ export const OrgCheckInPage: React.FC = () => {
                     {golfer.phone} &bull; {golfer.email}
                   </p>
                   {golfer.company && <p className="text-gray-400 text-[11px] sm:text-xs truncate">{golfer.company}</p>}
-                  {golfer.hole_position_label && (
-                    <div className="mt-1 flex items-center gap-1.5 text-[11px] text-brand-700 sm:text-xs">
-                      <Flag className="h-3.5 w-3.5 flex-shrink-0" />
-                      <span className="truncate">Start {golfer.hole_position_label}</span>
+                  {startingPositionSummary(golfer) && (
+                    <div className="mt-1 flex items-start gap-1.5 text-[11px] text-brand-700 sm:text-xs">
+                      <Flag className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="truncate">{startingPositionSummary(golfer)?.label}</div>
+                        {startingPositionSummary(golfer)?.description && (
+                          <div className="truncate text-brand-600/80">{startingPositionSummary(golfer)?.description}</div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -517,10 +531,15 @@ export const OrgCheckInPage: React.FC = () => {
                     <span className="text-gray-700">{selectedGolfer.company}</span>
                   </div>
                 )}
-                {selectedGolfer.hole_position_label && (
-                  <div className="flex items-center gap-3">
-                    <Flag className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <span className="text-gray-700">Start {selectedGolfer.hole_position_label}</span>
+                {startingPositionSummary(selectedGolfer) && (
+                  <div className="flex items-start gap-3">
+                    <Flag className="mt-0.5 w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-gray-700">{startingPositionSummary(selectedGolfer)?.label}</p>
+                      {startingPositionSummary(selectedGolfer)?.description && (
+                        <p className="text-xs text-gray-500">{startingPositionSummary(selectedGolfer)?.description}</p>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -648,8 +667,13 @@ export const OrgCheckInPage: React.FC = () => {
               {confirmingCheckIn.partner_name && (
                 <p className="text-gray-500 text-sm mt-1">Team: {confirmingCheckIn.name} & {confirmingCheckIn.partner_name}</p>
               )}
-              {confirmingCheckIn.hole_position_label && (
-                <p className="text-gray-400 text-xs mt-1">Start {confirmingCheckIn.hole_position_label}</p>
+              {startingPositionSummary(confirmingCheckIn) && (
+                <>
+                  <p className="text-gray-400 text-xs mt-1">{startingPositionSummary(confirmingCheckIn)?.label}</p>
+                  {startingPositionSummary(confirmingCheckIn)?.description && (
+                    <p className="text-gray-400 text-xs">{startingPositionSummary(confirmingCheckIn)?.description}</p>
+                  )}
+                </>
               )}
             </div>
             <div className="flex border-t border-gray-200">
@@ -697,9 +721,9 @@ export const OrgCheckInPage: React.FC = () => {
               ) : (
                 <span className="text-xs px-2.5 py-1 rounded-full bg-amber-400/30 text-white font-medium">Payment Pending</span>
               )}
-              {selectedGolfer.hole_position_label && (
+              {startingPositionSummary(selectedGolfer) && (
                 <span className="text-xs px-2.5 py-1 rounded-full bg-white/15 text-white font-medium">
-                  Start {selectedGolfer.hole_position_label}
+                  {startingPositionSummary(selectedGolfer)?.label}
                 </span>
               )}
             </div>
@@ -736,6 +760,18 @@ export const OrgCheckInPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <span className="text-gray-700 text-sm">{selectedGolfer.company}</span>
+              </div>
+            )}
+
+            {startingPositionSummary(selectedGolfer) && (
+              <div className="flex items-start gap-3">
+                <Flag className="mt-0.5 w-4 h-4 text-gray-400 flex-shrink-0" />
+                <div>
+                  <p className="text-gray-700 text-sm">{startingPositionSummary(selectedGolfer)?.label}</p>
+                  {startingPositionSummary(selectedGolfer)?.description && (
+                    <p className="text-xs text-gray-500">{startingPositionSummary(selectedGolfer)?.description}</p>
+                  )}
+                </div>
               </div>
             )}
 

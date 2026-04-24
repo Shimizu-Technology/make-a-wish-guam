@@ -29,7 +29,10 @@ export interface Sponsor {
   logo_url?: string;
   website_url?: string;
   description?: string;
+  course_key?: string | null;
+  course_name?: string | null;
   hole_number?: number;
+  display_label?: string;
   major: boolean;
 }
 
@@ -95,6 +98,11 @@ export interface Tournament {
   tournament_format?: 'scramble' | 'stroke' | 'stableford' | 'best_ball' | 'match' | 'captain_choice' | 'custom';
   scoring_type?: 'gross' | 'net' | 'both' | 'stableford';
   team_size?: number;
+  teams_per_start_position?: number;
+  start_positions_per_hole?: number;
+  players_per_start_position?: number;
+  teams_per_hole?: number;
+  players_per_hole?: number;
   allow_partial_teams?: boolean;
   handicap_required?: boolean;
   handicap_max?: number;

@@ -71,7 +71,10 @@ module Api
             logo_url: logo,
             website_url: s.website_url,
             description: s.description,
+            course_key: s.course_key,
+            course_name: s.course_name,
             hole_number: s.hole_number,
+            display_label: s.display_label,
             major: s.major?
           }
         end
@@ -258,6 +261,17 @@ module Api
           courses = Array(attrs.delete('course_configs')).map(&:to_h)
           attrs['config'] = (attrs['config'] || {}).merge('course_configs' => courses)
           attrs['total_holes'] = courses.sum { |course| course['hole_count'].to_i }
+        end
+        if attrs.key?('teams_per_start_position')
+          attrs['config'] = (attrs['config'] || {}).merge(
+            'teams_per_start_position' => attrs.delete('teams_per_start_position').to_i
+          )
+        end
+        if attrs.key?('start_positions_per_hole')
+          value = attrs.delete('start_positions_per_hole')
+          attrs['config'] = (attrs['config'] || {}).merge(
+            'start_positions_per_hole' => value.present? ? value.to_i : nil
+          ).compact
         end
 
         tournament = organization.tournaments.build(attrs)
@@ -678,7 +692,7 @@ module Api
           :name, :year, :edition, :status, :slug,
           :event_date, :registration_time, :start_time, :check_in_time,
           :location_name, :location_address,
-          :tournament_format, :scoring_type, :team_size, :shotgun_start,
+          :tournament_format, :scoring_type, :team_size, :teams_per_start_position, :start_positions_per_hole, :shotgun_start,
           :max_capacity, :reserved_slots, :waitlist_enabled, :waitlist_max,
           :entry_fee, :early_bird_fee, :early_bird_deadline,
           :allow_cash, :allow_check, :allow_card, :checks_payable_to, :payment_instructions,

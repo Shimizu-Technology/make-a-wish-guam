@@ -9,6 +9,7 @@ class Group < ApplicationRecord
   validate :starting_position_is_consistent
   validate :starting_course_exists_in_tournament
   validate :hole_number_within_course_range
+  validate :start_position_capacity_not_exceeded
 
   before_validation :normalize_starting_position
 
@@ -40,8 +41,33 @@ class Group < ApplicationRecord
       .first
   end
 
+  def self.for_start_position(tournament:, course_key:, hole_number:)
+    for_tournament(tournament.id)
+      .where(starting_course_key: course_key, hole_number: hole_number)
+      .order(:group_number)
+  end
+
+  def self.available_slot_for(tournament:, course_key:, hole_number:, incoming_players:, exclude_group_id: nil)
+    groups_at_start = for_start_position(tournament: tournament, course_key: course_key, hole_number: hole_number)
+    groups_at_start = groups_at_start.where.not(id: exclude_group_id) if exclude_group_id.present?
+
+    groups = groups_at_start.includes(:golfers).to_a
+
+    groups.find { |group| group.golfers.any? && group.player_count + incoming_players <= group.max_golfers } ||
+      groups.find { |group| group.golfers.empty? && incoming_players <= group.max_golfers }
+  end
+
+  def self.start_position_available?(tournament:, course_key:, hole_number:, exclude_group_id: nil)
+    return true unless tournament.start_positions_per_hole.present?
+
+    groups_at_start = for_start_position(tournament: tournament, course_key: course_key, hole_number: hole_number)
+    groups_at_start = groups_at_start.where.not(id: exclude_group_id) if exclude_group_id.present?
+
+    groups_at_start.count < tournament.start_positions_per_hole
+  end
+
   def max_golfers
-    tournament&.team_size || MAX_GOLFERS_DEFAULT
+    tournament&.players_per_start_position || MAX_GOLFERS_DEFAULT
   end
 
   def assigned_start?
@@ -173,6 +199,22 @@ class Group < ApplicationRecord
     return if hole_number <= max_holes
 
     errors.add(:hole_number, "must be between 1 and #{max_holes} for #{starting_course_name}")
+  end
+
+  def start_position_capacity_not_exceeded
+    return unless starting_course_key.present? && hole_number.present? && tournament.present?
+    return unless tournament.start_positions_per_hole.present?
+
+    groups_at_start = Group.where(
+      tournament_id: tournament_id,
+      starting_course_key: starting_course_key,
+      hole_number: hole_number
+    )
+    groups_at_start = groups_at_start.where.not(id: id) if persisted?
+
+    return if groups_at_start.count < tournament.start_positions_per_hole
+
+    errors.add(:base, "Only #{tournament.start_positions_per_hole} start positions are allowed on this hole")
   end
 
   def reorder_positions

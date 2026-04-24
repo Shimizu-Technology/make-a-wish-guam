@@ -45,11 +45,22 @@ module Api
         require_org_admin!(organization)
         return if performed?
 
-        attrs = tournament_params.except(:organization_id, :course_configs)
+        attrs = tournament_params.except(:organization_id, :course_configs, :teams_per_start_position, :start_positions_per_hole)
         if params[:tournament]&.key?(:course_configs)
           courses = Array(tournament_params[:course_configs]).map(&:to_h)
           attrs[:config] = (attrs[:config] || {}).merge('course_configs' => courses)
           attrs[:total_holes] = courses.sum { |course| course['hole_count'].to_i }
+        end
+        if params[:tournament]&.key?(:teams_per_start_position)
+          attrs[:config] = (attrs[:config] || {}).merge(
+            'teams_per_start_position' => tournament_params[:teams_per_start_position].to_i
+          )
+        end
+        if params[:tournament]&.key?(:start_positions_per_hole)
+          value = tournament_params[:start_positions_per_hole]
+          attrs[:config] = (attrs[:config] || {}).merge(
+            'start_positions_per_hole' => value.present? ? value.to_i : nil
+          ).compact
         end
 
         tournament = organization.tournaments.new(attrs)
@@ -71,7 +82,7 @@ module Api
       def update
         attrs = tournament_params.except(:organization_id, :sponsor_tiers,
                                          :raffle_include_with_registration, :raffle_bundles,
-                                         :course_configs)
+                                         :course_configs, :teams_per_start_position, :start_positions_per_hole)
 
         merged_config = (@tournament.config || {}).deep_dup
 
@@ -93,6 +104,17 @@ module Api
           courses = Array(tournament_params[:course_configs]).map(&:to_h)
           merged_config['course_configs'] = courses
           attrs[:total_holes] = courses.sum { |course| course['hole_count'].to_i }
+        end
+        if params[:tournament]&.key?(:teams_per_start_position)
+          merged_config['teams_per_start_position'] = tournament_params[:teams_per_start_position].to_i
+        end
+        if params[:tournament]&.key?(:start_positions_per_hole)
+          value = tournament_params[:start_positions_per_hole]
+          if value.present?
+            merged_config['start_positions_per_hole'] = value.to_i
+          else
+            merged_config.delete('start_positions_per_hole')
+          end
         end
 
         attrs[:config] = merged_config if merged_config != @tournament.config
@@ -206,7 +228,7 @@ module Api
           :name, :year, :edition, :status,
           :event_date, :registration_time, :start_time,
           :location_name, :location_address,
-          :tournament_format, :team_size,
+          :tournament_format, :team_size, :teams_per_start_position, :start_positions_per_hole,
           :max_capacity, :reserved_slots, :entry_fee, :employee_entry_fee,
           :format_name, :fee_includes, :checks_payable_to,
           :contact_name, :contact_phone, :contact_email,

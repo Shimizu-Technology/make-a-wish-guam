@@ -4,7 +4,7 @@ module Api
       class PlacementError < StandardError; end
 
       before_action :authorize_collection_tournament_access!, only: [:index, :create, :batch_create, :auto_assign, :place_golfer]
-      before_action :authorize_group_access!, only: [:show, :update, :destroy, :set_hole, :add_golfer, :remove_golfer]
+      before_action :authorize_group_access!, only: [:show, :update, :destroy, :set_hole, :add_golfer, :merge_into, :remove_golfer]
       before_action :authorize_update_positions_access!, only: [:update_positions]
 
       # GET /api/v1/groups
@@ -48,7 +48,7 @@ module Api
           metadata: group_metadata(group)
         )
         broadcast_groups_update(tournament)
-        render json: group, status: :created
+        render json: serialize_group_payload(group), status: :created
       rescue ActiveRecord::RecordInvalid => e
         render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
@@ -69,7 +69,7 @@ module Api
             )
           end
           broadcast_groups_update(group.tournament)
-          render json: group, include: "golfers"
+          render json: serialize_group_payload(group)
         else
           render json: { errors: group.errors.full_messages }, status: :unprocessable_entity
         end
@@ -127,20 +127,56 @@ module Api
         label_changes = {}
 
         ActiveRecord::Base.transaction do
+          tournament.lock!
+          group = Group.lock.includes(:golfers, :tournament).find(params[:id])
           label_changes = tracked_label_changes(tournament, positions_to_track)
 
-          unless group.update(attributes)
+          merge_target = nil
+          if !placement_mode_new_pairing? &&
+             attributes[:starting_course_key].present? &&
+             attributes[:hole_number].present? &&
+             group.golfers.any?
+            groups_at_target_start = Group.lock
+                                          .includes(:golfers)
+                                          .for_start_position(
+                                            tournament: tournament,
+                                            course_key: attributes[:starting_course_key],
+                                            hole_number: attributes[:hole_number]
+                                          )
+                                          .where.not(id: group.id)
+                                          .to_a
+
+            merge_target = available_slot_from_groups(groups_at_target_start, group.player_count)
+
+            if merge_target.nil? &&
+               !start_position_available_from_groups?(tournament, groups_at_target_start)
+              raise PlacementError, start_position_limit_error(
+                tournament,
+                attributes[:starting_course_key],
+                attributes[:hole_number]
+              )
+            end
+          end
+
+          if merge_target
+            merge_groups!(source_group: group, target_group: merge_target)
+            removed_group_id = group.id
+            response_payload = serialize_group_payload(merge_target).merge(
+              removed_group_id: removed_group_id,
+              merged: true
+            )
+          elsif !group.update(attributes)
             raise ActiveRecord::RecordInvalid, group
           end
 
-          if !group.assigned_start? && group.empty_slot?
+          if !merge_target && !group.assigned_start? && group.empty_slot?
             removed_group_id = group.id
             group.scores.destroy_all
             group.destroy!
             deleted = true
             response_payload = { removed_group_id: removed_group_id, deleted: true }
-          else
-            response_payload = ActiveModelSerializers::SerializableResource.new(group, include: "golfers").as_json
+          elsif !merge_target
+            response_payload = serialize_group_payload(group)
           end
         end
 
@@ -159,6 +195,8 @@ module Api
         )
         broadcast_groups_update(tournament)
         render json: response_payload
+      rescue PlacementError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       rescue ActiveRecord::RecordInvalid => e
         render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
@@ -208,9 +246,60 @@ module Api
           )
         )
         broadcast_groups_update(group.tournament)
-        render json: group, include: "golfers"
+        render json: serialize_group_payload(group)
       rescue PlacementError => e
         render json: { error: e.message }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
+      end
+
+      # POST /api/v1/groups/:id/merge_into
+      def merge_into
+        source_group = nil
+        target_group = nil
+        tournament = nil
+        positions_to_track = []
+        label_changes = {}
+        removed_group_id = nil
+
+        ActiveRecord::Base.transaction do
+          locked_groups = Group.lock.includes(:golfers).where(id: [params[:id], params[:target_group_id]]).order(:id).to_a
+          source_group = locked_groups.find { |group| group.id == params[:id].to_i }
+          target_group = locked_groups.find { |group| group.id == params[:target_group_id].to_i }
+
+          raise ActiveRecord::RecordNotFound unless source_group && target_group
+          raise PlacementError, "Source and target pairings must be different" if source_group.id == target_group.id
+          raise PlacementError, "Groups must belong to the same tournament" if source_group.tournament_id != target_group.tournament_id
+          raise PlacementError, "Source pairing has no teams to merge" if source_group.golfers.empty?
+
+          incoming_players = source_group.player_count
+          unless target_group.player_count + incoming_players <= target_group.max_golfers
+            raise PlacementError, "Target pairing is full"
+          end
+
+          tournament = source_group.tournament
+          positions_to_track = [starting_position_key(source_group), starting_position_key(target_group)]
+          removed_group_id = source_group.id
+          label_changes = tracked_label_changes(tournament, positions_to_track)
+          merge_groups!(source_group: source_group, target_group: target_group)
+        end
+
+        log_starting_position_adjustments(
+          tournament: tournament,
+          positions: positions_to_track,
+          previous_labels: label_changes,
+          excluded_group_ids: [target_group.id]
+        )
+        broadcast_groups_update(tournament)
+
+        render json: serialize_group_payload(target_group).merge(
+          removed_group_id: removed_group_id,
+          merged: true
+        )
+      rescue PlacementError => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Group not found" }, status: :not_found
       rescue ActiveRecord::RecordInvalid => e
         render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
@@ -272,7 +361,7 @@ module Api
           if group_deleted
             render json: { removed_group_id: removed_group_id, deleted: true }
           else
-            render json: group, include: "golfers"
+            render json: serialize_group_payload(group)
           end
         else
           render json: { errors: golfer.errors.full_messages }, status: :unprocessable_entity
@@ -326,7 +415,10 @@ module Api
         created_group = false
 
         ActiveRecord::Base.transaction do
+          tournament.lock!
           golfer = tournament.golfers.lock.find(params[:golfer_id])
+          incoming_players = golfer.partner_name.present? ? 2 : 1
+          groups_at_start = []
 
           raise PlacementError, "Golfer is already assigned to a group" if golfer.group_id.present?
           raise PlacementError, "Cannot add cancelled golfer to a group" if golfer.registration_status == "cancelled"
@@ -334,13 +426,30 @@ module Api
             raise PlacementError, "Cannot add waitlist golfer to a group. Promote them to confirmed first."
           end
 
-          group = Group.reusable_slot_for(
-            tournament: tournament,
-            course_key: attributes[:starting_course_key],
-            hole_number: attributes[:hole_number]
-          )
+          if attributes[:starting_course_key].present? && attributes[:hole_number].present?
+            groups_at_start = Group.lock
+                                  .includes(:golfers)
+                                  .for_start_position(
+                                    tournament: tournament,
+                                    course_key: attributes[:starting_course_key],
+                                    hole_number: attributes[:hole_number]
+                                  )
+                                  .to_a
+          end
+
+          unless placement_mode_new_pairing?
+            group = available_slot_from_groups(groups_at_start, incoming_players)
+          end
 
           unless group
+            unless start_position_available_from_groups?(tournament, groups_at_start)
+              raise PlacementError, start_position_limit_error(
+                tournament,
+                attributes[:starting_course_key],
+                attributes[:hole_number]
+              )
+            end
+
             created_group = true
             group = tournament.groups.create!(
               group_number: allocate_next_group_number!(tournament),
@@ -376,7 +485,7 @@ module Api
         end
 
         broadcast_groups_update(tournament)
-        render json: group, include: "golfers", status: :created
+        render json: serialize_group_payload(group), status: :created
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Golfer not found" }, status: :not_found
       rescue PlacementError => e
@@ -537,6 +646,26 @@ module Api
         resolved
       end
 
+      def start_position_limit_error(tournament, course_key, hole_number)
+        "#{tournament.starting_hole_description(course_key, hole_number)} already has #{tournament.start_positions_per_hole} pairing#{tournament.start_positions_per_hole == 1 ? '' : 's'}"
+      end
+
+      def merge_groups!(source_group:, target_group:)
+        next_position = target_group.golfers.maximum(:position).to_i
+
+        source_group.golfers.order(:position).each do |golfer|
+          next_position += 1
+          raise ActiveRecord::RecordInvalid, golfer unless golfer.assign_to_group(group: target_group, position: next_position)
+        end
+
+        source_group.scores.destroy_all
+        source_group.destroy!
+      end
+
+      def placement_mode_new_pairing?
+        params[:placement_mode].to_s == "new_pairing"
+      end
+
       def starting_position_params_for(tournament)
         course_key = params[:starting_course_key].presence
         hole_number = params[:hole_number].presence&.to_i
@@ -620,6 +749,23 @@ module Api
         return nil unless attributes[:starting_course_key].present? && attributes[:hole_number].present?
 
         [attributes[:starting_course_key], attributes[:hole_number]]
+      end
+
+      def serialize_group_payload(group)
+        fresh_group = Group.includes(:golfers, :tournament).find(group.id)
+        preload_group_position_letters([fresh_group])
+        ActiveModelSerializers::SerializableResource.new(fresh_group, include: "golfers").as_json
+      end
+
+      def available_slot_from_groups(groups, incoming_players)
+        groups.find { |group| group.golfers.any? && group.player_count + incoming_players <= group.max_golfers } ||
+          groups.find { |group| group.golfers.empty? && incoming_players <= group.max_golfers }
+      end
+
+      def start_position_available_from_groups?(tournament, groups_at_start)
+        return true unless tournament.start_positions_per_hole.present?
+
+        groups_at_start.length < tournament.start_positions_per_hole
       end
 
       def broadcast_groups_update(tournament)
