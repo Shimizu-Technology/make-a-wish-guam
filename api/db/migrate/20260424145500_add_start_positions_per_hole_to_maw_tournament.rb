@@ -1,25 +1,45 @@
 class AddStartPositionsPerHoleToMawTournament < ActiveRecord::Migration[8.1]
-  def up
-    organization = Organization.find_by(slug: "make-a-wish-guam")
-    return unless organization
+  class MigrationOrganization < ActiveRecord::Base
+    self.table_name = "organizations"
+  end
 
-    tournament = organization.tournaments.find_by(slug: "golf-for-wishes-2026")
+  class MigrationTournament < ActiveRecord::Base
+    self.table_name = "tournaments"
+  end
+
+  def up
+    organization_id = MigrationOrganization.where(slug: "make-a-wish-guam").pick(:id)
+    return unless organization_id
+
+    tournament = MigrationTournament.find_by(
+      organization_id: organization_id,
+      slug: "golf-for-wishes-2026"
+    )
     return unless tournament
 
     config = (tournament.config || {}).deep_stringify_keys
     config["start_positions_per_hole"] = 2
-    tournament.update_columns(config: config, updated_at: Time.current)
+    MigrationTournament.where(id: tournament.id).update_all(
+      config: config,
+      updated_at: Time.current
+    )
   end
 
   def down
-    organization = Organization.find_by(slug: "make-a-wish-guam")
-    return unless organization
+    organization_id = MigrationOrganization.where(slug: "make-a-wish-guam").pick(:id)
+    return unless organization_id
 
-    tournament = organization.tournaments.find_by(slug: "golf-for-wishes-2026")
+    tournament = MigrationTournament.find_by(
+      organization_id: organization_id,
+      slug: "golf-for-wishes-2026"
+    )
     return unless tournament
 
     config = (tournament.config || {}).deep_stringify_keys
     config.delete("start_positions_per_hole")
-    tournament.update_columns(config: config, updated_at: Time.current)
+    MigrationTournament.where(id: tournament.id).update_all(
+      config: config,
+      updated_at: Time.current
+    )
   end
 end

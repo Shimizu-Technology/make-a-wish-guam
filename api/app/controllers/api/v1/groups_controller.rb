@@ -254,36 +254,31 @@ module Api
 
       # POST /api/v1/groups/:id/merge_into
       def merge_into
-        source_group = Group.lock.includes(:golfers).find(params[:id])
-        target_group = Group.lock.includes(:golfers).find(params[:target_group_id])
-
-        if source_group.id == target_group.id
-          render json: { error: "Source and target pairings must be different" }, status: :unprocessable_entity
-          return
-        end
-
-        if source_group.tournament_id != target_group.tournament_id
-          render json: { error: "Groups must belong to the same tournament" }, status: :unprocessable_entity
-          return
-        end
-
-        if source_group.golfers.empty?
-          render json: { error: "Source pairing has no teams to merge" }, status: :unprocessable_entity
-          return
-        end
-
-        incoming_players = source_group.player_count
-        unless target_group.player_count + incoming_players <= target_group.max_golfers
-          render json: { error: "Target pairing is full" }, status: :unprocessable_entity
-          return
-        end
-
-        tournament = source_group.tournament
-        positions_to_track = [starting_position_key(source_group), starting_position_key(target_group)]
+        source_group = nil
+        target_group = nil
+        tournament = nil
+        positions_to_track = []
         label_changes = {}
-        removed_group_id = source_group.id
+        removed_group_id = nil
 
         ActiveRecord::Base.transaction do
+          locked_groups = Group.lock.includes(:golfers).where(id: [params[:id], params[:target_group_id]]).order(:id).to_a
+          source_group = locked_groups.find { |group| group.id == params[:id].to_i }
+          target_group = locked_groups.find { |group| group.id == params[:target_group_id].to_i }
+
+          raise ActiveRecord::RecordNotFound unless source_group && target_group
+          raise PlacementError, "Source and target pairings must be different" if source_group.id == target_group.id
+          raise PlacementError, "Groups must belong to the same tournament" if source_group.tournament_id != target_group.tournament_id
+          raise PlacementError, "Source pairing has no teams to merge" if source_group.golfers.empty?
+
+          incoming_players = source_group.player_count
+          unless target_group.player_count + incoming_players <= target_group.max_golfers
+            raise PlacementError, "Target pairing is full"
+          end
+
+          tournament = source_group.tournament
+          positions_to_track = [starting_position_key(source_group), starting_position_key(target_group)]
+          removed_group_id = source_group.id
           label_changes = tracked_label_changes(tournament, positions_to_track)
           merge_groups!(source_group: source_group, target_group: target_group)
         end
@@ -300,6 +295,8 @@ module Api
           removed_group_id: removed_group_id,
           merged: true
         )
+      rescue PlacementError => e
+        render json: { error: e.message }, status: :unprocessable_entity
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Group not found" }, status: :not_found
       rescue ActiveRecord::RecordInvalid => e
