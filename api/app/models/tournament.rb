@@ -111,6 +111,34 @@ class Tournament < ApplicationRecord
     course_configs.length > 1
   end
 
+  def teams_per_start_position
+    configured = config&.dig('teams_per_start_position').to_i
+    configured.positive? ? configured : 1
+  end
+
+  def start_positions_per_hole
+    return nil unless config.is_a?(Hash) && config.deep_stringify_keys.key?('start_positions_per_hole')
+
+    configured = config.deep_stringify_keys['start_positions_per_hole'].to_i
+    configured.positive? ? configured : nil
+  end
+
+  def players_per_start_position
+    (team_size.presence || Group::MAX_GOLFERS_DEFAULT) * teams_per_start_position
+  end
+
+  def teams_per_hole
+    return nil unless start_positions_per_hole.present?
+
+    teams_per_start_position * start_positions_per_hole
+  end
+
+  def players_per_hole
+    return nil unless start_positions_per_hole.present?
+
+    players_per_start_position * start_positions_per_hole
+  end
+
   def starting_position_prefix(course_key)
     return nil unless multi_course_setup?
 
@@ -137,6 +165,8 @@ class Tournament < ApplicationRecord
   validates :tournament_format, inclusion: { in: FORMATS }, allow_nil: true
   validates :scoring_type, inclusion: { in: SCORING_TYPES }, allow_nil: true
   validates :team_size, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: 4 }, allow_nil: true
+  validate :teams_per_start_position_is_valid
+  validate :start_positions_per_hole_is_valid
   
   # Alias for backwards compatibility with 'format_name' column
   def format
@@ -405,6 +435,28 @@ class Tournament < ApplicationRecord
 
   def course_configs_are_valid
     validate_raw_course_configs_input if @course_configs_input_present
+  end
+
+  def teams_per_start_position_is_valid
+    return unless config.is_a?(Hash) && config.deep_stringify_keys.key?('teams_per_start_position')
+
+    value = config.deep_stringify_keys['teams_per_start_position']
+    numeric = value.to_i
+    return if value.to_s == numeric.to_s && numeric.positive? && numeric <= 4
+
+    errors.add(:config, 'Teams per start position must be an integer between 1 and 4')
+  end
+
+  def start_positions_per_hole_is_valid
+    return unless config.is_a?(Hash) && config.deep_stringify_keys.key?('start_positions_per_hole')
+
+    value = config.deep_stringify_keys['start_positions_per_hole']
+    return if value.blank?
+
+    numeric = value.to_i
+    return if value.to_s == numeric.to_s && numeric.positive? && numeric <= 26
+
+    errors.add(:config, 'Start positions per hole must be blank or an integer between 1 and 26')
   end
 
   def validate_raw_course_configs_input

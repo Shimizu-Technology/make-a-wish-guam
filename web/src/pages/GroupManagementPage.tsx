@@ -175,6 +175,36 @@ const golferToGroupGolfer = (golfer: UnassignedGolfer): GroupGolfer => ({
   checked_in_at: null,
 });
 
+const playerCountForEntry = (entry: Pick<UnassignedGolfer, 'partner_name'>) => (entry.partner_name ? 2 : 1);
+
+const maxTeamsForSlot = (maxGolfers: number, teamSize: number) => {
+  if (teamSize <= 0) return null;
+  return Math.max(1, Math.floor(maxGolfers / teamSize));
+};
+
+const pairingStatusLabel = ({
+  teamCount,
+  maxGolfers,
+  playerCount,
+  teamSize,
+  suffix,
+}: {
+  teamCount: number;
+  maxGolfers: number;
+  playerCount: number;
+  teamSize: number;
+  suffix?: string;
+}) => {
+  const maxTeams = maxTeamsForSlot(maxGolfers, teamSize);
+
+  if (!maxTeams || maxTeams === 1) {
+    return `${playerCount} / ${maxGolfers} players${suffix ? ` ${suffix}` : ''}`;
+  }
+
+  const teamLabel = `${teamCount} of ${maxTeams} team${maxTeams === 1 ? '' : 's'}`;
+  return `${teamLabel}${suffix ? ` ${suffix}` : ''}`;
+};
+
 const groupGolferToUnassigned = (golfer: GroupGolfer): UnassignedGolfer => ({
   id: golfer.id,
   name: golfer.name,
@@ -222,7 +252,8 @@ const DroppableGroupZone: React.FC<{
   groupId: number;
   isOver: boolean;
   canDrop: boolean;
-}> = ({ groupId, isOver, canDrop }) => {
+  label?: string;
+}> = ({ groupId, isOver, canDrop, label }) => {
   const { setNodeRef } = useDroppable({ id: groupDropId(groupId) });
 
   return (
@@ -234,7 +265,7 @@ const DroppableGroupZone: React.FC<{
           : 'border-neutral-200 text-neutral-400 hover:border-brand-300 hover:text-brand-500'
       }`}
     >
-      {isOver && canDrop ? 'Drop to pair here' : 'Drop a team into this slot'}
+      {isOver && canDrop ? 'Drop to pair here' : label || 'Drop a team into this pairing'}
     </div>
   );
 };
@@ -244,7 +275,8 @@ const DroppableHoleZone: React.FC<{
   holeNumber: number;
   isOver: boolean;
   compact?: boolean;
-}> = ({ courseKey, holeNumber, isOver, compact = false }) => {
+  label?: string;
+}> = ({ courseKey, holeNumber, isOver, compact = false, label }) => {
   const { setNodeRef } = useDroppable({ id: holeDropId(courseKey, holeNumber) });
 
   return (
@@ -258,7 +290,7 @@ const DroppableHoleZone: React.FC<{
           : 'border-neutral-200 bg-neutral-50 text-neutral-400 hover:border-brand-300 hover:text-brand-500'
       }`}
     >
-      {isOver ? 'Drop to place on this hole' : 'Drag a team here'}
+      {isOver ? 'Drop to place on this hole' : label || 'Assign team to this hole'}
     </div>
   );
 };
@@ -266,8 +298,10 @@ const DroppableHoleZone: React.FC<{
 const HolePlacementPicker: React.FC<{
   items: PlacementQueueItem[];
   disabled?: boolean;
+  emptyLabel?: string;
+  placeholder?: string;
   onSelect: (itemId: string) => void;
-}> = ({ items, disabled = false, onSelect }) => (
+}> = ({ items, disabled = false, emptyLabel = 'No teams awaiting placement', placeholder = 'Assign awaiting team...', onSelect }) => (
   <select
     defaultValue=""
     onChange={(event) => {
@@ -280,7 +314,7 @@ const HolePlacementPicker: React.FC<{
     className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-neutral-100"
   >
     <option value="">
-      {items.length === 0 ? 'No teams awaiting placement' : 'Assign awaiting team...'}
+      {items.length === 0 ? emptyLabel : placeholder}
     </option>
     {items.map((item) => (
       <option key={item.id} value={item.id}>
@@ -312,6 +346,8 @@ export const GroupManagementPage: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [unassigned, setUnassigned] = useState<UnassignedGolfer[]>([]);
   const [courseConfigs, setCourseConfigs] = useState<CourseConfig[]>(DEFAULT_COURSE_CONFIGS);
+  const [teamSize, setTeamSize] = useState(2);
+  const [startPositionsPerHole, setStartPositionsPerHole] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [tournamentId, setTournamentId] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -351,6 +387,11 @@ export const GroupManagementPage: React.FC = () => {
       const nextTournamentId = tournament.id;
 
       setTournamentId(nextTournamentId);
+      setTeamSize(Math.max(1, parseInt(String(tournament.team_size || 2), 10) || 2));
+      const rawStartPositionsPerHole = tournament.start_positions_per_hole;
+      setStartPositionsPerHole(
+        rawStartPositionsPerHole == null ? null : Math.max(1, parseInt(String(rawStartPositionsPerHole), 10) || 1)
+      );
       setCourseConfigs(
         tournament.course_configs?.length ? tournament.course_configs : DEFAULT_COURSE_CONFIGS
       );
@@ -403,7 +444,13 @@ export const GroupManagementPage: React.FC = () => {
       kind: 'group',
       title: groupQueueTitle(group),
       subtitle: groupQueueSubtitle(group),
-      meta: `${group.player_count ?? group.golfer_count} / ${group.max_golfers || 2} players waiting for a hole`,
+      meta: pairingStatusLabel({
+        teamCount: group.golfer_count,
+        maxGolfers: group.max_golfers || 2,
+        playerCount: group.player_count ?? group.golfer_count,
+        teamSize,
+        suffix: 'awaiting a hole',
+      }),
       searchText: [
         groupQueueTitle(group),
         groupQueueSubtitle(group),
@@ -420,7 +467,7 @@ export const GroupManagementPage: React.FC = () => {
       kind: 'golfer',
       title: teamTitle(golfer),
       subtitle: teamSubtitle(golfer),
-      meta: golfer.email,
+      meta: `${playerCountForEntry(golfer)} / ${teamSize} players${golfer.email ? ` · ${golfer.email}` : ''}`,
       searchText: [golfer.name, golfer.partner_name, golfer.team_name, golfer.email]
         .filter(Boolean)
         .join(' ')
@@ -429,7 +476,7 @@ export const GroupManagementPage: React.FC = () => {
     }));
 
     return [...stagedItems, ...golferItems];
-  }, [stagedGroups, unassigned]);
+  }, [stagedGroups, teamSize, unassigned]);
 
   const placementQueueItems = useMemo(() => {
     if (!searchTerm) return allPlacementQueueItems;
@@ -487,10 +534,38 @@ export const GroupManagementPage: React.FC = () => {
     );
   }, [courseMap]);
 
+  const mergeGroupLocally = useCallback((sourceGroupId: number, targetGroupId: number) => {
+    setGroups((previousGroups) => {
+      const sourceGroup = previousGroups.find((group) => group.id === sourceGroupId);
+      const targetGroup = previousGroups.find((group) => group.id === targetGroupId);
+      if (!sourceGroup || !targetGroup) return previousGroups;
+
+      const mergedGolfers = [...targetGroup.golfers, ...sourceGroup.golfers];
+      const mergedPlayerCount =
+        (targetGroup.player_count ?? targetGroup.golfer_count) + (sourceGroup.player_count ?? sourceGroup.golfer_count);
+
+      return previousGroups
+        .filter((group) => group.id !== sourceGroupId)
+        .map((group) =>
+          group.id === targetGroupId
+            ? {
+                ...group,
+                golfers: mergedGolfers,
+                golfer_count: mergedGolfers.length,
+                player_count: mergedPlayerCount,
+                is_full: mergedPlayerCount >= (group.max_golfers || 2),
+              }
+            : group
+        )
+        .sort((a, b) => a.group_number - b.group_number);
+    });
+  }, []);
+
   const updateGroupStart = useCallback(async (
     groupId: number,
     startingCourseKey: string | null,
-    holeNumber: number | null
+    holeNumber: number | null,
+    options?: { placementMode?: 'new_pairing'; optimistic?: boolean }
   ) => {
     setActionLoading(`start-${groupId}`);
 
@@ -502,6 +577,7 @@ export const GroupManagementPage: React.FC = () => {
         body: JSON.stringify({
           starting_course_key: startingCourseKey,
           hole_number: holeNumber,
+          placement_mode: options?.placementMode,
         }),
       });
 
@@ -511,6 +587,14 @@ export const GroupManagementPage: React.FC = () => {
       }
 
       const payload = await response.json();
+      if (payload?.removed_group_id && payload?.id) {
+        setGroups((previousGroups) =>
+          previousGroups.filter((group) => group.id !== payload.removed_group_id)
+        );
+        replaceGroupLocally(payload as Group);
+        return;
+      }
+
       if (payload?.removed_group_id) {
         setGroups((previousGroups) => previousGroups.filter((group) => group.id !== payload.removed_group_id));
         return;
@@ -524,6 +608,40 @@ export const GroupManagementPage: React.FC = () => {
       setActionLoading(null);
     }
   }, [authHeaders, fetchData, replaceGroupLocally]);
+
+  const mergeGroupIntoGroup = useCallback(async (sourceGroupId: number, targetGroupId: number) => {
+    const sourceGroup = groups.find((group) => group.id === sourceGroupId);
+    const targetGroup = groups.find((group) => group.id === targetGroupId);
+    if (!sourceGroup || !targetGroup) return;
+
+    setActionLoading(`merge-${sourceGroupId}-${targetGroupId}`);
+    mergeGroupLocally(sourceGroupId, targetGroupId);
+
+    try {
+      const headers = await authHeaders();
+      const response = await fetch(`${API}/api/v1/groups/${sourceGroupId}/merge_into`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ target_group_id: targetGroupId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || data.errors?.[0] || 'Failed to merge pairing');
+      }
+
+      const payload = await response.json();
+      if (payload?.removed_group_id) {
+        setGroups((previousGroups) => previousGroups.filter((group) => group.id !== payload.removed_group_id));
+      }
+      replaceGroupLocally(payload as Group);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed');
+      fetchData(false);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [authHeaders, fetchData, groups, mergeGroupLocally, replaceGroupLocally]);
 
   const autoAssign = async () => {
     if (!tournamentId) return;
@@ -596,14 +714,14 @@ export const GroupManagementPage: React.FC = () => {
     }
   }, [authHeaders, fetchData, replaceGroupLocally]);
 
-  const findReusableHoleSlot = useCallback(
-    (courseKey: string, holeNumber: number) =>
+  const findAvailableHoleSlot = useCallback(
+    (courseKey: string, holeNumber: number, incomingPlayers: number) =>
       groups
         .filter(
           (group) =>
             group.starting_course_key === courseKey &&
             group.hole_number === holeNumber &&
-            group.golfers.length === 0
+            (group.player_count ?? group.golfer_count) + incomingPlayers <= (group.max_golfers || 2)
         )
         .sort((a, b) => a.group_number - b.group_number)[0] || null,
     [groups]
@@ -612,19 +730,30 @@ export const GroupManagementPage: React.FC = () => {
   const placeGolferOnHole = useCallback(async (
     golfer: UnassignedGolfer,
     courseKey: string,
-    holeNumber: number
+    holeNumber: number,
+    options?: { placementMode?: 'new_pairing' }
   ) => {
     if (!tournamentId) return;
 
-    const reusableSlot = findReusableHoleSlot(courseKey, holeNumber);
-    if (reusableSlot) {
-      void addGolferToGroup(reusableSlot.id, golfer);
+    const incomingPlayers = golfer.partner_name ? 2 : 1;
+    const availableSlot = options?.placementMode === 'new_pairing'
+      ? null
+      : findAvailableHoleSlot(courseKey, holeNumber, incomingPlayers);
+    if (availableSlot) {
+      void addGolferToGroup(availableSlot.id, golfer);
+      return;
+    }
+
+    const groupsOnHole = groups.filter(
+      (group) => group.starting_course_key === courseKey && group.hole_number === holeNumber
+    );
+    if (startPositionsPerHole != null && groupsOnHole.length >= startPositionsPerHole) {
+      toast.error('That hole already has all available pairings');
       return;
     }
 
     const tempGroupId = -Date.now();
     const nextGroupNumber = groups.reduce((maxGroupNumber, group) => Math.max(maxGroupNumber, group.group_number), 0) + 1;
-    const playerCount = golfer.partner_name ? 2 : 1;
     const maxGolfers = groups[0]?.max_golfers || 2;
     const courseName = courseMap.get(courseKey)?.name ?? 'Course';
     const optimisticGroup: Group = {
@@ -635,9 +764,9 @@ export const GroupManagementPage: React.FC = () => {
       starting_course_name: courseName,
       hole_number: holeNumber,
       golfer_count: 1,
-      player_count: playerCount,
+      player_count: incomingPlayers,
       max_golfers: maxGolfers,
-      is_full: playerCount >= maxGolfers,
+      is_full: incomingPlayers >= maxGolfers,
       starting_position_label: null,
       hole_position_label: null,
       starting_hole_description: buildStartingHoleDescription(courseKey, holeNumber, courseMap, multiCourseSetup),
@@ -658,6 +787,7 @@ export const GroupManagementPage: React.FC = () => {
           golfer_id: golfer.id,
           starting_course_key: courseKey,
           hole_number: holeNumber,
+          placement_mode: options?.placementMode,
         }),
       });
 
@@ -674,7 +804,7 @@ export const GroupManagementPage: React.FC = () => {
     } finally {
       setActionLoading(null);
     }
-  }, [addGolferToGroup, authHeaders, courseMap, fetchData, findReusableHoleSlot, groups, multiCourseSetup, replaceGroupLocally, tournamentId]);
+  }, [addGolferToGroup, authHeaders, courseMap, fetchData, findAvailableHoleSlot, groups, multiCourseSetup, replaceGroupLocally, startPositionsPerHole, tournamentId]);
 
   const removeGolferFromGroup = async (groupId: number, golferId: number) => {
     setActionLoading(`remove-${golferId}`);
@@ -731,15 +861,24 @@ export const GroupManagementPage: React.FC = () => {
     }
   };
 
-  const placeQueueItemOnHole = useCallback((item: PlacementQueueItem, courseKey: string, holeNumber: number) => {
+  const createNextPairingOnHole = useCallback((item: PlacementQueueItem, courseKey: string, holeNumber: number) => {
     if (item.kind === 'golfer') {
-      void placeGolferOnHole(item.golfer, courseKey, holeNumber);
+      void placeGolferOnHole(item.golfer, courseKey, holeNumber, { placementMode: 'new_pairing' });
       return;
     }
 
     applyGroupStartLocally(item.group.id, courseKey, holeNumber);
-    void updateGroupStart(item.group.id, courseKey, holeNumber);
+    void updateGroupStart(item.group.id, courseKey, holeNumber, { placementMode: 'new_pairing' });
   }, [applyGroupStartLocally, placeGolferOnHole, updateGroupStart]);
+
+  const placeQueueItemInPairing = useCallback((item: PlacementQueueItem, targetGroupId: number) => {
+    if (item.kind === 'golfer') {
+      void addGolferToGroup(targetGroupId, item.golfer);
+      return;
+    }
+
+    void mergeGroupIntoGroup(item.group.id, targetGroupId);
+  }, [addGolferToGroup, mergeGroupIntoGroup]);
 
   const handleDragStart = (event: DragStartEvent) => {
     if (typeof event.active?.id === 'string') {
@@ -759,24 +898,26 @@ export const GroupManagementPage: React.FC = () => {
     const over = typeof event.over?.id === 'string' ? event.over.id : null;
     if (!active || !over) return;
 
-    if (over.startsWith('group-drop-') && active.startsWith('golfer-')) {
+    if (over.startsWith('group-drop-') && (active.startsWith('golfer-') || active.startsWith('group-'))) {
       const groupId = parseItemId(over, 'group-drop-');
-      const golferId = parseItemId(active, 'golfer-');
-      if (!groupId || !golferId) return;
+      if (!groupId) return;
 
+      const item = allPlacementQueueItems.find((entry) => entry.id === active);
       const group = groups.find((entry) => entry.id === groupId);
-      const golfer = unassigned.find((entry) => entry.id === golferId);
-      if (!group || !golfer) return;
+      if (!item || !group) return;
 
-      const incomingPlayers = golfer.partner_name ? 2 : 1;
+      const incomingPlayers =
+        item.kind === 'golfer'
+          ? (item.golfer.partner_name ? 2 : 1)
+          : (item.group.player_count ?? item.group.golfer_count);
       const currentPlayers = group.player_count ?? group.golfer_count;
       const maxPlayers = group.max_golfers || 2;
       if (currentPlayers + incomingPlayers > maxPlayers) {
-        toast.error('That slot is already full');
+        toast.error('That pairing is already full');
         return;
       }
 
-      void addGolferToGroup(groupId, golfer);
+      placeQueueItemInPairing(item, groupId);
       return;
     }
 
@@ -787,7 +928,7 @@ export const GroupManagementPage: React.FC = () => {
 
     const item = allPlacementQueueItems.find((entry) => entry.id === active);
     if (item) {
-      placeQueueItemOnHole(item, target.courseKey, target.holeNumber);
+      createNextPairingOnHole(item, target.courseKey, target.holeNumber);
     }
   };
 
@@ -817,7 +958,13 @@ export const GroupManagementPage: React.FC = () => {
   const handleHolePickerSelect = (itemId: string, courseKey: string, holeNumber: number) => {
     const selectedItem = allPlacementQueueItems.find((item) => item.id === itemId);
     if (!selectedItem) return;
-    placeQueueItemOnHole(selectedItem, courseKey, holeNumber);
+    createNextPairingOnHole(selectedItem, courseKey, holeNumber);
+  };
+
+  const handlePairingPickerSelect = (itemId: string, groupId: number) => {
+    const selectedItem = allPlacementQueueItems.find((item) => item.id === itemId);
+    if (!selectedItem) return;
+    placeQueueItemInPairing(selectedItem, groupId);
   };
 
   const toggleCourseSection = (courseKey: string) => {
@@ -868,7 +1015,12 @@ export const GroupManagementPage: React.FC = () => {
                 )}
               </div>
               <p className="mt-1 text-xs text-neutral-500">
-                {group.player_count ?? group.golfer_count} / {group.max_golfers || 2} players
+                {pairingStatusLabel({
+                  teamCount: group.golfer_count,
+                  maxGolfers: group.max_golfers || 2,
+                  playerCount: group.player_count ?? group.golfer_count,
+                  teamSize,
+                })}
                 {localStartingHoleDescription ? ` · ${localStartingHoleDescription}` : ''}
               </p>
             </div>
@@ -946,11 +1098,22 @@ export const GroupManagementPage: React.FC = () => {
           )}
 
           {!isTemporaryGroup && !group.is_full && (
-            <DroppableGroupZone
-              groupId={group.id}
-              isOver={overId === groupDropId(group.id) && activeId?.startsWith('golfer-') === true}
-              canDrop={!group.is_full}
-            />
+            <>
+              <DroppableGroupZone
+                groupId={group.id}
+                isOver={
+                  overId === groupDropId(group.id) &&
+                  (activeId?.startsWith('golfer-') === true || activeId?.startsWith('group-') === true)
+                }
+                canDrop={!group.is_full}
+                label="Drop a team directly into this pairing"
+              />
+              <HolePlacementPicker
+                items={allPlacementQueueItems}
+                onSelect={(itemId) => handlePairingPickerSelect(itemId, group.id)}
+                placeholder="Add awaiting team to this pairing..."
+              />
+            </>
           )}
         </div>
       </div>
@@ -1013,7 +1176,7 @@ export const GroupManagementPage: React.FC = () => {
                   Teams Awaiting Placement ({totalPlacementQueueCount})
                 </h2>
                 <p className="mt-1 text-xs text-amber-800">
-                  Drag teams straight onto a course and hole, or use a hole picker below. Existing grouped teams stay here until they get a valid start.
+                  Drag a team directly into an open pairing, or use the hole controls below to create the next pairing on a hole.
                 </p>
               </div>
 
@@ -1091,6 +1254,8 @@ export const GroupManagementPage: React.FC = () => {
                     {course.holes.map((hole) => {
                       const currentHoleDropId = holeDropId(course.key, hole.holeNumber);
                       const isHoleOver = overId === currentHoleDropId;
+                      const holeCanCreatePairing =
+                        startPositionsPerHole == null || hole.groups.length < startPositionsPerHole;
 
                       return (
                         <div key={`${course.key}-${hole.holeNumber}`} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
@@ -1099,7 +1264,10 @@ export const GroupManagementPage: React.FC = () => {
                               <div>
                                 <p className="text-sm font-semibold text-neutral-900">Hole {hole.holeNumber}</p>
                                 <p className="text-xs text-neutral-500">
-                                  {hole.groups.length} group{hole.groups.length !== 1 ? 's' : ''} assigned
+                                  {hole.groups.length} pairing{hole.groups.length === 1 ? '' : 's'} assigned
+                                  {startPositionsPerHole != null
+                                    ? ` · limit ${startPositionsPerHole}`
+                                    : ''}
                                 </p>
                               </div>
                               <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-600">
@@ -1113,17 +1281,23 @@ export const GroupManagementPage: React.FC = () => {
                               hole.groups.map(renderGroupCard)
                             ) : null}
 
-                            <DroppableHoleZone
-                              courseKey={course.key}
-                              holeNumber={hole.holeNumber}
-                              isOver={isHoleOver}
-                              compact={hole.groups.length > 0}
-                            />
+                            {holeCanCreatePairing && (
+                              <>
+                                <DroppableHoleZone
+                                  courseKey={course.key}
+                                  holeNumber={hole.holeNumber}
+                                  isOver={isHoleOver}
+                                  compact={hole.groups.length > 0}
+                                  label="Create the next pairing on this hole"
+                                />
 
-                            <HolePlacementPicker
-                              items={allPlacementQueueItems}
-                              onSelect={(itemId) => handleHolePickerSelect(itemId, course.key, hole.holeNumber)}
-                            />
+                                <HolePlacementPicker
+                                  items={allPlacementQueueItems}
+                                  onSelect={(itemId) => handleHolePickerSelect(itemId, course.key, hole.holeNumber)}
+                                  placeholder="Create the next pairing from awaiting team..."
+                                />
+                              </>
+                            )}
                           </div>
                         </div>
                       );

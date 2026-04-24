@@ -109,4 +109,34 @@ class Api::V1::TournamentsControllerTest < ActionDispatch::IntegrationTest
     json = JSON.parse(response.body)
     assert_includes json["errors"], "Config Course configuration keys must be unique"
   end
+
+  test "update persists teams_per_start_position in config" do
+    tournament = tournaments(:tournament_one)
+
+    patch "/api/v1/tournaments/#{tournament.id}", params: {
+      tournament: {
+        teams_per_start_position: 2
+      }
+    }, headers: auth_headers
+
+    assert_response :success
+
+    tournament.reload
+    assert_equal 2, tournament.config["teams_per_start_position"]
+  end
+
+  test "update persists start_positions_per_hole in config" do
+    tournament = tournaments(:tournament_one)
+
+    patch "/api/v1/tournaments/#{tournament.id}", params: {
+      tournament: {
+        start_positions_per_hole: 2
+      }
+    }, headers: auth_headers
+
+    assert_response :success
+
+    tournament.reload
+    assert_equal 2, tournament.config["start_positions_per_hole"]
+  end
 end

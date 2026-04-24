@@ -138,6 +138,8 @@ interface TournamentSettings {
   format_name: string;
   tournament_format: string;
   team_size: string;
+  teams_per_start_position: string;
+  start_positions_per_hole: string;
   registration_mode: RegistrationMode;
   registration_deadline: string;
   entry_fee_display: string;
@@ -458,6 +460,8 @@ export const OrgSettingsPage: React.FC = () => {
                 format_name: t.format_name || '',
                 tournament_format: t.tournament_format || '',
                 team_size: t.team_size?.toString() || '2',
+                teams_per_start_position: t.teams_per_start_position?.toString() || '1',
+                start_positions_per_hole: t.start_positions_per_hole?.toString() || '',
                 registration_mode: deriveRegistrationMode(t.registration_open ?? false, t.walkin_registration_open ?? false),
                 registration_deadline: t.registration_deadline || '',
                 entry_fee_display: t.entry_fee_display || '',
@@ -597,6 +601,8 @@ export const OrgSettingsPage: React.FC = () => {
       location_name: tournamentSettings.location_name || null,
       location_address: tournamentSettings.location_address || null,
       format_name: tournamentSettings.format_name || null,
+      teams_per_start_position: tournamentSettings.teams_per_start_position ? parseInt(tournamentSettings.teams_per_start_position) : 1,
+      start_positions_per_hole: tournamentSettings.start_positions_per_hole ? parseInt(tournamentSettings.start_positions_per_hole) : null,
       registration_open: isRegular,
       walkin_registration_open: isWalkin,
       registration_deadline: tournamentSettings.registration_deadline || null,
@@ -1137,6 +1143,52 @@ export const OrgSettingsPage: React.FC = () => {
                       {tournamentSettings.team_size || '2'} players per team
                     </div>
                     <p className="mt-1 text-xs text-gray-400">Contact support to change team size</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Teams Per Start Position
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="4"
+                      value={tournamentSettings.teams_per_start_position}
+                      onChange={(e) => handleTournamentChange('teams_per_start_position', e.target.value)}
+                      className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-400">
+                      Each start slot like 1A or 1B will hold this many teams. For Golf for Wishes, use 2.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Players Per Start Position
+                    </label>
+                    <div className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl text-base bg-gray-50 text-gray-600">
+                      {(parseInt(tournamentSettings.team_size || '0', 10) || 0) * (parseInt(tournamentSettings.teams_per_start_position || '0', 10) || 0)} players per slot
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">
+                      Calculated as team size × teams per start position.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Start Positions Per Hole
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="26"
+                      value={tournamentSettings.start_positions_per_hole}
+                      onChange={(e) => handleTournamentChange('start_positions_per_hole', e.target.value)}
+                      className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      placeholder="Unlimited"
+                    />
+                    <p className="mt-1 text-xs text-gray-400">
+                      Optional limit. Leave blank to allow A, B, C, and more pairings on the same hole.
+                    </p>
                   </div>
                 </div>
               </div>

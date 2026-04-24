@@ -163,6 +163,7 @@ Rails.application.routes.draw do
         member do
           post :set_hole
           post :add_golfer
+          post :merge_into
           post :remove_golfer
         end
         collection do

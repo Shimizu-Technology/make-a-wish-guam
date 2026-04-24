@@ -81,6 +81,17 @@ const FALLBACK_SPONSOR_TIERS: SponsorTier[] = [
   { key: 'hole', label: 'Hole Sponsors', sort_order: 5 },
 ];
 
+function sortHoleSponsors(sponsors: Sponsor[], courseConfigs: Tournament['course_configs'] = []) {
+  const courseOrder = new Map((courseConfigs || []).map((course, index) => [course.key, index]));
+
+  return [...sponsors].sort((a, b) => {
+    const courseA = a.course_key ? (courseOrder.get(a.course_key) ?? 999) : 999;
+    const courseB = b.course_key ? (courseOrder.get(b.course_key) ?? 999) : 999;
+    if (courseA !== courseB) return courseA - courseB;
+    return (a.hole_number || 0) - (b.hole_number || 0) || a.name.localeCompare(b.name);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
@@ -533,7 +544,7 @@ export function OrgTournamentPage() {
                       </h3>
                     </ScrollReveal>
                     {isHoleTier ? (
-                      <HoleSponsorGrid sponsors={tierSponsors} />
+                      <HoleSponsorGrid sponsors={tierSponsors} courseConfigs={tournament.course_configs} />
                     ) : (
                       <SponsorGrid
                         sponsors={tierSponsors}
@@ -610,13 +621,15 @@ function SponsorGrid({
 
 function HoleSponsorGrid({
   sponsors,
+  courseConfigs,
 }: {
   sponsors: Sponsor[];
+  courseConfigs?: Tournament['course_configs'];
 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '0px' });
 
-  const sorted = [...sponsors].sort((a, b) => (a.hole_number || 0) - (b.hole_number || 0));
+  const sorted = sortHoleSponsors(sponsors, courseConfigs);
 
   return (
     <motion.div
@@ -648,6 +661,9 @@ function HoleSponsorGrid({
             {/* Name */}
             <div className="text-center px-2 py-2">
               <p className="font-semibold text-neutral-800 text-xs truncate">{sponsor.name}</p>
+              {sponsor.display_label && (
+                <p className="text-[10px] text-neutral-500 mt-1">{sponsor.display_label}</p>
+              )}
               {sponsor.website_url && (
                 <span className="inline-flex items-center gap-1 text-[10px] text-[#0057B8] mt-1">
                   <ExternalLink className="w-2.5 h-2.5" />

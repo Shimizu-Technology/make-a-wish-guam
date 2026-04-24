@@ -27,6 +27,8 @@ interface Sponsor {
   logo_url: string | null;
   website_url: string | null;
   description: string | null;
+  course_key: string | null;
+  course_name: string | null;
   hole_number: number | null;
   position: number;
   active: boolean;
@@ -46,7 +48,14 @@ interface TierDefinition {
 interface Tournament {
   id: string;
   name: string;
+  course_configs?: CourseConfig[];
   sponsor_tiers?: TierDefinition[];
+}
+
+interface CourseConfig {
+  key: string;
+  name: string;
+  hole_count: number;
 }
 
 const DEFAULT_TIERS: TierDefinition[] = [
@@ -80,6 +89,21 @@ function buildTiers(tierDefs: TierDefinition[]) {
       icon: TIER_ICONS[i % TIER_ICONS.length],
       color: TIER_COLORS[i % TIER_COLORS.length],
     }));
+}
+
+function sortSponsorsForDisplay(sponsors: Sponsor[], courseConfigs: CourseConfig[] = []) {
+  const courseOrder = new Map(courseConfigs.map((course, index) => [course.key, index]));
+
+  return [...sponsors].sort((a, b) => {
+    if (a.tier === 'hole' && b.tier === 'hole') {
+      const courseA = a.course_key ? (courseOrder.get(a.course_key) ?? 999) : 999;
+      const courseB = b.course_key ? (courseOrder.get(b.course_key) ?? 999) : 999;
+      if (courseA !== courseB) return courseA - courseB;
+      if ((a.hole_number || 0) !== (b.hole_number || 0)) return (a.hole_number || 0) - (b.hole_number || 0);
+    }
+
+    return a.position - b.position || a.name.localeCompare(b.name);
+  });
 }
 
 export const SponsorManagementPage: React.FC = () => {
@@ -226,7 +250,7 @@ export const SponsorManagementPage: React.FC = () => {
       {/* Sponsors by Tier */}
       <main className="max-w-6xl mx-auto px-4 pb-8">
         {TIERS.map(tier => {
-          const tierSponsors = sponsorsByTier[tier.value] || [];
+          const tierSponsors = sortSponsorsForDisplay(sponsorsByTier[tier.value] || [], tournament?.course_configs || []);
           if (tierSponsors.length === 0) return null;
           const TierIcon = tier.icon;
 
@@ -267,6 +291,7 @@ export const SponsorManagementPage: React.FC = () => {
         <SponsorModal
           sponsor={editingSponsor}
           tournamentId={tournament?.id || ''}
+          courseConfigs={tournament?.course_configs || []}
           tiers={TIERS}
           onClose={() => { setShowModal(false); setEditingSponsor(null); }}
           onSuccess={() => { setShowModal(false); setEditingSponsor(null); fetchData(); }}
@@ -555,10 +580,11 @@ const SponsorCard: React.FC<{
 const SponsorModal: React.FC<{
   sponsor: Sponsor | null;
   tournamentId: string;
+  courseConfigs: CourseConfig[];
   tiers: { value: string; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[];
   onClose: () => void;
   onSuccess: () => void;
-}> = ({ sponsor, tournamentId, tiers, onClose, onSuccess }) => {
+}> = ({ sponsor, tournamentId, courseConfigs, tiers, onClose, onSuccess }) => {
   const { getToken } = useAuth();
   const [saving, setSaving] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -569,6 +595,7 @@ const SponsorModal: React.FC<{
     logo_url: sponsor?.logo_url || '',
     website_url: sponsor?.website_url || '',
     description: sponsor?.description || '',
+    course_key: sponsor?.course_key || '',
     hole_number: sponsor?.hole_number || '',
     active: sponsor?.active ?? true,
     login_email: sponsor?.login_email || '',
@@ -583,6 +610,8 @@ const SponsorModal: React.FC<{
       setForm({ ...form, logo_url: '' });
     }
   };
+
+  const selectedCourse = courseConfigs.find((course) => course.key === form.course_key) || null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -602,6 +631,7 @@ const SponsorModal: React.FC<{
         fd.append('sponsor[logo_url]', '');
         fd.append('sponsor[website_url]', form.website_url);
         fd.append('sponsor[description]', form.description);
+        fd.append('sponsor[course_key]', form.tier === 'hole' ? form.course_key : '');
         fd.append('sponsor[hole_number]', form.tier === 'hole' ? String(form.hole_number) : '');
         fd.append('sponsor[active]', String(form.active));
         fd.append('sponsor[login_email]', form.login_email);
@@ -618,6 +648,7 @@ const SponsorModal: React.FC<{
           active: form.active,
           login_email: form.login_email,
           slot_count: slotCount,
+          course_key: form.tier === 'hole' ? form.course_key : null,
           hole_number: form.tier === 'hole' ? Number(form.hole_number) : null,
         };
         res = await fetch(url, {
@@ -651,19 +682,49 @@ const SponsorModal: React.FC<{
 
           <div>
             <label className="block text-sm font-medium mb-1">Tier</label>
-            <select value={form.tier} onChange={e => setForm({ ...form, tier: e.target.value })} className="w-full border rounded-lg px-3 py-2">
+            <select
+              value={form.tier}
+              onChange={e => {
+                const nextTier = e.target.value;
+                setForm((prev) => ({
+                  ...prev,
+                  tier: nextTier,
+                  course_key: nextTier === 'hole' ? (prev.course_key || courseConfigs[0]?.key || '') : '',
+                  hole_number: nextTier === 'hole' ? prev.hole_number : '',
+                }));
+              }}
+              className="w-full border rounded-lg px-3 py-2"
+            >
               {tiers.map(t => (<option key={t.value} value={t.value}>{t.label}</option>))}
             </select>
           </div>
 
           {form.tier === 'hole' && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Hole Number *</label>
-              <select value={form.hole_number} onChange={e => setForm({ ...form, hole_number: e.target.value })} className="w-full border rounded-lg px-3 py-2" required>
-                <option value="">Select hole...</option>
-                {Array.from({ length: 18 }, (_, i) => i + 1).map(h => (<option key={h} value={h}>Hole {h}</option>))}
-              </select>
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium mb-1">Course *</label>
+                <select
+                  value={form.course_key}
+                  onChange={e => setForm({ ...form, course_key: e.target.value, hole_number: '' })}
+                  className="w-full border rounded-lg px-3 py-2"
+                  required
+                >
+                  <option value="">Select course...</option>
+                  {courseConfigs.map((course) => (
+                    <option key={course.key} value={course.key}>{course.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Hole Number *</label>
+                <select value={form.hole_number} onChange={e => setForm({ ...form, hole_number: e.target.value })} className="w-full border rounded-lg px-3 py-2" required>
+                  <option value="">Select hole...</option>
+                  {Array.from({ length: selectedCourse?.hole_count || 0 }, (_, i) => i + 1).map(hole => (
+                    <option key={hole} value={hole}>{selectedCourse?.name} {hole}</option>
+                  ))}
+                </select>
+              </div>
+            </>
           )}
 
           <div>
