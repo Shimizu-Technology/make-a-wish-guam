@@ -414,7 +414,10 @@ module Api
         created_group = false
 
         ActiveRecord::Base.transaction do
+          tournament.lock!
           golfer = tournament.golfers.lock.find(params[:golfer_id])
+          incoming_players = golfer.partner_name.present? ? 2 : 1
+          groups_at_start = []
 
           raise PlacementError, "Golfer is already assigned to a group" if golfer.group_id.present?
           raise PlacementError, "Cannot add cancelled golfer to a group" if golfer.registration_status == "cancelled"
@@ -422,21 +425,23 @@ module Api
             raise PlacementError, "Cannot add waitlist golfer to a group. Promote them to confirmed first."
           end
 
+          if attributes[:starting_course_key].present? && attributes[:hole_number].present?
+            groups_at_start = Group.lock
+                                  .includes(:golfers)
+                                  .for_start_position(
+                                    tournament: tournament,
+                                    course_key: attributes[:starting_course_key],
+                                    hole_number: attributes[:hole_number]
+                                  )
+                                  .to_a
+          end
+
           unless placement_mode_new_pairing?
-            group = Group.available_slot_for(
-              tournament: tournament,
-              course_key: attributes[:starting_course_key],
-              hole_number: attributes[:hole_number],
-              incoming_players: golfer.partner_name.present? ? 2 : 1
-            )
+            group = available_slot_from_groups(groups_at_start, incoming_players)
           end
 
           unless group
-            unless Group.start_position_available?(
-              tournament: tournament,
-              course_key: attributes[:starting_course_key],
-              hole_number: attributes[:hole_number]
-            )
+            unless start_position_available_from_groups?(tournament, groups_at_start)
               raise PlacementError, start_position_limit_error(
                 tournament,
                 attributes[:starting_course_key],
@@ -749,6 +754,17 @@ module Api
         fresh_group = Group.includes(:golfers, :tournament).find(group.id)
         preload_group_position_letters([fresh_group])
         ActiveModelSerializers::SerializableResource.new(fresh_group, include: "golfers").as_json
+      end
+
+      def available_slot_from_groups(groups, incoming_players)
+        groups.find { |group| group.golfers.any? && group.player_count + incoming_players <= group.max_golfers } ||
+          groups.find { |group| group.golfers.empty? && incoming_players <= group.max_golfers }
+      end
+
+      def start_position_available_from_groups?(tournament, groups_at_start)
+        return true unless tournament.start_positions_per_hole.present?
+
+        groups_at_start.length < tournament.start_positions_per_hole
       end
 
       def broadcast_groups_update(tournament)
