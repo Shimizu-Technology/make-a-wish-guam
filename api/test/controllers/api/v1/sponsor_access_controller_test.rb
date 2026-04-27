@@ -5,6 +5,7 @@ class Api::V1::SponsorAccessControllerTest < ActionDispatch::IntegrationTest
   fixtures []
 
   def setup
+    ActionMailer::Base.deliveries.clear
     @organization = Organization.create!(
       name: "Sponsor Test Org",
       slug: "sponsor-test-org"
@@ -59,5 +60,35 @@ class Api::V1::SponsorAccessControllerTest < ActionDispatch::IntegrationTest
 
     slots_json = JSON.parse(response.body)
     assert_equal 2, slots_json["slots"].length
+  end
+
+  test "request_link sends an access email for each active sponsor sharing the same login email" do
+    second_sponsor = @tournament.sponsors.create!(
+      name: "Second Sponsor",
+      tier: "silver",
+      position: 2,
+      active: true,
+      login_email: @sponsor.login_email,
+      slot_count: 2
+    )
+    inactive_sponsor = @tournament.sponsors.create!(
+      name: "Inactive Sponsor",
+      tier: "bronze",
+      position: 3,
+      active: false,
+      login_email: @sponsor.login_email,
+      slot_count: 2
+    )
+
+    ActionMailer::Base.deliveries.clear
+
+    post "/api/v1/sponsor_access/request_link",
+         params: { email: @sponsor.login_email }
+
+    assert_response :success
+    assert_equal 2, ActionMailer::Base.deliveries.size
+    assert @sponsor.reload.access_token.present?
+    assert second_sponsor.reload.access_token.present?
+    assert_nil inactive_sponsor.reload.access_token
   end
 end

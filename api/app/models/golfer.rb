@@ -116,12 +116,16 @@ class Golfer < ApplicationRecord
   end
 
   def clear_group_assignment
-    assign_attributes(group: nil, position: nil)
-    save!(validate: false)
+    clear_group_assignment!
     true
   rescue ActiveRecord::ActiveRecordError
     errors.add(:base, "Unable to clear golfer starting position")
     false
+  end
+
+  def clear_group_assignment!
+    assign_attributes(group: nil, position: nil)
+    save!(validate: false)
   end
 
   # Magic Link methods
@@ -295,7 +299,7 @@ class Golfer < ApplicationRecord
   end
 
   # Process a refund through Stripe and cancel the registration
-  def process_refund!(admin:, reason: nil)
+  def process_refund!(admin:, reason: nil, clear_group_assignment: false)
     raise "Cannot refund - not a Stripe payment" unless payment_type == "stripe"
     raise "Cannot refund - no payment intent" unless stripe_payment_intent_id.present?
     raise "Already refunded" if refunded?
@@ -311,16 +315,19 @@ class Golfer < ApplicationRecord
       reason: "requested_by_customer"
     })
 
-    # Update the golfer record
-    update!(
-      registration_status: "cancelled",
-      payment_status: "refunded",
-      stripe_refund_id: refund.id,
-      refund_amount_cents: refund.amount,
-      refund_reason: reason,
-      refunded_at: Time.current,
-      refunded_by: admin
-    )
+    ActiveRecord::Base.transaction do
+      clear_group_assignment! if clear_group_assignment && group_id.present?
+
+      update!(
+        registration_status: "cancelled",
+        payment_status: "refunded",
+        stripe_refund_id: refund.id,
+        refund_amount_cents: refund.amount,
+        refund_reason: reason,
+        refunded_at: Time.current,
+        refunded_by: admin
+      )
+    end
 
     # Send refund notification email
     GolferMailer.refund_confirmation_email(self).deliver_later rescue nil

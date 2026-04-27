@@ -1,5 +1,7 @@
 # Configure Resend for email delivery
-if ENV["RESEND_API_KEY"].present?
+if Rails.env.test?
+  Rails.application.config.action_mailer.delivery_method = :test
+elsif ENV["RESEND_API_KEY"].present?
   Resend.api_key = ENV["RESEND_API_KEY"]
 
   # Configure Action Mailer to use Resend
@@ -12,4 +14,3 @@ else
     Rails.application.config.action_mailer.delivery_method = :test
   end
 end
-

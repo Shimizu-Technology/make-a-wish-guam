@@ -360,14 +360,53 @@ module Api
 
         tournament = organization.tournaments.find_by!(slug: params[:tournament_slug])
         golfer = tournament.golfers.find(params[:golfer_id])
+        reason = params[:reason]
 
         if golfer.registration_status == 'cancelled'
           render json: { error: 'Registration already cancelled' }, status: :unprocessable_entity
           return
         end
 
-        golfer.update!(registration_status: 'cancelled')
-        
+        old_group = golfer.group
+
+        Golfer.transaction do
+          golfer.clear_group_assignment! if old_group.present?
+          golfer.cancel!(admin: current_admin, reason: reason)
+        end
+
+        if old_group.present?
+          begin
+            ActivityLog.log(
+              admin: current_admin,
+              action: 'golfer_removed_from_group',
+              target: golfer,
+              details: "Removed #{golfer.name} from #{old_group.hole_position_label} (cancelled)"
+            )
+          rescue StandardError => e
+            Rails.logger.error("Failed to log group removal: #{e.message}")
+          end
+        end
+
+        begin
+          ActivityLog.log(
+            admin: current_admin,
+            action: 'golfer_cancelled',
+            target: golfer,
+            details: "Cancelled registration for #{golfer.name}",
+            metadata: { reason: reason }
+          )
+        rescue StandardError => e
+          Rails.logger.error("Failed to log cancellation activity: #{e.message}")
+        end
+
+        begin
+          GolferMailer.cancellation_email(golfer).deliver_later
+        rescue StandardError => e
+          Rails.logger.error("Failed to send cancellation email: #{e.message}")
+        end
+
+        broadcast_golfer_update(golfer)
+
         render json: {
           golfer: golfer_response(golfer),
           message: 'Registration cancelled successfully'
@@ -407,8 +446,11 @@ module Api
           old_group = golfer.group
 
           # Process refund first; only detach group after successful refund
-          stripe_refund = golfer.process_refund!(admin: current_admin, reason: reason)
-          golfer.update!(group_id: nil) if old_group.present?
+          stripe_refund = golfer.process_refund!(
+            admin: current_admin,
+            reason: reason,
+            clear_group_assignment: old_group.present?
+          )
 
           begin
             ActivityLog.log(
@@ -455,7 +497,7 @@ module Api
             end
 
             old_group = golfer.group
-            golfer.update!(group_id: nil) if old_group.present?
+            golfer.clear_group_assignment! if old_group.present?
 
             refund_amount = params[:refund_amount_cents] || golfer.payment_amount_cents || golfer.tournament&.entry_fee
 
@@ -675,6 +717,15 @@ module Api
                  :payment_status, :payment_method, :payment_type, :notes, 
                  :checked_in_at, :created_at, :updated_at]
         )
+      end
+
+      def broadcast_golfer_update(golfer)
+        ActionCable.server.broadcast("golfers_channel_#{golfer.tournament_id}", {
+          action: 'updated',
+          golfer: GolferSerializer.new(golfer).as_json
+        })
+      rescue StandardError => e
+        Rails.logger.error("Failed to broadcast golfer update: #{e.message}")
       end
 
       def golfer_params

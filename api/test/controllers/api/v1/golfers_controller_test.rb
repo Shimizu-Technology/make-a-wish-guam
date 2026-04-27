@@ -202,6 +202,43 @@ class Api::V1::GolfersControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "refund leaves golfer assigned when Stripe refund fails" do
+    tournament = tournaments(:tournament_one)
+    group = groups(:group_two)
+    golfer = tournament.golfers.create!(
+      name: "Legacy Stripe Refund Failure",
+      email: "legacy-stripe-refund-failure@example.com",
+      phone: "671-555-0177",
+      payment_type: "stripe",
+      payment_status: "paid",
+      stripe_payment_intent_id: "pi_legacy_refund_failure_123",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      group: group,
+      position: 2
+    )
+    Setting.instance.update!(stripe_secret_key: "sk_test_refund_failure")
+
+    refund_singleton = class << Stripe::Refund; self; end
+    refund_singleton.send(:alias_method, :__original_create_for_test, :create)
+    refund_singleton.send(:define_method, :create) { |*| raise Stripe::StripeError, "boom" }
+
+    begin
+      post refund_api_v1_golfer_url(golfer), headers: auth_headers
+    ensure
+      refund_singleton.send(:alias_method, :create, :__original_create_for_test)
+      refund_singleton.send(:remove_method, :__original_create_for_test)
+    end
+
+    assert_response :unprocessable_entity
+    golfer.reload
+    assert_equal "confirmed", golfer.registration_status
+    assert_equal group.id, golfer.group_id
+    assert_equal 2, golfer.position
+    assert_equal "paid", golfer.payment_status
+  end
+
   # ==================
   # POST /api/v1/golfers/:id/payment_details
   # ==================

@@ -41,7 +41,10 @@ class SponsorSlotSyncer
 
     if captain_name.nil?
       if golfer && golfer.registration_status != 'cancelled'
-        golfer.update!(registration_status: 'cancelled')
+        Golfer.transaction do
+          golfer.clear_group_assignment! if golfer.group.present?
+          golfer.cancel!(reason: "Team cancelled via sponsor portal")
+        end
         append_audit(golfer, "Team cancelled — captain slot cleared via sponsor portal")
       end
       return

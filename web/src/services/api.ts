@@ -605,6 +605,33 @@ export class ApiClient {
     return this.request(`/api/v1/organizations/${orgSlug}/tournaments`, {}, false);
   }
 
+  async getAdminOrganizationTournaments(orgSlug: string): Promise<Tournament[]> {
+    type AdminTournamentSummary = Partial<Tournament> & {
+      date?: string | null;
+      capacity?: number | null;
+      pending_count?: number;
+      registration_count?: number;
+    };
+
+    const response = await this.request<{ tournaments: AdminTournamentSummary[] }>(
+      `/api/v1/admin/organizations/${orgSlug}/tournaments`
+    );
+    const tournaments = Array.isArray(response.tournaments) ? response.tournaments : [];
+
+    return tournaments.map((tournament) => ({
+      ...tournament,
+      year: tournament.year ?? (tournament.date ? new Date(tournament.date).getFullYear() : new Date().getFullYear()),
+      event_date: tournament.event_date ?? tournament.date ?? null,
+      max_capacity: tournament.max_capacity ?? tournament.capacity ?? 0,
+      confirmed_count: tournament.confirmed_count ?? tournament.registration_count ?? 0,
+      public_confirmed_count: tournament.public_confirmed_count ?? tournament.registration_count ?? 0,
+      sponsor_confirmed_count: tournament.sponsor_confirmed_count ?? 0,
+      pending_payment_count: tournament.pending_payment_count ?? tournament.pending_count ?? 0,
+      short_name: tournament.short_name ?? tournament.name,
+      display_name: tournament.display_name ?? tournament.name,
+    }));
+  }
+
   async getOrganizationTournament(orgSlug: string, tournamentSlug: string): Promise<Tournament> {
     return this.request(`/api/v1/organizations/${orgSlug}/tournaments/${tournamentSlug}`, {}, false);
   }
