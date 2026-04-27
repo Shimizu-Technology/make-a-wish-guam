@@ -186,7 +186,7 @@ module Api
         
         # CRITICAL: Remove from group first (cancelled golfers shouldn't hold spots)
         if old_group.present?
-          golfer.update!(group_id: nil)
+          golfer.clear_group_assignment
         end
         
         # CRITICAL: Cancel the golfer
@@ -257,7 +257,7 @@ module Api
         begin
           # CRITICAL: Remove from group first (refunded golfers shouldn't hold spots)
           if old_group.present?
-            golfer.update!(group_id: nil)
+            golfer.clear_group_assignment
           end
           
           # CRITICAL: Process the refund through Stripe
@@ -342,7 +342,7 @@ module Api
 
         # CRITICAL: Remove from group first (refunded golfers shouldn't hold spots)
         if old_group.present?
-          golfer.update!(group_id: nil)
+          golfer.clear_group_assignment
         end
 
         # CRITICAL: Update the golfer record
@@ -557,8 +557,7 @@ module Api
         old_group = golfer.group
         
         if old_group.present?
-          golfer.assign_attributes(group_id: nil)
-          golfer.save!(validate: false)
+          golfer.clear_group_assignment
           begin
             ActivityLog.log(
               admin: current_admin,

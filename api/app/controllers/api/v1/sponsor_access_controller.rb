@@ -11,18 +11,21 @@ module Api
           return
         end
 
-        sponsor = Sponsor.find_by("LOWER(login_email) = ?", email)
-        unless sponsor
+        sponsors = Sponsor.active.where("LOWER(login_email) = ?", email)
+        if sponsors.empty?
           render json: { message: "If that email is associated with a sponsor account, you will receive an access link." }
           return
         end
 
-        token = sponsor.generate_access_token!
-
-        begin
-          SponsorMailer.access_link(sponsor, token).deliver_later
-        rescue StandardError => e
-          Rails.logger.error("Failed to send sponsor access link: #{e.message}")
+        sponsors.find_each do |sponsor|
+          begin
+            token = sponsor.generate_access_token!
+            # Send access links synchronously so this login flow does not depend on
+            # the in-process async job adapter in production.
+            SponsorMailer.access_link(sponsor, token).deliver_now
+          rescue StandardError => e
+            Rails.logger.error("Failed to send sponsor access link for sponsor #{sponsor.id}: #{e.message}")
+          end
         end
 
         render json: { message: "If that email is associated with a sponsor account, you will receive an access link." }

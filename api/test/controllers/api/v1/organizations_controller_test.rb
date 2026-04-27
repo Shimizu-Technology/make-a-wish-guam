@@ -187,4 +187,43 @@ class Api::V1::OrganizationsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :created
   end
+
+  test "cancel_golfer removes the team from its group before cancelling" do
+    organization = organizations(:org_one)
+    tournament = tournaments(:tournament_one)
+    group = tournament.groups.create!(
+      group_number: 99,
+      starting_course_key: "course-1",
+      hole_number: 9
+    )
+    golfer = tournament.golfers.create!(
+      name: "Cancelable Team",
+      email: "cancelable-team@example.com",
+      phone: "671-555-0199",
+      payment_type: "pay_on_day",
+      payment_status: "paid",
+      registration_status: "confirmed",
+      waiver_accepted_at: Time.current,
+      team_category: "Male",
+      partner_name: "Partner Player",
+      group: group,
+      position: 1
+    )
+
+    post "/api/v1/admin/organizations/#{organization.slug}/tournaments/#{tournament.slug}/golfers/#{golfer.id}/cancel",
+         headers: auth_headers,
+         as: :json
+
+    assert_response :success
+    golfer.reload
+    assert_equal "cancelled", golfer.registration_status
+    assert_nil golfer.group_id
+    assert_nil golfer.position
+
+    get "/api/v1/groups", params: { tournament_id: tournament.id }, headers: auth_headers
+    assert_response :success
+
+    json = JSON.parse(response.body)
+    refute json.any? { |entry| entry["id"] == group.id }
+  end
 end
