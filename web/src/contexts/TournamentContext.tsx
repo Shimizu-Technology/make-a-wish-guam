@@ -24,7 +24,7 @@ export function TournamentProvider({ children, orgSlug }: TournamentProviderProp
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadTournaments = async () => {
+  const fetchTournaments = async (): Promise<Tournament[]> => {
     if (orgSlug) {
       return api.getAdminOrganizationTournaments(orgSlug);
     }
@@ -36,7 +36,7 @@ export function TournamentProvider({ children, orgSlug }: TournamentProviderProp
     try {
       setIsLoading(true);
       setError(null);
-      const data = await loadTournaments();
+      const data = await fetchTournaments();
       setTournaments(data);
       
       // If no current tournament is set, try to find the open one
@@ -73,11 +73,11 @@ export function TournamentProvider({ children, orgSlug }: TournamentProviderProp
 
   // Load tournaments on mount
   useEffect(() => {
-    const loadTournaments = async () => {
+    const loadInitialTournaments = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await loadTournaments();
+        const data = await fetchTournaments();
         setTournaments(data);
         
         // Try to restore from localStorage first
@@ -109,7 +109,7 @@ export function TournamentProvider({ children, orgSlug }: TournamentProviderProp
       }
     };
 
-    loadTournaments();
+    loadInitialTournaments();
   }, [orgSlug]);
 
   return (
