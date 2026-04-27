@@ -15,19 +15,28 @@ const TournamentContext = createContext<TournamentContextType | undefined>(undef
 
 interface TournamentProviderProps {
   children: ReactNode;
+  orgSlug?: string;
 }
 
-export function TournamentProvider({ children }: TournamentProviderProps) {
+export function TournamentProvider({ children, orgSlug }: TournamentProviderProps) {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [currentTournament, setCurrentTournamentState] = useState<Tournament | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const loadTournaments = async () => {
+    if (orgSlug) {
+      return api.getAdminOrganizationTournaments(orgSlug);
+    }
+
+    return api.getTournaments();
+  };
+
   const refreshTournaments = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await api.getTournaments();
+      const data = await loadTournaments();
       setTournaments(data);
       
       // If no current tournament is set, try to find the open one
@@ -68,7 +77,7 @@ export function TournamentProvider({ children }: TournamentProviderProps) {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await api.getTournaments();
+        const data = await loadTournaments();
         setTournaments(data);
         
         // Try to restore from localStorage first
@@ -101,7 +110,7 @@ export function TournamentProvider({ children }: TournamentProviderProps) {
     };
 
     loadTournaments();
-  }, []);
+  }, [orgSlug]);
 
   return (
     <TournamentContext.Provider

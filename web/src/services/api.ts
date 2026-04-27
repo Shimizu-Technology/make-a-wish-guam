@@ -605,6 +605,13 @@ export class ApiClient {
     return this.request(`/api/v1/organizations/${orgSlug}/tournaments`, {}, false);
   }
 
+  async getAdminOrganizationTournaments(orgSlug: string): Promise<Tournament[]> {
+    const response = await this.request<{ tournaments: Tournament[] }>(
+      `/api/v1/admin/organizations/${orgSlug}/tournaments`
+    );
+    return response.tournaments || [];
+  }
+
   async getOrganizationTournament(orgSlug: string, tournamentSlug: string): Promise<Tournament> {
     return this.request(`/api/v1/organizations/${orgSlug}/tournaments/${tournamentSlug}`, {}, false);
   }

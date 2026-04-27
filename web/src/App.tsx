@@ -48,7 +48,7 @@ function AdminShellPage({ children }: { children: React.ReactNode }) {
   return (
     <AdminProvider>
       <ProtectedRoute>
-        <TournamentProvider>
+        <TournamentProvider orgSlug={MAW_SLUG}>
           <MAWWrapper>
             <AdminLayout>{children}</AdminLayout>
           </MAWWrapper>
