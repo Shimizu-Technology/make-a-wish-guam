@@ -370,7 +370,7 @@ module Api
         old_group = golfer.group
 
         Golfer.transaction do
-          golfer.clear_group_assignment if old_group.present?
+          golfer.clear_group_assignment! if old_group.present?
           golfer.cancel!(admin: current_admin, reason: reason)
         end
 
@@ -446,8 +446,11 @@ module Api
           old_group = golfer.group
 
           # Process refund first; only detach group after successful refund
-          golfer.clear_group_assignment if old_group.present?
-          stripe_refund = golfer.process_refund!(admin: current_admin, reason: reason)
+          stripe_refund = golfer.process_refund!(
+            admin: current_admin,
+            reason: reason,
+            clear_group_assignment: old_group.present?
+          )
 
           begin
             ActivityLog.log(
@@ -494,7 +497,7 @@ module Api
             end
 
             old_group = golfer.group
-            golfer.clear_group_assignment if old_group.present?
+            golfer.clear_group_assignment! if old_group.present?
 
             refund_amount = params[:refund_amount_cents] || golfer.payment_amount_cents || golfer.tournament&.entry_fee
 

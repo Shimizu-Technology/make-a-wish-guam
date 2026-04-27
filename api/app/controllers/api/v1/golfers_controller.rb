@@ -183,14 +183,14 @@ module Api
 
         reason = params[:reason]
         old_group = golfer.group
-        
-        # CRITICAL: Remove from group first (cancelled golfers shouldn't hold spots)
-        if old_group.present?
-          golfer.clear_group_assignment
+
+        Golfer.transaction do
+          # CRITICAL: Remove from group first (cancelled golfers shouldn't hold spots)
+          golfer.clear_group_assignment! if old_group.present?
+
+          # CRITICAL: Cancel the golfer
+          golfer.cancel!(admin: current_admin, reason: reason)
         end
-        
-        # CRITICAL: Cancel the golfer
-        golfer.cancel!(admin: current_admin, reason: reason)
 
         # CRITICAL: Return success response FIRST before non-critical operations
         render json: golfer
@@ -255,13 +255,13 @@ module Api
         old_group = golfer.group
 
         begin
-          # CRITICAL: Remove from group first (refunded golfers shouldn't hold spots)
-          if old_group.present?
-            golfer.clear_group_assignment
-          end
-          
-          # CRITICAL: Process the refund through Stripe
-          stripe_refund = golfer.process_refund!(admin: current_admin, reason: reason)
+          # CRITICAL: Process the refund first and only clear the group
+          # after the refund succeeds so a Stripe failure leaves the pairing intact.
+          stripe_refund = golfer.process_refund!(
+            admin: current_admin,
+            reason: reason,
+            clear_group_assignment: old_group.present?
+          )
 
           # CRITICAL: Return success response FIRST before non-critical operations
           # This ensures user sees success even if activity log or broadcast fails
@@ -340,20 +340,20 @@ module Api
         refund_amount = params[:refund_amount_cents] || golfer.payment_amount_cents || golfer.tournament&.entry_fee
         old_group = golfer.group
 
-        # CRITICAL: Remove from group first (refunded golfers shouldn't hold spots)
-        if old_group.present?
-          golfer.clear_group_assignment
-        end
+        Golfer.transaction do
+          # CRITICAL: Remove from group first (refunded golfers shouldn't hold spots)
+          golfer.clear_group_assignment! if old_group.present?
 
-        # CRITICAL: Update the golfer record
-        golfer.update!(
-          registration_status: "cancelled",
-          payment_status: "refunded",
-          refund_amount_cents: refund_amount,
-          refund_reason: reason,
-          refunded_at: Time.current,
-          refunded_by: current_admin
-        )
+          # CRITICAL: Update the golfer record
+          golfer.update!(
+            registration_status: "cancelled",
+            payment_status: "refunded",
+            refund_amount_cents: refund_amount,
+            refund_reason: reason,
+            refunded_at: Time.current,
+            refunded_by: current_admin
+          )
+        end
 
         # CRITICAL: Return success response FIRST
         render json: golfer
@@ -555,9 +555,14 @@ module Api
         end
 
         old_group = golfer.group
-        
+
+        Golfer.transaction do
+          golfer.clear_group_assignment! if old_group.present?
+          golfer.assign_attributes(registration_status: "waitlist")
+          golfer.save!(validate: false)
+        end
+
         if old_group.present?
-          golfer.clear_group_assignment
           begin
             ActivityLog.log(
               admin: current_admin,
@@ -569,9 +574,6 @@ module Api
             Rails.logger.warn("Failed to log activity: #{e.message}")
           end
         end
-
-        golfer.assign_attributes(registration_status: "waitlist")
-        golfer.save!(validate: false)
 
         begin
           ActivityLog.log(
