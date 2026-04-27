@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { UserButton, useUser } from '@clerk/clerk-react';
 import {
@@ -56,6 +56,27 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
     return currentTournament;
   }, [currentTournament, routeTournamentSlug, tournaments]);
+
+  useEffect(() => {
+    if (!routeTournamentSlug || isLoading) return;
+    if (activeTournament) return;
+
+    const fallbackTournament = currentTournament || tournaments[0] || null;
+    if (!fallbackTournament) {
+      navigate(adminOrgRoutes.events, { replace: true });
+      return;
+    }
+
+    navigate(adminEventPath(fallbackTournament.slug, routeSection), { replace: true });
+  }, [
+    activeTournament,
+    currentTournament,
+    isLoading,
+    navigate,
+    routeSection,
+    routeTournamentSlug,
+    tournaments,
+  ]);
 
   const openTournaments = tournaments.filter((tournament) => tournament.status !== 'archived');
   const archivedTournaments = tournaments.filter((tournament) => tournament.status === 'archived');

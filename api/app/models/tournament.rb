@@ -347,7 +347,7 @@ class Tournament < ApplicationRecord
   end
 
   def short_name
-    "#{year} Tournament"
+    name.presence || "#{year} Tournament"
   end
 
   def full_url(base_url = nil)
