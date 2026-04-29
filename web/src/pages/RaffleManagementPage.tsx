@@ -1562,6 +1562,7 @@ const PrizeModal: React.FC<{
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(prize?.image_url || null);
+  const [imageObjectUrl, setImageObjectUrl] = useState<string | null>(null);
   const [imageDragOver, setImageDragOver] = useState(false);
   const [removeImage, setRemoveImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1575,11 +1576,20 @@ const PrizeModal: React.FC<{
     position: prize?.position || 0,
   });
 
+  useEffect(() => {
+    return () => {
+      if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
+    };
+  }, [imageObjectUrl]);
+
   const selectImageFile = (file: File) => {
+    const previewUrl = URL.createObjectURL(file);
+
     setImageFile(file);
     setRemoveImage(false);
     setForm({ ...form, image_url: '' });
-    setImagePreview(URL.createObjectURL(file));
+    setImageObjectUrl(previewUrl);
+    setImagePreview(previewUrl);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1608,6 +1618,7 @@ const PrizeModal: React.FC<{
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    setImageObjectUrl(null);
     setRemoveImage(true);
     setForm({ ...form, image_url: '' });
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -1616,6 +1627,7 @@ const PrizeModal: React.FC<{
   const handleImageUrlChange = (url: string) => {
     setForm({ ...form, image_url: url });
     setImageFile(null);
+    setImageObjectUrl(null);
     setRemoveImage(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
     setImagePreview(url || null);
