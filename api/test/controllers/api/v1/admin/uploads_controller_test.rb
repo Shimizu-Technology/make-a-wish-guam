@@ -129,9 +129,35 @@ class Api::V1::Admin::UploadsControllerTest < ActionDispatch::IntegrationTest
     tempfile&.close!
   end
 
+  test "create rejects oversized upload before image processing" do
+    authenticate_as(@admin)
+
+    tempfile = Tempfile.new([ "oversized-upload", ".jpg" ])
+    tempfile.binmode
+    tempfile.write("x" * (5.megabytes + 1))
+    tempfile.rewind
+
+    upload = Rack::Test::UploadedFile.new(
+      tempfile.path,
+      "image/jpeg",
+      original_filename: "upload.jpg"
+    )
+
+    assert_no_difference "ActiveStorage::Blob.count" do
+      post "/api/v1/admin/uploads",
+           params: { file: upload },
+           headers: auth_headers
+    end
+
+    assert_response :unprocessable_entity
+    assert_equal "File too large. Maximum size is 5MB", JSON.parse(response.body)["error"]
+  ensure
+    tempfile&.close!
+  end
+
   test "imagemagick avif container aliases are accepted" do
-    assert_equal "image/avif", Api::V1::Admin::UploadsController::MAGICK_IMAGE_TYPES.fetch("HEIF")
-    assert_equal "image/avif", Api::V1::Admin::UploadsController::MAGICK_IMAGE_TYPES.fetch("HEIC")
+    assert_equal "image/avif", ImageUploadValidation::MAGICK_IMAGE_TYPES.fetch("HEIF")
+    assert_equal "image/avif", ImageUploadValidation::MAGICK_IMAGE_TYPES.fetch("HEIC")
   end
 
   private

@@ -1,29 +1,13 @@
 # frozen_string_literal: true
 
 require "mini_magick"
-require "marcel"
-require "pathname"
 require "tempfile"
 
 module Api
   module V1
     class RaffleController < BaseController
-      ALLOWED_PRIZE_IMAGE_TYPES = %w[
-        image/jpeg
-        image/png
-        image/gif
-        image/webp
-        image/avif
-      ].freeze
-      MAGICK_IMAGE_TYPES = {
-        "JPEG" => "image/jpeg",
-        "PNG" => "image/png",
-        "GIF" => "image/gif",
-        "WEBP" => "image/webp",
-        "AVIF" => "image/avif",
-        "HEIF" => "image/avif",
-        "HEIC" => "image/avif"
-      }.freeze
+      include ImageUploadValidation
+
       MAX_PRIZE_IMAGE_SIZE = 5.megabytes
 
       skip_before_action :authenticate_user!, only: [:prizes, :tickets, :board]
@@ -652,14 +636,14 @@ module Api
         upload = params.dig(:prize, :image)
         return true unless upload.present? && upload.respond_to?(:tempfile)
 
-        content_type = verified_image_content_type(upload)
-        unless content_type
-          prize.errors.add(:image, "must be a valid JPEG, PNG, GIF, WebP, or AVIF image")
+        if upload.size > MAX_PRIZE_IMAGE_SIZE
+          prize.errors.add(:image, "must be smaller than 5MB")
           return false
         end
 
-        if upload.size > MAX_PRIZE_IMAGE_SIZE
-          prize.errors.add(:image, "must be smaller than 5MB")
+        content_type = verified_image_content_type(upload)
+        unless content_type
+          prize.errors.add(:image, "must be a valid JPEG, PNG, GIF, WebP, or AVIF image")
           return false
         end
 
@@ -674,19 +658,6 @@ module Api
         false
       ensure
         upload_io&.close! if upload_io.is_a?(Tempfile)
-      end
-
-      def verified_image_content_type(upload)
-        detected_type = Marcel::MimeType.for(Pathname.new(upload.tempfile.path))
-        return nil unless ALLOWED_PRIZE_IMAGE_TYPES.include?(detected_type)
-
-        image = MiniMagick::Image.open(upload.tempfile.path)
-        magick_type = MAGICK_IMAGE_TYPES[image.type&.upcase]
-
-        return detected_type if magick_type == detected_type
-      rescue MiniMagick::Error, MiniMagick::Invalid => e
-        Rails.logger.warn("Invalid raffle prize image upload: #{e.class}: #{e.message}")
-        nil
       end
 
       def prepared_prize_image(upload, content_type)

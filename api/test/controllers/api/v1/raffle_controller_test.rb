@@ -160,9 +160,39 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     tempfile&.close!
   end
 
+  test "oversized prize image is rejected before image processing" do
+    tempfile = Tempfile.new([ "oversized-prize", ".jpg" ])
+    tempfile.binmode
+    tempfile.write("x" * (5.megabytes + 1))
+    tempfile.rewind
+    file = Rack::Test::UploadedFile.new(
+      tempfile.path,
+      "image/jpeg",
+      original_filename: "prize.jpg"
+    )
+
+    assert_no_difference "RafflePrize.count" do
+      post "/api/v1/tournaments/#{@tournament.id}/raffle/prizes",
+           params: {
+             prize: {
+               name: "Oversized Upload",
+               tier: "standard",
+               value_cents: 1000,
+               image: file
+             }
+           },
+           headers: @headers
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes JSON.parse(response.body).fetch("error"), "Image must be smaller than 5MB"
+  ensure
+    tempfile&.close!
+  end
+
   test "imagemagick avif container aliases are accepted" do
-    assert_equal "image/avif", Api::V1::RaffleController::MAGICK_IMAGE_TYPES.fetch("HEIF")
-    assert_equal "image/avif", Api::V1::RaffleController::MAGICK_IMAGE_TYPES.fetch("HEIC")
+    assert_equal "image/avif", ImageUploadValidation::MAGICK_IMAGE_TYPES.fetch("HEIF")
+    assert_equal "image/avif", ImageUploadValidation::MAGICK_IMAGE_TYPES.fetch("HEIC")
   end
 
   test "admin can remove an uploaded prize image" do
