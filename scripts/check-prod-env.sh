@@ -39,6 +39,10 @@ render_required=(
   CLERK_JWKS_URL
   RESEND_API_KEY
   STRIPE_SECRET_KEY
+  ACTIVE_STORAGE_SERVICE
+  AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY
+  AWS_REGION
 )
 
 render_env_url="https://api.render.com/v1/services/$RENDER_SERVICE_ID/env-vars"
@@ -71,6 +75,30 @@ for key in "${render_required[@]}"; do
   fi
   echo "✅ Render: $key"
 done
+
+if ! grep -Eqx "AWS_BUCKET|AWS_S3_BUCKET" /tmp/pg_render_keys.txt; then
+  echo "❌ Render missing: AWS_BUCKET or AWS_S3_BUCKET"
+  exit 1
+fi
+echo "✅ Render: AWS_BUCKET or AWS_S3_BUCKET"
+
+active_storage_service=$(python3 - <<'PYJSON'
+import json
+from pathlib import Path
+raw = Path('/tmp/pg_render_env.json').read_text()
+for item in json.loads(raw):
+    key = item.get('key') or (item.get('envVar') or {}).get('key')
+    if key == 'ACTIVE_STORAGE_SERVICE':
+        print(item.get('value') or (item.get('envVar') or {}).get('value') or '')
+        break
+PYJSON
+)
+
+if [[ "$active_storage_service" != "amazon" ]]; then
+  echo "❌ Render ACTIVE_STORAGE_SERVICE must be amazon"
+  exit 1
+fi
+echo "✅ Render: ACTIVE_STORAGE_SERVICE=amazon"
 
 echo "🔎 Checking Netlify env vars..."
 netlify_required=(

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_URL="${API_URL:-https://pacific-golf-api.onrender.com}"
-WEB_URL="${WEB_URL:-https://pacific-golf-web.netlify.app}"
+API_URL="${API_URL:-https://make-a-wish-api.onrender.com}"
+WEB_URL="${WEB_URL:-https://make-a-wish-web.netlify.app}"
 ORG_SLUG="${ORG_SLUG:-make-a-wish-guam}"
 TOURNAMENT_SLUG="${TOURNAMENT_SLUG:-golf-for-wishes-2026}"
 
