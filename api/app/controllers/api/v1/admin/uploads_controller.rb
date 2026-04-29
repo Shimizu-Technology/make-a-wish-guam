@@ -7,15 +7,7 @@ module Api
     module Admin
       class UploadsController < ApplicationController
         include Authenticated
-
-        ALLOWED_IMAGE_TYPES = %w[
-          image/jpeg
-          image/png
-          image/gif
-          image/svg+xml
-          image/webp
-          image/avif
-        ].freeze
+        include ImageUploadValidation
 
         before_action :require_branding_access!
 
@@ -29,13 +21,6 @@ module Api
           file = params[:file]
           upload_io = nil
 
-          # Validate file type
-          unless ALLOWED_IMAGE_TYPES.include?(file.content_type)
-            return render json: {
-              error: "Invalid file type. Allowed: JPEG, PNG, GIF, SVG, WebP, AVIF"
-            }, status: :unprocessable_entity
-          end
-
           # Validate file size (max 5MB)
           if file.size > 5.megabytes
             return render json: {
@@ -43,7 +28,14 @@ module Api
             }, status: :unprocessable_entity
           end
 
-          upload_io, filename, content_type = prepared_upload(file)
+          content_type = verified_image_content_type(file)
+          unless content_type
+            return render json: {
+              error: "Invalid file type. Allowed: JPEG, PNG, GIF, WebP, AVIF"
+            }, status: :unprocessable_entity
+          end
+
+          upload_io, filename, content_type = prepared_upload(file, content_type)
 
           # Create an Active Storage blob and attach it
           blob = ActiveStorage::Blob.create_and_upload!(
@@ -92,8 +84,8 @@ module Api
 
         private
 
-        def prepared_upload(file)
-          return [ file, file.original_filename, file.content_type ] unless file.content_type == "image/avif"
+        def prepared_upload(file, content_type)
+          return [ file, file.original_filename, content_type ] unless content_type == "image/avif"
 
           normalized_file = Tempfile.new([ File.basename(file.original_filename, ".*"), ".webp" ])
           normalized_file.binmode

@@ -39,6 +39,10 @@ render_required=(
   CLERK_JWKS_URL
   RESEND_API_KEY
   STRIPE_SECRET_KEY
+  STRIPE_WEBHOOK_SECRET
+  AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY
+  AWS_REGION
 )
 
 render_env_url="https://api.render.com/v1/services/$RENDER_SERVICE_ID/env-vars"
@@ -71,6 +75,12 @@ for key in "${render_required[@]}"; do
   fi
   echo "✅ Render: $key"
 done
+
+if ! grep -Eqx "AWS_BUCKET|AWS_S3_BUCKET" /tmp/pg_render_keys.txt; then
+  echo "❌ Render missing: AWS_BUCKET or AWS_S3_BUCKET"
+  exit 1
+fi
+echo "✅ Render: AWS_BUCKET or AWS_S3_BUCKET"
 
 echo "🔎 Checking Netlify env vars..."
 netlify_required=(

@@ -7,7 +7,6 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   jpeg: 'image/jpeg',
   jpg: 'image/jpeg',
   png: 'image/png',
-  svg: 'image/svg+xml',
   webp: 'image/webp',
 };
 
@@ -30,7 +29,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   getToken,
   placeholder = 'Upload an image or paste a URL',
   helpText,
-  accept = 'image/jpeg,image/png,image/gif,image/svg+xml,image/webp,image/avif',
+  accept = 'image/jpeg,image/png,image/gif,image/webp,image/avif',
   maxSizeMB = 5,
   previewAspectClassName = 'aspect-[16/8]',
 }) => {
