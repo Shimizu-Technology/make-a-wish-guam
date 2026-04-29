@@ -25,7 +25,9 @@ import {
   Ban,
   Send,
   Clock,
-  User
+  User,
+  ImageOff,
+  Upload
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ActivityLog } from '../services/api';
@@ -1006,13 +1008,24 @@ export const RaffleManagementPage: React.FC = () => {
                 >
                   <div className="p-4">
                     <div className="flex items-start gap-3 sm:gap-4">
-                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center shrink-0 ${
-                        prize.tier === 'grand' ? 'bg-yellow-100 text-yellow-600' :
-                        prize.tier === 'platinum' ? 'bg-slate-100 text-slate-600' :
-                        prize.tier === 'gold' ? 'bg-amber-100 text-amber-600' :
-                        'bg-gray-100 text-gray-600'
+                      <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl flex items-center justify-center shrink-0 overflow-hidden border ${
+                        prize.image_url
+                          ? 'border-gray-200 bg-white'
+                          : prize.tier === 'grand' ? 'border-yellow-100 bg-yellow-100 text-yellow-600' :
+                            prize.tier === 'platinum' ? 'border-slate-100 bg-slate-100 text-slate-600' :
+                            prize.tier === 'gold' ? 'border-amber-100 bg-amber-100 text-amber-600' :
+                            'border-gray-100 bg-gray-100 text-gray-600'
                       }`}>
-                        <Trophy className="w-5 h-5 sm:w-6 sm:h-6" />
+                        {prize.image_url ? (
+                          <img
+                            src={prize.image_url}
+                            alt={prize.name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <Trophy className="w-6 h-6 sm:w-7 sm:h-7" />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-gray-900">{prize.name}</h3>
@@ -1549,6 +1562,8 @@ const PrizeModal: React.FC<{
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(prize?.image_url || null);
+  const [removeImage, setRemoveImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [valueDollars, setValueDollars] = useState(prize ? (prize.value_cents / 100).toString() : '0');
   const [form, setForm] = useState({
     name: prize?.name || '',
@@ -1563,8 +1578,26 @@ const PrizeModal: React.FC<{
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
+      setRemoveImage(false);
+      setForm({ ...form, image_url: '' });
       setImagePreview(URL.createObjectURL(file));
     }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setRemoveImage(true);
+    setForm({ ...form, image_url: '' });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleImageUrlChange = (url: string) => {
+    setForm({ ...form, image_url: url });
+    setImageFile(null);
+    setRemoveImage(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setImagePreview(url || null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1589,6 +1622,7 @@ const PrizeModal: React.FC<{
         fd.append('prize[image_url]', form.image_url);
         fd.append('prize[sponsor_name]', form.sponsor_name);
         fd.append('prize[position]', form.position.toString());
+        fd.append('prize[remove_image]', 'false');
         fd.append('prize[image]', imageFile);
 
         const res = await fetch(url, {
@@ -1604,7 +1638,7 @@ const PrizeModal: React.FC<{
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ prize: { ...form, value_cents: valueCents } }),
+          body: JSON.stringify({ prize: { ...form, value_cents: valueCents, remove_image: removeImage } }),
         });
         if (!res.ok) throw new Error('Failed to save');
       }
@@ -1691,35 +1725,66 @@ const PrizeModal: React.FC<{
             <input
               type="url"
               value={form.image_url}
-              onChange={e => {
-                setForm({ ...form, image_url: e.target.value });
-                if (e.target.value && !imageFile) setImagePreview(e.target.value);
-              }}
+              onChange={e => handleImageUrlChange(e.target.value)}
               className="w-full border rounded-lg px-3 py-2"
               placeholder="https://..."
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Or Upload Image</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-            />
-          </div>
+            <label className="block text-sm font-medium mb-1">Prize Image</label>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+              {imagePreview ? (
+                <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white">
+                  <img
+                    src={imagePreview}
+                    alt="Prize preview"
+                    className="h-44 w-full object-contain"
+                  />
+                  {imageFile && (
+                    <div className="absolute left-3 top-3 rounded-full bg-brand-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                      New image
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex h-44 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-400">
+                  <ImageOff className="h-8 w-8" />
+                  <p className="mt-2 text-sm font-medium text-gray-500">No prize image</p>
+                </div>
+              )}
 
-          {imagePreview && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Preview</label>
-              <img
-                src={imagePreview}
-                alt="Prize preview"
-                className="w-full h-32 object-contain rounded-lg border bg-gray-50"
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  <Upload className="h-4 w-4" />
+                  {imagePreview ? 'Replace image' : 'Upload image'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  disabled={!imagePreview && !form.image_url && !prize?.image_url}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <ImageOff className="h-4 w-4" />
+                  Remove image
+                </button>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp,image/avif"
+                onChange={handleFileChange}
+                className="hidden"
               />
+              <p className="mt-2 text-xs text-gray-500">
+                JPG, PNG, WebP, GIF, SVG, or AVIF. Maximum 5MB.
+              </p>
             </div>
-          )}
+          </div>
 
           <div className="flex gap-3 pt-4">
             <button

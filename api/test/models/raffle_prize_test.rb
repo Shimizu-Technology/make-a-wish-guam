@@ -37,6 +37,7 @@ class RafflePrizeTest < ActiveSupport::TestCase
       registration_status: "confirmed",
       payment_status: "paid",
       payment_type: "pay_on_day",
+      team_category: "Co-Ed",
       waiver_accepted_at: Time.current
     )
     
