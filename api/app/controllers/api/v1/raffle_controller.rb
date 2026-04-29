@@ -20,7 +20,9 @@ module Api
         "PNG" => "image/png",
         "GIF" => "image/gif",
         "WEBP" => "image/webp",
-        "AVIF" => "image/avif"
+        "AVIF" => "image/avif",
+        "HEIF" => "image/avif",
+        "HEIC" => "image/avif"
       }.freeze
       MAX_PRIZE_IMAGE_SIZE = 5.megabytes
 

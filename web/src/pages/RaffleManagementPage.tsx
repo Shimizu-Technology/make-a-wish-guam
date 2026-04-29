@@ -1020,7 +1020,7 @@ export const RaffleManagementPage: React.FC = () => {
                           <img
                             src={prize.image_url}
                             alt={prize.name}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-contain p-1"
                             loading="lazy"
                           />
                         ) : (
@@ -1562,6 +1562,7 @@ const PrizeModal: React.FC<{
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(prize?.image_url || null);
+  const [imageDragOver, setImageDragOver] = useState(false);
   const [removeImage, setRemoveImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [valueDollars, setValueDollars] = useState(prize ? (prize.value_cents / 100).toString() : '0');
@@ -1574,14 +1575,34 @@ const PrizeModal: React.FC<{
     position: prize?.position || 0,
   });
 
+  const selectImageFile = (file: File) => {
+    setImageFile(file);
+    setRemoveImage(false);
+    setForm({ ...form, image_url: '' });
+    setImagePreview(URL.createObjectURL(file));
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      setRemoveImage(false);
-      setForm({ ...form, image_url: '' });
-      setImagePreview(URL.createObjectURL(file));
-    }
+    if (file) selectImageFile(file);
+  };
+
+  const handleImageDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setImageDragOver(true);
+  };
+
+  const handleImageDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setImageDragOver(false);
+  };
+
+  const handleImageDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setImageDragOver(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) selectImageFile(file);
   };
 
   const handleRemoveImage = () => {
@@ -1733,7 +1754,14 @@ const PrizeModal: React.FC<{
 
           <div>
             <label className="block text-sm font-medium mb-1">Prize Image</label>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <div
+              className={`rounded-xl border p-3 transition ${
+                imageDragOver ? 'border-brand-400 bg-brand-50' : 'border-gray-200 bg-gray-50'
+              }`}
+              onDragOver={handleImageDragOver}
+              onDragLeave={handleImageDragLeave}
+              onDrop={handleImageDrop}
+            >
               {imagePreview ? (
                 <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white">
                   <img
@@ -1751,6 +1779,7 @@ const PrizeModal: React.FC<{
                 <div className="flex h-44 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-gray-400">
                   <ImageOff className="h-8 w-8" />
                   <p className="mt-2 text-sm font-medium text-gray-500">No prize image</p>
+                  <p className="mt-1 text-xs text-gray-400">Drop an image here</p>
                 </div>
               )}
 

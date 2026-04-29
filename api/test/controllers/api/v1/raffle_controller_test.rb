@@ -160,6 +160,11 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     tempfile&.close!
   end
 
+  test "imagemagick avif container aliases are accepted" do
+    assert_equal "image/avif", Api::V1::RaffleController::MAGICK_IMAGE_TYPES.fetch("HEIF")
+    assert_equal "image/avif", Api::V1::RaffleController::MAGICK_IMAGE_TYPES.fetch("HEIC")
+  end
+
   test "admin can remove an uploaded prize image" do
     prize = @tournament.raffle_prizes.create!(
       name: "Golf Bag",

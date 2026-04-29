@@ -454,15 +454,16 @@ export const RaffleBoardPage: React.FC = () => {
                 }`}
               >
                 {/* Prize Image or Placeholder */}
-                <div className="relative">
+                <div className="relative h-44 bg-white sm:h-48">
                   {prize.image_url ? (
                     <img
                       src={prize.image_url}
                       alt={prize.name}
-                      className="w-full h-40 sm:h-44 object-cover"
+                      className="h-full w-full object-contain p-3"
+                      loading="lazy"
                     />
                   ) : (
-                    <div className={`w-full h-40 sm:h-44 flex items-center justify-center ${getTierPlaceholderBg(prize.tier)}`}>
+                    <div className={`flex h-full w-full items-center justify-center ${getTierPlaceholderBg(prize.tier)}`}>
                       <Gift className="w-10 h-10 text-neutral-300" strokeWidth={1.5} />
                     </div>
                   )}

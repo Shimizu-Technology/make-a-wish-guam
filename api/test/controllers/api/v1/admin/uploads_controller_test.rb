@@ -129,6 +129,11 @@ class Api::V1::Admin::UploadsControllerTest < ActionDispatch::IntegrationTest
     tempfile&.close!
   end
 
+  test "imagemagick avif container aliases are accepted" do
+    assert_equal "image/avif", Api::V1::Admin::UploadsController::MAGICK_IMAGE_TYPES.fetch("HEIF")
+    assert_equal "image/avif", Api::V1::Admin::UploadsController::MAGICK_IMAGE_TYPES.fetch("HEIC")
+  end
+
   private
 
   class UploadTempfileDouble

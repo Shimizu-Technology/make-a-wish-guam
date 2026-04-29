@@ -22,7 +22,9 @@ module Api
           "PNG" => "image/png",
           "GIF" => "image/gif",
           "WEBP" => "image/webp",
-          "AVIF" => "image/avif"
+          "AVIF" => "image/avif",
+          "HEIF" => "image/avif",
+          "HEIC" => "image/avif"
         }.freeze
 
         before_action :require_branding_access!
