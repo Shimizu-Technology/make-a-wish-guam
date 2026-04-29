@@ -19,8 +19,6 @@ services:
         value: "true"
       - key: FORCE_SSL
         value: "true"
-      - key: ACTIVE_STORAGE_SERVICE
-        value: amazon
       - key: AWS_REGION
         value: us-east-1
       - key: AWS_ACCESS_KEY_ID

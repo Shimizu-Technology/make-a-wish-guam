@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "mini_magick"
+require "marcel"
+require "pathname"
 require "tempfile"
 
 module Api
@@ -10,10 +12,16 @@ module Api
         image/jpeg
         image/png
         image/gif
-        image/svg+xml
         image/webp
         image/avif
       ].freeze
+      MAGICK_IMAGE_TYPES = {
+        "JPEG" => "image/jpeg",
+        "PNG" => "image/png",
+        "GIF" => "image/gif",
+        "WEBP" => "image/webp",
+        "AVIF" => "image/avif"
+      }.freeze
       MAX_PRIZE_IMAGE_SIZE = 5.megabytes
 
       skip_before_action :authenticate_user!, only: [:prizes, :tickets, :board]
@@ -109,13 +117,14 @@ module Api
       # Admin - create a prize
       def create_prize
         prize = @tournament.raffle_prizes.build(prize_attributes)
+        prize.image_url = nil if remove_image_requested?
         saved = false
 
         RafflePrize.transaction do
           saved = prize.save
           raise ActiveRecord::Rollback unless saved
 
-          saved = attach_image(prize)
+          saved = attach_uploaded_image(prize)
           raise ActiveRecord::Rollback unless saved
         end
 
@@ -130,18 +139,24 @@ module Api
       # Admin - update a prize
       def update_prize
         prize = @tournament.raffle_prizes.find(params[:id])
+        remove_image = remove_image_requested?
+        blob_to_purge = remove_image && prize.image.attached? ? prize.image.blob : nil
         saved = false
 
         RafflePrize.transaction do
           prize.assign_attributes(prize_attributes)
+          prize.image_url = nil if remove_image
           saved = prize.save
           raise ActiveRecord::Rollback unless saved
 
-          saved = attach_image(prize)
+          prize.image.detach if remove_image && prize.image.attached?
+          saved = remove_image ? true : attach_uploaded_image(prize)
           raise ActiveRecord::Rollback unless saved
         end
 
         if saved
+          blob_to_purge&.purge_later
+          prize.reload
           render json: { prize: prize_response(prize), message: 'Prize updated' }
         else
           render json: { error: prize.errors.full_messages.join(', ') }, status: :unprocessable_entity
@@ -623,18 +638,17 @@ module Api
         prize_params.except(:image, :remove_image)
       end
 
-      def attach_image(prize)
-        if ActiveModel::Type::Boolean.new.cast(params.dig(:prize, :remove_image))
-          prize.image.purge if prize.image.attached?
-          prize.update!(image_url: nil)
-          return true
-        end
+      def remove_image_requested?
+        ActiveModel::Type::Boolean.new.cast(params.dig(:prize, :remove_image))
+      end
 
+      def attach_uploaded_image(prize)
         upload = params.dig(:prize, :image)
         return true unless upload.present? && upload.respond_to?(:tempfile)
 
-        unless ALLOWED_PRIZE_IMAGE_TYPES.include?(upload.content_type)
-          prize.errors.add(:image, "must be JPEG, PNG, GIF, SVG, WebP, or AVIF")
+        content_type = verified_image_content_type(upload)
+        unless content_type
+          prize.errors.add(:image, "must be a valid JPEG, PNG, GIF, WebP, or AVIF image")
           return false
         end
 
@@ -643,15 +657,11 @@ module Api
           return false
         end
 
-        upload_io, filename, content_type = prepared_prize_image(upload)
+        upload_io, filename, content_type = prepared_prize_image(upload, content_type)
 
         prize.image.attach(io: upload_io, filename: filename, content_type: content_type)
         prize.update!(image_url: image_url_for(prize))
         true
-      rescue MiniMagick::Error, MiniMagick::Invalid => e
-        Rails.logger.warn("Failed to normalize raffle prize image #{prize.id}: #{e.class}: #{e.message}")
-        prize.errors.add(:image, "could not be processed. Please export it again and retry.")
-        false
       rescue => e
         Rails.logger.error("Failed to attach image to prize #{prize.id}: #{e.message}")
         prize.errors.add(:image, "could not be uploaded")
@@ -660,8 +670,21 @@ module Api
         upload_io&.close! if upload_io.is_a?(Tempfile)
       end
 
-      def prepared_prize_image(upload)
-        return [ upload, upload.original_filename, upload.content_type ] unless upload.content_type == "image/avif"
+      def verified_image_content_type(upload)
+        detected_type = Marcel::MimeType.for(Pathname.new(upload.tempfile.path))
+        return nil unless ALLOWED_PRIZE_IMAGE_TYPES.include?(detected_type)
+
+        image = MiniMagick::Image.open(upload.tempfile.path)
+        magick_type = MAGICK_IMAGE_TYPES[image.type&.upcase]
+
+        return detected_type if magick_type == detected_type
+      rescue MiniMagick::Error, MiniMagick::Invalid => e
+        Rails.logger.warn("Invalid raffle prize image upload: #{e.class}: #{e.message}")
+        nil
+      end
+
+      def prepared_prize_image(upload, content_type)
+        return [ upload, upload.original_filename, content_type ] unless content_type == "image/avif"
 
         normalized_file = Tempfile.new([ File.basename(upload.original_filename, ".*"), ".webp" ])
         normalized_file.binmode

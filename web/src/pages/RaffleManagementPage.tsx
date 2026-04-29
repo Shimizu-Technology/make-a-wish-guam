@@ -1776,12 +1776,12 @@ const PrizeModal: React.FC<{
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp,image/avif"
+                accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
                 onChange={handleFileChange}
                 className="hidden"
               />
               <p className="mt-2 text-xs text-gray-500">
-                JPG, PNG, WebP, GIF, SVG, or AVIF. Maximum 5MB.
+                JPG, PNG, WebP, GIF, or AVIF. Maximum 5MB.
               </p>
             </div>
           </div>

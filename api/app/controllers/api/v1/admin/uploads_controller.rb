@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "mini_magick"
+require "marcel"
+require "pathname"
 
 module Api
   module V1
@@ -12,10 +14,16 @@ module Api
           image/jpeg
           image/png
           image/gif
-          image/svg+xml
           image/webp
           image/avif
         ].freeze
+        MAGICK_IMAGE_TYPES = {
+          "JPEG" => "image/jpeg",
+          "PNG" => "image/png",
+          "GIF" => "image/gif",
+          "WEBP" => "image/webp",
+          "AVIF" => "image/avif"
+        }.freeze
 
         before_action :require_branding_access!
 
@@ -29,10 +37,10 @@ module Api
           file = params[:file]
           upload_io = nil
 
-          # Validate file type
-          unless ALLOWED_IMAGE_TYPES.include?(file.content_type)
+          content_type = verified_image_content_type(file)
+          unless content_type
             return render json: {
-              error: "Invalid file type. Allowed: JPEG, PNG, GIF, SVG, WebP, AVIF"
+              error: "Invalid file type. Allowed: JPEG, PNG, GIF, WebP, AVIF"
             }, status: :unprocessable_entity
           end
 
@@ -43,7 +51,7 @@ module Api
             }, status: :unprocessable_entity
           end
 
-          upload_io, filename, content_type = prepared_upload(file)
+          upload_io, filename, content_type = prepared_upload(file, content_type)
 
           # Create an Active Storage blob and attach it
           blob = ActiveStorage::Blob.create_and_upload!(
@@ -92,8 +100,21 @@ module Api
 
         private
 
-        def prepared_upload(file)
-          return [ file, file.original_filename, file.content_type ] unless file.content_type == "image/avif"
+        def verified_image_content_type(file)
+          detected_type = Marcel::MimeType.for(Pathname.new(file.tempfile.path))
+          return nil unless ALLOWED_IMAGE_TYPES.include?(detected_type)
+
+          image = MiniMagick::Image.open(file.tempfile.path)
+          magick_type = MAGICK_IMAGE_TYPES[image.type&.upcase]
+
+          return detected_type if magick_type == detected_type
+        rescue MiniMagick::Error, MiniMagick::Invalid => e
+          Rails.logger.warn("Invalid admin image upload: #{e.class}: #{e.message}")
+          nil
+        end
+
+        def prepared_upload(file, content_type)
+          return [ file, file.original_filename, content_type ] unless content_type == "image/avif"
 
           normalized_file = Tempfile.new([ File.basename(file.original_filename, ".*"), ".webp" ])
           normalized_file.binmode

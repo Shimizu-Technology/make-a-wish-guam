@@ -5,9 +5,13 @@ require "tempfile"
 class Api::V1::Admin::UploadsControllerTest < ActionDispatch::IntegrationTest
   def setup
     super
-    @upload_file_path = Rails.root.join("test/fixtures/files/test.svg")
+    @tempfiles = []
     @admin = admins(:admin_one)
     @admin.update!(clerk_id: "test_clerk_upload_admin_#{@admin.id}") if @admin.clerk_id.nil?
+  end
+
+  def teardown
+    @tempfiles.each(&:close!)
   end
 
   test "create allows an organization admin membership" do
@@ -16,7 +20,7 @@ class Api::V1::Admin::UploadsControllerTest < ActionDispatch::IntegrationTest
     assert_difference "ActiveStorage::Blob.count", 1 do
       post "/api/v1/admin/uploads",
            params: {
-             file: Rack::Test::UploadedFile.new(@upload_file_path, "image/svg+xml")
+             file: build_png_upload
            },
            headers: auth_headers
     end
@@ -43,7 +47,7 @@ class Api::V1::Admin::UploadsControllerTest < ActionDispatch::IntegrationTest
     assert_no_difference "ActiveStorage::Blob.count" do
       post "/api/v1/admin/uploads",
            params: {
-             file: Rack::Test::UploadedFile.new(@upload_file_path, "image/svg+xml")
+             file: build_png_upload
            },
            headers: auth_headers
     end
@@ -90,7 +94,7 @@ class Api::V1::Admin::UploadsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_raises(MiniMagick::Error) do
-      controller.send(:prepared_upload, avif_upload)
+      controller.send(:prepared_upload, avif_upload, "image/avif")
     end
 
     assert normalized_file.closed?, "normalized tempfile should be closed when avif normalization fails"
@@ -98,6 +102,31 @@ class Api::V1::Admin::UploadsControllerTest < ActionDispatch::IntegrationTest
     Tempfile.singleton_class.send(:define_method, :new, original_tempfile_new)
     MiniMagick::Image.singleton_class.send(:define_method, :open, original_image_open)
     avif_upload&.tempfile&.close!
+  end
+
+  test "create rejects spoofed image content type" do
+    authenticate_as(@admin)
+
+    tempfile = Tempfile.new([ "spoofed-upload", ".jpg" ])
+    tempfile.write("not actually a jpeg")
+    tempfile.rewind
+
+    upload = Rack::Test::UploadedFile.new(
+      tempfile.path,
+      "image/jpeg",
+      original_filename: "upload.jpg"
+    )
+
+    assert_no_difference "ActiveStorage::Blob.count" do
+      post "/api/v1/admin/uploads",
+           params: { file: upload },
+           headers: auth_headers
+    end
+
+    assert_response :unprocessable_entity
+    assert_equal "Invalid file type. Allowed: JPEG, PNG, GIF, WebP, AVIF", JSON.parse(response.body)["error"]
+  ensure
+    tempfile&.close!
   end
 
   private
@@ -121,6 +150,17 @@ class Api::V1::Admin::UploadsControllerTest < ActionDispatch::IntegrationTest
     def closed?
       @closed
     end
+  end
+
+  def build_png_upload
+    file = Tempfile.new([ "upload", ".png" ])
+    file.binmode
+
+    system("magick", "-size", "16x16", "xc:#0057B8", file.path, exception: true)
+    file.rewind
+
+    @tempfiles << file
+    Rack::Test::UploadedFile.new(file.path, "image/png", original_filename: "upload.png")
   end
 
   def build_avif_upload
