@@ -43,7 +43,7 @@ module Api
       # GET /api/v1/tournaments/:tournament_id/raffle/prizes
       # Public - get all prizes for raffle board
       def prizes
-        prizes = @tournament.raffle_prizes.ordered
+        prizes = raffle_prizes_for_display
 
         render json: {
           tournament: {
@@ -60,7 +60,7 @@ module Api
       # GET /api/v1/tournaments/:tournament_id/raffle/board
       # Public - get raffle board display data
       def board
-        prizes = @tournament.raffle_prizes.ordered
+        prizes = raffle_prizes_for_display
         
         render json: {
           tournament: {
@@ -640,6 +640,10 @@ module Api
 
       def remove_image_requested?
         ActiveModel::Type::Boolean.new.cast(params.dig(:prize, :remove_image))
+      end
+
+      def raffle_prizes_for_display
+        @tournament.raffle_prizes.with_attached_image.ordered
       end
 
       def attach_uploaded_image(prize)

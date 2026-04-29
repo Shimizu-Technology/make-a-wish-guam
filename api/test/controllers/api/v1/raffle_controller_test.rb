@@ -69,6 +69,39 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     image_file&.close
   end
 
+  test "public board preloads prize image attachments" do
+    6.times do |idx|
+      prize = @tournament.raffle_prizes.create!(
+        name: "Attached Prize #{idx}",
+        tier: "standard",
+        value_cents: 30000,
+        position: idx
+      )
+      image_file = build_png_file
+      prize.image.attach(
+        io: image_file,
+        filename: "test-#{idx}.png",
+        content_type: "image/png"
+      )
+    end
+
+    select_count = 0
+    callback = lambda do |_name, _started, _finished, _unique_id, payload|
+      sql = payload[:sql]
+      next if payload[:name] == "SCHEMA"
+      next unless sql&.match?(/\ASELECT/i)
+
+      select_count += 1 if sql.include?("active_storage_attachments") || sql.include?("active_storage_blobs")
+    end
+
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+      get "/api/v1/tournaments/#{@tournament.id}/raffle/board"
+    end
+
+    assert_response :success
+    assert_operator select_count, :<=, 3
+  end
+
   test "invalid uploaded prize image type is rejected without creating prize" do
     tempfile = Tempfile.new([ "prize", ".txt" ])
     tempfile.write("not an image")
