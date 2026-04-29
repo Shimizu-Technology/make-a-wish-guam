@@ -104,6 +104,9 @@ interface Tournament {
 }
 
 const TIERS = ['grand', 'platinum', 'gold', 'silver', 'standard'];
+const PRIZE_IMAGE_ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,image/avif';
+const PRIZE_IMAGE_TYPES = new Set(PRIZE_IMAGE_ACCEPT.split(','));
+const MAX_PRIZE_IMAGE_SIZE = 5 * 1024 * 1024;
 
 const DEFAULT_BUNDLES: RaffleBundleDef[] = [
   { quantity: 4,  price_cents: 2000,  label: '$20 for 4 tickets' },
@@ -1582,7 +1585,23 @@ const PrizeModal: React.FC<{
     };
   }, [imageObjectUrl]);
 
+  const validateImageFile = (file: File) => {
+    if (!PRIZE_IMAGE_TYPES.has(file.type)) {
+      toast.error('Please use a JPG, PNG, WebP, GIF, or AVIF image');
+      return false;
+    }
+
+    if (file.size > MAX_PRIZE_IMAGE_SIZE) {
+      toast.error('Prize image must be smaller than 5MB');
+      return false;
+    }
+
+    return true;
+  };
+
   const selectImageFile = (file: File) => {
+    if (!validateImageFile(file)) return;
+
     const previewUrl = URL.createObjectURL(file);
 
     setImageFile(file);
@@ -1595,6 +1614,7 @@ const PrizeModal: React.FC<{
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) selectImageFile(file);
+    e.target.value = '';
   };
 
   const handleImageDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -1817,7 +1837,7 @@ const PrizeModal: React.FC<{
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
+                accept={PRIZE_IMAGE_ACCEPT}
                 onChange={handleFileChange}
                 className="hidden"
               />
