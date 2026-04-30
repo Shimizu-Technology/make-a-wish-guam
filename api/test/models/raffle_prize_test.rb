@@ -101,6 +101,14 @@ class RafflePrizeTest < ActiveSupport::TestCase
     assert_equal "john@test.com", @prize.winner_email
   end
 
+  test "draw_winner! uses a secure random index instead of always selecting the first ticket" do
+    @prize.define_singleton_method(:random_ticket_index) { |_ticket_count| 2 }
+
+    assert @prize.draw_winner!
+
+    assert_equal "TEST-3", @prize.reload.winning_ticket.ticket_number
+  end
+
   test "draw_winner! fails if no tickets available" do
     RaffleTicket.delete_all
     
