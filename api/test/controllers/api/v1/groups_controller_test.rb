@@ -52,6 +52,32 @@ class Api::V1::GroupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "1B", second["starting_position_label"]
   end
 
+  test "index includes category and sponsor company for pairing exports" do
+    tournament = tournaments(:tournament_one)
+    sponsor = tournament.sponsors.create!(
+      name: "Bank of Guam",
+      tier: "gold",
+      active: true
+    )
+    golfer = golfers(:confirmed_paid)
+    golfer.update_columns(
+      sponsor_id: sponsor.id,
+      sponsor_name: nil,
+      team_category: "Co-Ed",
+      updated_at: Time.current
+    )
+
+    get api_v1_groups_url(tournament_id: tournament.id), headers: auth_headers
+    assert_response :success
+
+    json = JSON.parse(response.body)
+    group = json.find { |entry| entry["id"] == golfer.group_id }
+    exported_golfer = group["golfers"].find { |entry| entry["id"] == golfer.id }
+
+    assert_equal "Co-Ed", exported_golfer["team_category"]
+    assert_equal "Bank of Guam", exported_golfer["sponsor_display_name"]
+  end
+
   test "index excludes empty leftover groups without deleting them" do
     tournament = tournaments(:tournament_one)
     empty_group = tournament.groups.create!(

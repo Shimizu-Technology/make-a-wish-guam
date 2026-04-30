@@ -752,7 +752,7 @@ module Api
       end
 
       def serialize_group_payload(group)
-        fresh_group = Group.includes(:golfers, :tournament).find(group.id)
+        fresh_group = Group.includes(:tournament, golfers: :sponsor).find(group.id)
         preload_group_position_letters([fresh_group])
         ActiveModelSerializers::SerializableResource.new(fresh_group, include: "golfers").as_json
       end

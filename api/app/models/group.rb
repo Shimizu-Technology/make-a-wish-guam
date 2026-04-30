@@ -13,7 +13,7 @@ class Group < ApplicationRecord
 
   before_validation :normalize_starting_position
 
-  scope :with_golfers, -> { joins(:golfers).includes(:golfers, :tournament).distinct.order(:group_number) }
+  scope :with_golfers, -> { joins(:golfers).includes(:tournament, golfers: :sponsor).distinct.order(:group_number) }
   scope :for_tournament, ->(tournament_id) { where(tournament_id: tournament_id) }
   scope :without_golfers, -> { left_outer_joins(:golfers).where(golfers: { id: nil }).distinct }
 
