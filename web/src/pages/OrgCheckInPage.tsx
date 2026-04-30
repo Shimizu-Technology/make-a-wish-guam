@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   RefreshCw,
   CheckCircle,
+  RotateCcw,
   Users,
   Loader2,
   PartyPopper,
@@ -106,6 +107,9 @@ export const OrgCheckInPage: React.FC = () => {
         (g: ApiGolfer) => g.registration_status === 'confirmed'
       );
       setGolfers(confirmed);
+      setSelectedGolfer((current) => (
+        current ? confirmed.find((g: ApiGolfer) => g.id === current.id) || null : current
+      ));
     } catch {
       toast.error('Failed to load golfers');
     } finally {
@@ -206,6 +210,37 @@ export const OrgCheckInPage: React.FC = () => {
       await fetchData();
     } catch {
       toast.error(`Failed to check in ${golfer.name}`);
+    } finally {
+      setCheckingIn(null);
+    }
+  };
+
+  const handleUndoCheckIn = async (golfer: ApiGolfer) => {
+    if (!golfer.checked_in_at) return;
+    if (!confirm(`Undo check-in for ${golfer.name}?`)) return;
+
+    setCheckingIn(golfer.id);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Not authenticated');
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/golfers/${golfer.id}/undo_check_in`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to undo check-in');
+      }
+
+      toast.success(`${golfer.name} is no longer checked in`, { duration: 2000 });
+      await fetchData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : `Failed to undo check-in for ${golfer.name}`);
     } finally {
       setCheckingIn(null);
     }
@@ -635,9 +670,19 @@ export const OrgCheckInPage: React.FC = () => {
                 )}
 
                 {selectedGolfer.checked_in_at && (
-                  <div className="text-center text-green-600 py-2">
-                    <CheckCircle className="w-8 h-8 mx-auto mb-1" />
-                    <p className="font-medium">Already Checked In</p>
+                  <div className="space-y-3">
+                    <div className="text-center text-green-600 py-2">
+                      <CheckCircle className="w-8 h-8 mx-auto mb-1" />
+                      <p className="font-medium">Already Checked In</p>
+                    </div>
+                    <button
+                      onClick={() => handleUndoCheckIn(selectedGolfer)}
+                      disabled={checkingIn === selectedGolfer.id}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-red-200 text-red-600 rounded-xl hover:bg-red-50 font-semibold disabled:opacity-50"
+                    >
+                      {checkingIn === selectedGolfer.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <RotateCcw className="w-5 h-5" />}
+                      Undo Check-In
+                    </button>
                   </div>
                 )}
               </div>
@@ -865,9 +910,19 @@ export const OrgCheckInPage: React.FC = () => {
               </button>
             )}
             {selectedGolfer.checked_in_at && (
-              <div className="text-center text-green-600 py-2">
-                <CheckCircle className="w-8 h-8 mx-auto mb-1" />
-                <p className="font-medium">Already Checked In</p>
+              <div className="space-y-3">
+                <div className="text-center text-green-600 py-2">
+                  <CheckCircle className="w-8 h-8 mx-auto mb-1" />
+                  <p className="font-medium">Already Checked In</p>
+                </div>
+                <button
+                  onClick={() => handleUndoCheckIn(selectedGolfer)}
+                  disabled={checkingIn === selectedGolfer.id}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3.5 border border-red-200 text-red-600 rounded-xl font-semibold disabled:opacity-50 text-base"
+                >
+                  {checkingIn === selectedGolfer.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <RotateCcw className="w-5 h-5" />}
+                  Undo Check-In
+                </button>
               </div>
             )}
           </div>
