@@ -231,14 +231,29 @@ class GolferTest < ActiveSupport::TestCase
     assert golfer.checked_in?
   end
 
-  test "check_in! clears checked_in_at when already checked in (toggle)" do
+  test "check_in! leaves already checked-in golfers checked in" do
     golfer = golfers(:confirmed_checked_in)
     assert_not_nil golfer.checked_in_at
+    checked_in_at = golfer.checked_in_at
     
     golfer.check_in!
     golfer.reload
     
+    assert_not_nil golfer.checked_in_at
+    assert_equal checked_in_at.to_i, golfer.checked_in_at.to_i
+    assert golfer.checked_in?
+  end
+
+  test "undo_check_in! clears checked_in_at when already checked in" do
+    golfer = golfers(:confirmed_checked_in)
+    assert_not_nil golfer.checked_in_at
+
+    golfer.undo_check_in!
+    golfer.reload
+
     assert_nil golfer.checked_in_at
+    assert_nil golfer.checked_in_by_id
+    assert_nil golfer.checked_in_by_name
     assert_not golfer.checked_in?
   end
 

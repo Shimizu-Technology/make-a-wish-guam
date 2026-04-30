@@ -182,15 +182,24 @@ class Golfer < ApplicationRecord
   end
 
   def check_in!(admin: nil)
-    if checked_in?
-      assign_attributes(checked_in_at: nil, checked_in_by_id: nil, checked_in_by_name: nil)
-    else
-      assign_attributes(
-        checked_in_at: Time.current,
-        checked_in_by_id: admin&.id,
-        checked_in_by_name: admin&.name || admin&.email
-      )
-    end
+    return true if checked_in?
+
+    assign_attributes(
+      checked_in_at: Time.current,
+      checked_in_by_id: admin&.id,
+      checked_in_by_name: admin&.name || admin&.email
+    )
+    save!(validate: false)
+  end
+
+  def undo_check_in!
+    return true unless checked_in?
+
+    assign_attributes(
+      checked_in_at: nil,
+      checked_in_by_id: nil,
+      checked_in_by_name: nil
+    )
     save!(validate: false)
   end
 

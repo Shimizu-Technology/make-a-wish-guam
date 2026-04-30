@@ -36,30 +36,36 @@ class RafflePrize < ApplicationRecord
 
   # Draw a winner from available tickets
   def draw_winner!
-    return false if won?
-    
-    available_tickets = tournament.raffle_tickets.eligible_for_draw
-    return false if available_tickets.empty?
-
-    # Random selection
-    winning_ticket = available_tickets.sample
-
+    winner_drawn = false
     transaction do
-      winning_ticket.update!(
-        is_winner: true,
-        drawn_at: Time.current,
-        raffle_prize: self
-      )
+      lock!
+      unless won?
+        # Lock eligible tickets while selecting so simultaneous draw requests cannot
+        # award the same ticket or redraw the same prize.
+        available_tickets = tournament.raffle_tickets.eligible_for_draw.lock("FOR UPDATE OF raffle_tickets").to_a
+        winning_ticket = available_tickets.sample
 
-      update!(
-        won: true,
-        won_at: Time.current,
-        winning_ticket: winning_ticket,
-        winner_name: winning_ticket.purchaser_name,
-        winner_email: winning_ticket.purchaser_email,
-        winner_phone: winning_ticket.purchaser_phone
-      )
+        if winning_ticket
+          winning_ticket.update!(
+            is_winner: true,
+            drawn_at: Time.current,
+            raffle_prize: self
+          )
+
+          update!(
+            won: true,
+            won_at: Time.current,
+            winning_ticket: winning_ticket,
+            winner_name: winning_ticket.purchaser_name,
+            winner_email: winning_ticket.purchaser_email,
+            winner_phone: winning_ticket.purchaser_phone
+          )
+          winner_drawn = true
+        end
+      end
     end
+
+    return false unless winner_drawn
 
     broadcast_winner
     notify_winner
