@@ -327,13 +327,14 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     assert_includes log.metadata.fetch("changed_fields"), "raffle_enabled"
   end
 
-  test "sync tickets includes unpaid active registrations and excludes cancelled registrations" do
+  test "sync tickets includes unpaid active registrations and voids ineligible complimentary tickets" do
     @tournament.update!(
       raffle_enabled: true,
       config: (@tournament.config || {}).merge("raffle_include_with_registration" => true)
     )
     unpaid = golfers(:confirmed_unpaid)
     cancelled = golfers(:cancelled_golfer)
+    waitlisted = golfers(:waitlist_golfer)
     cancelled_ticket = @tournament.raffle_tickets.create!(
       golfer: cancelled,
       purchaser_name: cancelled.name,
@@ -343,19 +344,52 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
       payment_status: "paid",
       purchased_at: Time.current
     )
+    waitlisted_ticket = @tournament.raffle_tickets.create!(
+      golfer: waitlisted,
+      purchaser_name: waitlisted.name,
+      purchaser_email: waitlisted.email,
+      purchaser_phone: waitlisted.phone,
+      price_cents: 0,
+      payment_status: "paid",
+      purchased_at: Time.current
+    )
 
     assert_difference -> { @tournament.raffle_tickets.where(golfer: unpaid).count }, 1 do
       assert_no_difference -> { @tournament.raffle_tickets.where(golfer: cancelled).count } do
-        post "/api/v1/tournaments/#{@tournament.id}/raffle/sync_tickets",
-             headers: @headers
+        assert_no_difference -> { @tournament.raffle_tickets.where(golfer: waitlisted).count } do
+          post "/api/v1/tournaments/#{@tournament.id}/raffle/sync_tickets",
+               headers: @headers
+        end
       end
     end
 
     assert_response :success
     json = JSON.parse(response.body)
     assert_operator json.fetch("total_teams"), :>=, 1
-    assert_equal 1, json.fetch("voided")
+    assert_equal 2, json.fetch("voided")
     assert_equal "voided", cancelled_ticket.reload.payment_status
+    assert_equal "voided", waitlisted_ticket.reload.payment_status
+  end
+
+  test "public ticket lookup excludes tickets linked to waitlisted golfers" do
+    waitlisted = golfers(:waitlist_golfer)
+    @tournament.raffle_tickets.create!(
+      golfer: waitlisted,
+      purchaser_name: waitlisted.name,
+      purchaser_email: waitlisted.email,
+      purchaser_phone: waitlisted.phone,
+      price_cents: 0,
+      payment_status: "paid",
+      purchased_at: Time.current
+    )
+
+    get "/api/v1/tournaments/#{@tournament.id}/raffle/tickets",
+        params: { query: waitlisted.email }
+
+    assert_response :success
+    json = JSON.parse(response.body)
+    assert_equal 0, json.fetch("ticket_count")
+    assert_empty json.fetch("tickets")
   end
 
   private

@@ -597,10 +597,10 @@ module Api
 
         @tournament.raffle_tickets
           .joins(:golfer)
-          .where(golfers: { registration_status: "cancelled" }, price_cents: [0, nil])
+          .where(golfers: { registration_status: %w[cancelled waitlist] }, price_cents: [0, nil])
           .where.not(payment_status: "voided")
           .find_each do |ticket|
-            ticket.void!(reason: "Registration cancelled")
+            ticket.void!(reason: "Registration not raffle eligible")
             voided_count += 1
           end
 

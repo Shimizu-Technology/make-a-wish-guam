@@ -24,7 +24,7 @@ class RaffleTicket < ApplicationRecord
   scope :recent, -> { order(created_at: :desc) }
   scope :with_eligible_participant, -> {
     left_outer_joins(:golfer)
-      .where("golfers.id IS NULL OR golfers.registration_status != ?", "cancelled")
+      .where("golfers.id IS NULL OR golfers.registration_status NOT IN (?)", %w[cancelled waitlist])
   }
   scope :eligible_for_draw, -> { active.paid.not_winners.with_eligible_participant }
 

@@ -120,6 +120,16 @@ class RafflePrizeTest < ActiveSupport::TestCase
     assert_nil @prize.winning_ticket
   end
 
+  test "draw_winner! ignores tickets tied to waitlisted golfers" do
+    @golfer.update!(registration_status: "waitlist")
+
+    result = @prize.draw_winner!
+
+    assert_not result, "draw_winner! should return false when only waitlisted golfers have tickets"
+    assert_not @prize.won?
+    assert_nil @prize.winning_ticket
+  end
+
   test "draw_winner! fails if already won" do
     @prize.draw_winner!
     
