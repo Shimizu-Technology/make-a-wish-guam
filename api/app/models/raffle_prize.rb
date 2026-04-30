@@ -43,7 +43,7 @@ class RafflePrize < ApplicationRecord
         # Lock eligible tickets while selecting so simultaneous draw requests cannot
         # award the same ticket or redraw the same prize.
         available_tickets = tournament.raffle_tickets.eligible_for_draw.order(:id).lock("FOR UPDATE OF raffle_tickets").to_a
-        winning_ticket = available_tickets[random_ticket_index(available_tickets.length)]
+        winning_ticket = available_tickets.empty? ? nil : available_tickets[random_ticket_index(available_tickets.length)]
 
         if winning_ticket
           winning_ticket.update!(
