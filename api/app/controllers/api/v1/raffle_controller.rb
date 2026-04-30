@@ -61,7 +61,7 @@ module Api
             total_prizes: prizes.count,
             prizes_won: prizes.won.count,
             prizes_remaining: prizes.available.count,
-            total_tickets_sold: @tournament.raffle_tickets.active.paid.count
+            total_tickets_sold: @tournament.raffle_tickets.active.paid.with_eligible_participant.count
           },
           last_updated: Time.current.iso8601
         }
@@ -74,7 +74,7 @@ module Api
         return render json: { error: 'Search query required' }, status: :bad_request unless query.present?
 
         q = query.strip
-        base = @tournament.raffle_tickets.active.paid
+        base = @tournament.raffle_tickets.active.paid.with_eligible_participant
 
         tickets = base.where(purchaser_email: q.downcase)
                       .or(base.where(purchaser_phone: q))
@@ -539,15 +539,26 @@ module Api
       end
 
       # POST /api/v1/tournaments/:tournament_id/raffle/sync_tickets
-      # Admin - create missing raffle tickets for all paid/sponsored golfers
+      # Admin - create missing complimentary raffle tickets for active registered golfers
       def sync_tickets
-        paid_golfers = @tournament.golfers.confirmed.where(payment_status: 'paid')
-                        .or(@tournament.golfers.confirmed.where(payment_type: 'sponsor'))
+        eligible_golfers = @tournament.golfers
+          .active
+          .where(registration_status: %w[confirmed pending])
 
         before_count = @tournament.raffle_tickets.count
+        voided_count = 0
         errors = []
 
-        paid_golfers.find_each do |golfer|
+        @tournament.raffle_tickets
+          .joins(:golfer)
+          .where(golfers: { registration_status: "cancelled" }, price_cents: [0, nil])
+          .where.not(payment_status: "voided")
+          .find_each do |ticket|
+            ticket.void!(reason: "Registration cancelled")
+            voided_count += 1
+          end
+
+        eligible_golfers.find_each do |golfer|
           begin
             golfer.create_raffle_tickets!
           rescue => e
@@ -561,16 +572,17 @@ module Api
 
         ActivityLog.log(
           admin: current_user, action: 'raffle_tickets_synced', target: @tournament,
-          details: "Synced registration tickets: #{created_count} created (#{after_count} total for #{paid_golfers.count} teams)",
-          metadata: { created: created_count, total: after_count, teams: paid_golfers.count },
+          details: "Synced registration tickets: #{created_count} created, #{voided_count} voided (#{after_count} total for #{eligible_golfers.count} teams)",
+          metadata: { created: created_count, voided: voided_count, total: after_count, teams: eligible_golfers.count },
           tournament: @tournament
         )
 
         render json: {
-          message: "Synced: #{created_count} ticket#{'s' unless created_count == 1} created (#{after_count} total for #{paid_golfers.count} teams)",
+          message: "Synced: #{created_count} ticket#{'s' unless created_count == 1} created, #{voided_count} voided (#{after_count} total for #{eligible_golfers.count} teams)",
           created: created_count,
+          voided: voided_count,
           total_tickets: after_count,
-          total_teams: paid_golfers.count,
+          total_teams: eligible_golfers.count,
           errors: errors.presence
         }
       end

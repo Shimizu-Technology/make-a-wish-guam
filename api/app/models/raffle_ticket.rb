@@ -22,6 +22,11 @@ class RaffleTicket < ApplicationRecord
   scope :not_winners, -> { where(is_winner: false) }
   scope :for_golfer, ->(golfer) { where(golfer: golfer) }
   scope :recent, -> { order(created_at: :desc) }
+  scope :with_eligible_participant, -> {
+    left_outer_joins(:golfer)
+      .where("golfers.id IS NULL OR golfers.registration_status != ?", "cancelled")
+  }
+  scope :eligible_for_draw, -> { active.paid.not_winners.with_eligible_participant }
 
   def price_dollars
     (price_cents || 0) / 100.0

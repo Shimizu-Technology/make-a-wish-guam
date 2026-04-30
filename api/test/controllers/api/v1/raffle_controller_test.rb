@@ -233,6 +233,37 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     image_file&.close
   end
 
+  test "sync tickets includes unpaid active registrations and excludes cancelled registrations" do
+    @tournament.update!(
+      raffle_enabled: true,
+      config: (@tournament.config || {}).merge("raffle_include_with_registration" => true)
+    )
+    unpaid = golfers(:confirmed_unpaid)
+    cancelled = golfers(:cancelled_golfer)
+    cancelled_ticket = @tournament.raffle_tickets.create!(
+      golfer: cancelled,
+      purchaser_name: cancelled.name,
+      purchaser_email: cancelled.email,
+      purchaser_phone: cancelled.phone,
+      price_cents: 0,
+      payment_status: "paid",
+      purchased_at: Time.current
+    )
+
+    assert_difference -> { @tournament.raffle_tickets.where(golfer: unpaid).count }, 1 do
+      assert_no_difference -> { @tournament.raffle_tickets.where(golfer: cancelled).count } do
+        post "/api/v1/tournaments/#{@tournament.id}/raffle/sync_tickets",
+             headers: @headers
+      end
+    end
+
+    assert_response :success
+    json = JSON.parse(response.body)
+    assert_operator json.fetch("total_teams"), :>=, 1
+    assert_equal 1, json.fetch("voided")
+    assert_equal "voided", cancelled_ticket.reload.payment_status
+  end
+
   private
 
   def build_png_upload

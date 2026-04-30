@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useOrganization } from '../components/OrganizationProvider';
@@ -107,6 +107,14 @@ const TIERS = ['grand', 'platinum', 'gold', 'silver', 'standard'];
 const PRIZE_IMAGE_ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,image/avif';
 const PRIZE_IMAGE_TYPES = new Set(PRIZE_IMAGE_ACCEPT.split(','));
 const MAX_PRIZE_IMAGE_SIZE = 5 * 1024 * 1024;
+const PRIZES_PER_PAGE = 10;
+const TIER_RANK = TIERS.reduce<Record<string, number>>((acc, tier, index) => {
+  acc[tier] = index;
+  return acc;
+}, {});
+
+type PrizeStatusFilter = '' | 'available' | 'won' | 'claimed';
+type PrizeSort = 'position' | 'tier' | 'name' | 'value_desc' | 'value_asc';
 
 const DEFAULT_BUNDLES: RaffleBundleDef[] = [
   { quantity: 4,  price_cents: 2000,  label: '$20 for 4 tickets' },
@@ -331,6 +339,11 @@ export const RaffleManagementPage: React.FC = () => {
   const [ticketSearch, setTicketSearch] = useState('');
   const [ticketFilter, setTicketFilter] = useState<'' | 'purchased' | 'complimentary' | 'winners' | 'voided'>('');
   const [ticketPage, setTicketPage] = useState(1);
+  const [prizeSearch, setPrizeSearch] = useState('');
+  const [prizeTierFilter, setPrizeTierFilter] = useState('');
+  const [prizeStatusFilter, setPrizeStatusFilter] = useState<PrizeStatusFilter>('');
+  const [prizeSort, setPrizeSort] = useState<PrizeSort>('position');
+  const [prizePage, setPrizePage] = useState(1);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'prizes' | 'tickets' | 'sell' | 'activity'>('prizes');
@@ -355,6 +368,53 @@ export const RaffleManagementPage: React.FC = () => {
   
   // Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const filteredPrizes = useMemo(() => {
+    const query = prizeSearch.trim().toLowerCase();
+    return prizes
+      .filter((prize) => {
+        if (query) {
+          const haystack = [
+            prize.name,
+            prize.description || '',
+            prize.sponsor_name || '',
+            prize.tier_display,
+          ].join(' ').toLowerCase();
+          if (!haystack.includes(query)) return false;
+        }
+        if (prizeTierFilter && prize.tier !== prizeTierFilter) return false;
+        if (prizeStatusFilter === 'available' && prize.won) return false;
+        if (prizeStatusFilter === 'won' && !prize.won) return false;
+        if (prizeStatusFilter === 'claimed' && !prize.claimed) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        switch (prizeSort) {
+          case 'tier':
+            return (TIER_RANK[a.tier] ?? 99) - (TIER_RANK[b.tier] ?? 99) || a.position - b.position;
+          case 'name':
+            return a.name.localeCompare(b.name);
+          case 'value_desc':
+            return b.value_dollars - a.value_dollars || a.position - b.position;
+          case 'value_asc':
+            return a.value_dollars - b.value_dollars || a.position - b.position;
+          case 'position':
+          default:
+            return a.position - b.position || (TIER_RANK[a.tier] ?? 99) - (TIER_RANK[b.tier] ?? 99);
+        }
+      });
+  }, [prizes, prizeSearch, prizeTierFilter, prizeStatusFilter, prizeSort]);
+
+  const prizeTotalPages = Math.max(1, Math.ceil(filteredPrizes.length / PRIZES_PER_PAGE));
+  const paginatedPrizes = filteredPrizes.slice((prizePage - 1) * PRIZES_PER_PAGE, prizePage * PRIZES_PER_PAGE);
+
+  useEffect(() => {
+    setPrizePage(1);
+  }, [prizeSearch, prizeTierFilter, prizeStatusFilter, prizeSort]);
+
+  useEffect(() => {
+    if (prizePage > prizeTotalPages) setPrizePage(prizeTotalPages);
+  }, [prizePage, prizeTotalPages]);
 
   const fetchTickets = useCallback(async (tournamentId?: string, search?: string, filter?: string, page?: number) => {
     const tid = tournamentId || tournament?.id;
@@ -397,7 +457,8 @@ export const RaffleManagementPage: React.FC = () => {
       setTournament({ ...t, id: tid });
 
       const prizesRes = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tid}/raffle/prizes`
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tid}/raffle/prizes`,
+        { cache: 'no-store' }
       );
       const prizesData = await prizesRes.json();
       setPrizes(prizesData.prizes || []);
@@ -410,7 +471,7 @@ export const RaffleManagementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [organization, tournamentSlug, getToken, fetchTickets]);
+  }, [organization, tournamentSlug, getToken, fetchTickets, ticketSearch, ticketFilter, ticketPage]);
 
   useEffect(() => {
     fetchData();
@@ -430,7 +491,7 @@ export const RaffleManagementPage: React.FC = () => {
       setExpandedTicketId(null);
       fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
     }
-  }, [tournament?.id, ticketSearch, ticketFilter, ticketPage]);
+  }, [tournament?.id, ticketSearch, ticketFilter, ticketPage, fetchTickets]);
 
   const fetchActivityLogs = useCallback(async () => {
     if (!tournament?.id) return;
@@ -1000,9 +1061,86 @@ export const RaffleManagementPage: React.FC = () => {
               )}
             </div>
 
+            {/* Search + Filters */}
+            <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+              <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search prizes, sponsors, descriptions..."
+                    value={prizeSearch}
+                    onChange={(e) => setPrizeSearch(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                  {prizeSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setPrizeSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      aria-label="Clear prize search"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <select
+                  value={prizeTierFilter}
+                  onChange={(e) => setPrizeTierFilter(e.target.value)}
+                  className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="">All tiers</option>
+                  {TIERS.map((tier) => (
+                    <option key={tier} value={tier}>{tier.charAt(0).toUpperCase() + tier.slice(1)}</option>
+                  ))}
+                </select>
+                <select
+                  value={prizeStatusFilter}
+                  onChange={(e) => setPrizeStatusFilter(e.target.value as PrizeStatusFilter)}
+                  className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="">All statuses</option>
+                  <option value="available">Available</option>
+                  <option value="won">Won</option>
+                  <option value="claimed">Claimed</option>
+                </select>
+                <select
+                  value={prizeSort}
+                  onChange={(e) => setPrizeSort(e.target.value as PrizeSort)}
+                  className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="position">Sort by position</option>
+                  <option value="tier">Sort by tier</option>
+                  <option value="name">Sort by name</option>
+                  <option value="value_desc">Value high to low</option>
+                  <option value="value_asc">Value low to high</option>
+                </select>
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-3 text-xs text-gray-500">
+                <span>
+                  Showing {paginatedPrizes.length ? ((prizePage - 1) * PRIZES_PER_PAGE) + 1 : 0}
+                  –{Math.min(prizePage * PRIZES_PER_PAGE, filteredPrizes.length)} of {filteredPrizes.length} prizes
+                </span>
+                {(prizeSearch || prizeTierFilter || prizeStatusFilter || prizeSort !== 'position') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPrizeSearch('');
+                      setPrizeTierFilter('');
+                      setPrizeStatusFilter('');
+                      setPrizeSort('position');
+                    }}
+                    className="font-medium text-brand-600 hover:text-brand-700"
+                  >
+                    Reset filters
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Prizes List */}
             <div className="space-y-3">
-              {prizes.map((prize) => (
+              {paginatedPrizes.map((prize) => (
                 <div
                   key={prize.id}
                   className={`bg-white rounded-xl shadow-sm overflow-hidden ${
@@ -1178,13 +1316,43 @@ export const RaffleManagementPage: React.FC = () => {
                 </div>
               ))}
 
-              {prizes.length === 0 && (
+              {filteredPrizes.length === 0 && (
                 <div className="text-center py-12 bg-white rounded-xl">
                   <Gift className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No prizes yet. Add your first prize!</p>
+                  <p className="text-gray-500">
+                    {prizes.length === 0 ? 'No prizes yet. Add your first prize!' : 'No prizes match your filters.'}
+                  </p>
                 </div>
               )}
             </div>
+
+            {filteredPrizes.length > PRIZES_PER_PAGE && (
+              <div className="mt-4 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <p className="text-sm text-gray-600">
+                  Page {prizePage} of {prizeTotalPages}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPrizePage((page) => Math.max(1, page - 1))}
+                    disabled={prizePage <= 1}
+                    className="rounded-lg border border-gray-300 p-1.5 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Previous prize page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrizePage((page) => Math.min(prizeTotalPages, page + 1))}
+                    disabled={prizePage >= prizeTotalPages}
+                    className="rounded-lg border border-gray-300 p-1.5 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Next prize page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1545,7 +1713,19 @@ export const RaffleManagementPage: React.FC = () => {
           prize={editingPrize}
           tournamentId={tournament?.id || ''}
           onClose={() => { setShowPrizeModal(false); setEditingPrize(null); }}
-          onSuccess={() => { setShowPrizeModal(false); setEditingPrize(null); fetchData(); }}
+          onSuccess={(savedPrize) => {
+            setShowPrizeModal(false);
+            setEditingPrize(null);
+            if (savedPrize) {
+              setPrizes((prev) => {
+                const exists = prev.some((item) => item.id === savedPrize.id);
+                return exists
+                  ? prev.map((item) => item.id === savedPrize.id ? savedPrize : item)
+                  : [savedPrize, ...prev];
+              });
+            }
+            void fetchData(true);
+          }}
         />
       )}
 
@@ -1559,7 +1739,7 @@ const PrizeModal: React.FC<{
   prize: Prize | null;
   tournamentId: string;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (savedPrize?: Prize) => void;
 }> = ({ prize, tournamentId, onClose, onSuccess }) => {
   const { getToken } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -1664,6 +1844,7 @@ const PrizeModal: React.FC<{
         : `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournamentId}/raffle/prizes`;
 
       const valueCents = Math.round(parseFloat(valueDollars || '0') * 100);
+      let savedPrize: Prize | undefined;
 
       if (imageFile) {
         // Use FormData for file upload
@@ -1683,7 +1864,9 @@ const PrizeModal: React.FC<{
           headers: { 'Authorization': `Bearer ${token}` },
           body: fd,
         });
-        if (!res.ok) throw new Error('Failed to save');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save');
+        savedPrize = data.prize;
       } else {
         const res = await fetch(url, {
           method: prize ? 'PATCH' : 'POST',
@@ -1693,13 +1876,15 @@ const PrizeModal: React.FC<{
           },
           body: JSON.stringify({ prize: { ...form, value_cents: valueCents, remove_image: removeImage } }),
         });
-        if (!res.ok) throw new Error('Failed to save');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save');
+        savedPrize = data.prize;
       }
 
       toast.success(prize ? 'Prize updated' : 'Prize created');
-      onSuccess();
-    } catch {
-      toast.error('Failed to save prize');
+      onSuccess(savedPrize);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save prize');
     } finally {
       setSaving(false);
     }

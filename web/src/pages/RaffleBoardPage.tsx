@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useOrganization } from '../components/OrganizationProvider';
 import {
@@ -57,6 +57,16 @@ interface RaffleBoardData {
   };
   last_updated: string;
 }
+
+const TIERS = ['grand', 'platinum', 'gold', 'silver', 'standard'];
+const TIER_RANK = TIERS.reduce<Record<string, number>>((acc, tier, index) => {
+  acc[tier] = index;
+  return acc;
+}, {});
+const PUBLIC_PRIZES_PER_PAGE = 12;
+
+type PublicPrizeStatusFilter = '' | 'available' | 'won';
+type PublicPrizeSort = 'tier' | 'position' | 'name' | 'value_desc' | 'value_asc';
 
 // ---------------------------------------------------------------------------
 // Tier styling helpers
@@ -130,6 +140,11 @@ export const RaffleBoardPage: React.FC = () => {
   const [myTickets, setMyTickets] = useState<{ ticket_number: string; is_winner: boolean }[] | null>(null);
   const [ticketLoading, setTicketLoading] = useState(false);
   const [showMyTickets, setShowMyTickets] = useState(false);
+  const [prizeSearch, setPrizeSearch] = useState('');
+  const [tierFilter, setTierFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<PublicPrizeStatusFilter>('');
+  const [sortBy, setSortBy] = useState<PublicPrizeSort>('tier');
+  const [page, setPage] = useState(1);
 
   const fetchData = useCallback(async () => {
     try {
@@ -141,7 +156,8 @@ export const RaffleBoardPage: React.FC = () => {
       const tournamentId = tournamentData.id || tournamentData.tournament?.id;
 
       const boardRes = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournamentId}/raffle/board`
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournamentId}/raffle/board`,
+        { cache: 'no-store' }
       );
       if (!boardRes.ok) throw new Error('Failed to load raffle');
       const boardData = await boardRes.json();
@@ -157,9 +173,55 @@ export const RaffleBoardPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  const visiblePrizes = useMemo(() => {
+    const query = prizeSearch.trim().toLowerCase();
+    return (data?.prizes || [])
+      .filter((prize) => {
+        if (query) {
+          const haystack = [
+            prize.name,
+            prize.description || '',
+            prize.sponsor_name || '',
+            prize.tier_display,
+          ].join(' ').toLowerCase();
+          if (!haystack.includes(query)) return false;
+        }
+        if (tierFilter && prize.tier !== tierFilter) return false;
+        if (statusFilter === 'available' && prize.won) return false;
+        if (statusFilter === 'won' && !prize.won) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'position':
+            return a.position - b.position || (TIER_RANK[a.tier] ?? 99) - (TIER_RANK[b.tier] ?? 99);
+          case 'name':
+            return a.name.localeCompare(b.name);
+          case 'value_desc':
+            return b.value_dollars - a.value_dollars || a.position - b.position;
+          case 'value_asc':
+            return a.value_dollars - b.value_dollars || a.position - b.position;
+          case 'tier':
+          default:
+            return (TIER_RANK[a.tier] ?? 99) - (TIER_RANK[b.tier] ?? 99) || a.position - b.position;
+        }
+      });
+  }, [data?.prizes, prizeSearch, tierFilter, statusFilter, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(visiblePrizes.length / PUBLIC_PRIZES_PER_PAGE));
+  const paginatedPrizes = visiblePrizes.slice((page - 1) * PUBLIC_PRIZES_PER_PAGE, page * PUBLIC_PRIZES_PER_PAGE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [prizeSearch, tierFilter, statusFilter, sortBy]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const formatCountdown = (drawTime: string) => {
     const now = new Date();
@@ -438,15 +500,86 @@ export const RaffleBoardPage: React.FC = () => {
           )}
         </div>
 
+        {/* Prize Filters */}
+        <div className="mb-5 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="text"
+                value={prizeSearch}
+                onChange={(e) => setPrizeSearch(e.target.value)}
+                placeholder="Search prizes or sponsors..."
+                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 py-3 pl-10 pr-4 text-sm focus:border-[#0057B8] focus:outline-none focus:ring-2 focus:ring-[#0057B8]/20"
+              />
+            </div>
+            <select
+              value={tierFilter}
+              onChange={(e) => setTierFilter(e.target.value)}
+              className="rounded-xl border border-neutral-200 bg-white px-3 py-3 text-sm focus:border-[#0057B8] focus:outline-none focus:ring-2 focus:ring-[#0057B8]/20"
+            >
+              <option value="">All tiers</option>
+              {TIERS.map((tier) => (
+                <option key={tier} value={tier}>{tier.charAt(0).toUpperCase() + tier.slice(1)}</option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as PublicPrizeStatusFilter)}
+              className="rounded-xl border border-neutral-200 bg-white px-3 py-3 text-sm focus:border-[#0057B8] focus:outline-none focus:ring-2 focus:ring-[#0057B8]/20"
+            >
+              <option value="">All prizes</option>
+              <option value="available">Available</option>
+              <option value="won">Won</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as PublicPrizeSort)}
+              className="rounded-xl border border-neutral-200 bg-white px-3 py-3 text-sm focus:border-[#0057B8] focus:outline-none focus:ring-2 focus:ring-[#0057B8]/20"
+            >
+              <option value="tier">Sort by tier</option>
+              <option value="position">Sort by list order</option>
+              <option value="name">Sort by name</option>
+              <option value="value_desc">Value high to low</option>
+              <option value="value_asc">Value low to high</option>
+            </select>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
+            <span>
+              Showing {paginatedPrizes.length ? ((page - 1) * PUBLIC_PRIZES_PER_PAGE) + 1 : 0}
+              –{Math.min(page * PUBLIC_PRIZES_PER_PAGE, visiblePrizes.length)} of {visiblePrizes.length} prizes
+            </span>
+            {(prizeSearch || tierFilter || statusFilter || sortBy !== 'tier') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPrizeSearch('');
+                  setTierFilter('');
+                  setStatusFilter('');
+                  setSortBy('tier');
+                }}
+                className="font-medium text-[#0057B8] hover:text-[#003a6e]"
+              >
+                Reset filters
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Prize Grid */}
         {prizes.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-neutral-200">
             <Gift className="w-12 h-12 text-neutral-300 mx-auto mb-4" strokeWidth={1.5} />
             <p className="text-neutral-500">No prizes yet. Check back soon!</p>
           </div>
+        ) : visiblePrizes.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-2xl border border-neutral-200">
+            <Search className="w-12 h-12 text-neutral-300 mx-auto mb-4" strokeWidth={1.5} />
+            <p className="text-neutral-500">No prizes match those filters.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            {prizes.map((prize) => (
+            {paginatedPrizes.map((prize) => (
               <div
                 key={prize.id}
                 className={`relative flex flex-col bg-white rounded-2xl border border-neutral-200 overflow-hidden transition-all duration-200 ${
@@ -530,6 +663,33 @@ export const RaffleBoardPage: React.FC = () => {
             ))}
           </div>
         )}
+
+        {visiblePrizes.length > PUBLIC_PRIZES_PER_PAGE && (
+          <div className="mt-5 flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+            <p className="text-sm text-neutral-500">
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page <= 1}
+                className="inline-flex items-center gap-1 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                disabled={page >= totalPages}
+                className="inline-flex items-center gap-1 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ================================================================= */}
@@ -540,7 +700,7 @@ export const RaffleBoardPage: React.FC = () => {
           <p>
             Powered by <span className="font-medium text-neutral-600">Shimizu Technology</span>
           </p>
-          <p className="text-xs">Updates every 10 seconds</p>
+          <p className="text-xs">Updates every 5 seconds</p>
         </div>
       </footer>
     </div>
