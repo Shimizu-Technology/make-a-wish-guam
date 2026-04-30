@@ -460,13 +460,17 @@ module Api
       # POST /api/v1/golfers/:id/undo_check_in
       def undo_check_in
         golfer = Golfer.find(params[:id])
-        
-        unless golfer.checked_in_at.present?
+
+        unchecked_now = false
+        golfer.with_lock do
+          unchecked_now = golfer.checked_in?
+          golfer.undo_check_in! if unchecked_now
+        end
+
+        unless unchecked_now
           render json: { error: 'Golfer is not checked in' }, status: :unprocessable_entity
           return
         end
-
-        golfer.with_lock { golfer.undo_check_in! }
 
         ActivityLog.log(
           admin: current_admin,

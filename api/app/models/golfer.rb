@@ -195,11 +195,12 @@ class Golfer < ApplicationRecord
   def undo_check_in!
     return true unless checked_in?
 
-    update!(
+    assign_attributes(
       checked_in_at: nil,
       checked_in_by_id: nil,
       checked_in_by_name: nil
     )
+    save!(validate: false)
   end
 
   def verify_payment!(admin:, method: nil, notes: nil)

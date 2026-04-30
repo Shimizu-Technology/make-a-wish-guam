@@ -214,6 +214,23 @@ class Api::V1::GolfersControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "undo_check_in creates activity log only when it clears check-in" do
+    golfer = golfers(:confirmed_checked_in)
+
+    assert_difference "ActivityLog.where(action: 'golfer_unchecked').count", 1 do
+      post undo_check_in_api_v1_golfer_url(golfer), headers: auth_headers
+    end
+
+    assert_response :success
+    assert_nil golfer.reload.checked_in_at
+
+    assert_no_difference "ActivityLog.where(action: 'golfer_unchecked').count" do
+      post undo_check_in_api_v1_golfer_url(golfer), headers: auth_headers
+    end
+
+    assert_response :unprocessable_entity
+  end
+
   test "refund leaves golfer assigned when Stripe refund fails" do
     tournament = tournaments(:tournament_one)
     group = groups(:group_two)
