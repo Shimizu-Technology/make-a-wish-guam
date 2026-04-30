@@ -38,7 +38,7 @@ class RafflePrize < ApplicationRecord
   def draw_winner!
     return false if won?
     
-    available_tickets = tournament.raffle_tickets.paid.not_winners
+    available_tickets = tournament.raffle_tickets.eligible_for_draw
     return false if available_tickets.empty?
 
     # Random selection

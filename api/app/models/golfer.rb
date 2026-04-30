@@ -212,6 +212,7 @@ class Golfer < ApplicationRecord
   def create_raffle_tickets!
     return unless tournament&.raffle_enabled?
     return unless tournament.raffle_include_with_registration?
+    return if cancelled? || registration_status == "waitlist"
 
     ActiveRecord::Base.transaction do
       tournament.lock!
@@ -260,6 +261,7 @@ class Golfer < ApplicationRecord
   def create_purchased_raffle_tickets!
     return unless tournament&.raffle_enabled?
     return unless raffle_tickets_requested.to_i > 0
+    return if cancelled? || registration_status == "waitlist"
 
     ActiveRecord::Base.transaction do
       tournament.lock!
