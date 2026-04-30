@@ -115,6 +115,17 @@ module Api
         end
 
         if saved
+          ActivityLog.log(
+            admin: current_user, action: 'raffle_prize_created', target: prize,
+            details: "Created raffle prize #{prize.name}",
+            metadata: {
+              prize_id: prize.id,
+              tier: prize.tier,
+              value_cents: prize.value_cents,
+              image_attached: prize.image.attached?
+            },
+            tournament: @tournament
+          )
           render json: { prize: prize_response(prize), message: 'Prize created' }, status: :created
         else
           render json: { error: prize.errors.full_messages.join(', ') }, status: :unprocessable_entity
@@ -126,6 +137,8 @@ module Api
       def update_prize
         prize = @tournament.raffle_prizes.find(params[:id])
         remove_image = remove_image_requested?
+        before_snapshot = prize_audit_snapshot(prize)
+        image_action = prize_image_audit_action(prize, remove_image)
         blob_to_purge = remove_image && prize.image.attached? ? prize.image.blob : nil
         saved = false
 
@@ -143,6 +156,7 @@ module Api
         if saved
           blob_to_purge&.purge_later
           prize.reload
+          log_raffle_prize_updated(prize, before_snapshot: before_snapshot, image_action: image_action)
           render json: { prize: prize_response(prize), message: 'Prize updated' }
         else
           render json: { error: prize.errors.full_messages.join(', ') }, status: :unprocessable_entity
@@ -157,7 +171,14 @@ module Api
         if prize.won?
           render json: { error: 'Cannot delete a prize that has been won' }, status: :unprocessable_entity
         else
+          prize_snapshot = prize_audit_snapshot(prize)
           prize.destroy
+          ActivityLog.log(
+            admin: current_user, action: 'raffle_prize_deleted', target: prize,
+            details: "Deleted raffle prize #{prize_snapshot[:name]}",
+            metadata: prize_snapshot.merge(prize_id: prize.id),
+            tournament: @tournament
+          )
           render json: { message: 'Prize deleted' }
         end
       end
@@ -432,7 +453,18 @@ module Api
       # Admin - mark ticket as paid
       def mark_ticket_paid
         ticket = @tournament.raffle_tickets.find(params[:id])
+        previous_status = ticket.payment_status
         ticket.mark_paid!
+        ActivityLog.log(
+          admin: current_user, action: 'raffle_ticket_marked_paid', target: ticket,
+          details: "Marked raffle ticket #{ticket.display_number} paid (#{ticket.purchaser_display})",
+          metadata: {
+            ticket_number: ticket.ticket_number,
+            purchaser_name: ticket.purchaser_display,
+            previous_status: previous_status
+          },
+          tournament: @tournament
+        )
 
         render json: { ticket: ticket_response(ticket), message: 'Ticket marked as paid' }
       end
@@ -445,7 +477,21 @@ module Api
         if ticket.is_winner?
           render json: { error: 'Cannot delete a winning ticket' }, status: :unprocessable_entity
         else
+          ticket_number = ticket.ticket_number
+          display_number = ticket.display_number
+          purchaser_name = ticket.purchaser_display
+          payment_status = ticket.payment_status
           ticket.destroy
+          ActivityLog.log(
+            admin: current_user, action: 'raffle_ticket_deleted', target: ticket,
+            details: "Deleted raffle ticket #{display_number} (#{purchaser_name})",
+            metadata: {
+              ticket_number: ticket_number,
+              purchaser_name: purchaser_name,
+              payment_status: payment_status
+            },
+            tournament: @tournament
+          )
           render json: { message: 'Ticket deleted' }
         end
       end
@@ -642,6 +688,55 @@ module Api
 
       def raffle_prizes_for_display
         @tournament.raffle_prizes.with_attached_image.ordered
+      end
+
+      def prize_audit_snapshot(prize)
+        {
+          name: prize.name,
+          description: prize.description,
+          value_cents: prize.value_cents,
+          tier: prize.tier,
+          image_url: prize.image_url,
+          sponsor_name: prize.sponsor_name,
+          sponsor_logo_url: prize.sponsor_logo_url,
+          position: prize.position,
+          image_attached: prize.image.attached?
+        }
+      end
+
+      def prize_image_audit_action(prize, remove_image)
+        return "removed" if remove_image && prize.image.attached?
+
+        upload = params.dig(:prize, :image)
+        return nil unless upload.present? && upload.respond_to?(:tempfile)
+
+        prize.image.attached? ? "replaced" : "added"
+      end
+
+      def log_raffle_prize_updated(prize, before_snapshot:, image_action:)
+        after_snapshot = prize_audit_snapshot(prize)
+        changed_fields = after_snapshot.keys.select { |field| before_snapshot[field] != after_snapshot[field] }
+        changed_fields << :image if image_action.present? && !changed_fields.include?(:image)
+        changed_fields = changed_fields.map(&:to_s)
+
+        details = if changed_fields.any?
+          "Updated raffle prize #{prize.name}: #{changed_fields.join(', ')}"
+        else
+          "Updated raffle prize #{prize.name}"
+        end
+
+        ActivityLog.log(
+          admin: current_user, action: 'raffle_prize_updated', target: prize,
+          details: details,
+          metadata: {
+            prize_id: prize.id,
+            changed_fields: changed_fields,
+            image_action: image_action,
+            before: before_snapshot,
+            after: after_snapshot
+          },
+          tournament: @tournament
+        )
       end
 
       def attach_uploaded_image(prize)

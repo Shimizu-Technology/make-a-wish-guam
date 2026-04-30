@@ -80,6 +80,7 @@ module Api
 
       # PATCH /api/v1/tournaments/:id
       def update
+        raffle_snapshot_before = raffle_settings_snapshot(@tournament)
         attrs = tournament_params.except(:organization_id, :sponsor_tiers,
                                          :raffle_include_with_registration, :raffle_bundles,
                                          :course_configs, :teams_per_start_position, :start_positions_per_hole)
@@ -126,6 +127,7 @@ module Api
             target: @tournament,
             details: "Updated tournament: #{@tournament.display_name}"
           )
+          log_raffle_settings_update(raffle_snapshot_before)
           render json: @tournament, serializer: TournamentSerializer
         else
           render json: { errors: @tournament.errors.full_messages }, status: :unprocessable_entity
@@ -220,6 +222,40 @@ module Api
 
       def authorize_tournament_access!
         require_tournament_admin!(@tournament)
+      end
+
+      def raffle_settings_snapshot(tournament)
+        config = tournament.config || {}
+        {
+          raffle_enabled: tournament.raffle_enabled,
+          raffle_ticket_price_cents: tournament.raffle_ticket_price_cents,
+          raffle_draw_time: tournament.raffle_draw_time&.iso8601,
+          raffle_description: tournament.raffle_description,
+          raffle_auto_draw: tournament.raffle_auto_draw,
+          raffle_max_tickets_per_person: tournament.raffle_max_tickets_per_person,
+          raffle_tickets_per_purchase: tournament.raffle_tickets_per_purchase,
+          raffle_include_with_registration: config['raffle_include_with_registration'],
+          raffle_bundles: config['raffle_bundles']
+        }
+      end
+
+      def log_raffle_settings_update(before_snapshot)
+        after_snapshot = raffle_settings_snapshot(@tournament)
+        changed_fields = after_snapshot.keys.select { |field| before_snapshot[field] != after_snapshot[field] }
+        return if changed_fields.empty?
+
+        ActivityLog.log(
+          admin: current_admin,
+          action: 'raffle_settings_updated',
+          target: @tournament,
+          details: "Updated raffle settings: #{changed_fields.join(', ')}",
+          metadata: {
+            changed_fields: changed_fields.map(&:to_s),
+            before: before_snapshot,
+            after: after_snapshot
+          },
+          tournament: @tournament
+        )
       end
 
       def tournament_params

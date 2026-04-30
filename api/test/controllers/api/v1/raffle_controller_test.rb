@@ -22,16 +22,18 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
 
     assert_difference "RafflePrize.count", 1 do
       assert_difference "ActiveStorage::Attachment.count", 1 do
-        post "/api/v1/tournaments/#{@tournament.id}/raffle/prizes",
-             params: {
-               prize: {
-                 name: "Golf Bag",
-                 tier: "standard",
-                 value_cents: 30000,
-                 image: file
-               }
-             },
-             headers: @headers
+        assert_difference -> { ActivityLog.where(action: "raffle_prize_created").count }, 1 do
+          post "/api/v1/tournaments/#{@tournament.id}/raffle/prizes",
+               params: {
+                 prize: {
+                   name: "Golf Bag",
+                   tier: "standard",
+                   value_cents: 30000,
+                   image: file
+                 }
+               },
+               headers: @headers
+        end
       end
     end
 
@@ -42,6 +44,10 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     prize = RafflePrize.find(json.dig("prize", "id"))
     assert prize.image.attached?
     assert_match %r{\Ahttp://www.example.com/rails/active_storage/blobs/}, prize.image_url
+
+    log = ActivityLog.where(action: "raffle_prize_created").last
+    assert_equal prize.id, log.target_id
+    assert_equal true, log.metadata.fetch("image_attached")
   end
 
   test "public board returns attachment url even if stored image_url is stale" do
@@ -210,16 +216,18 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     prize.update!(image_url: "http://www.example.com/rails/active_storage/blobs/stale/test.svg")
 
     assert_difference "ActiveStorage::Attachment.count", -1 do
-      patch "/api/v1/tournaments/#{@tournament.id}/raffle/prizes/#{prize.id}",
-            params: {
-              prize: {
-                name: prize.name,
-                tier: prize.tier,
-                value_cents: prize.value_cents,
-                remove_image: true
-              }
-            },
-            headers: @headers
+      assert_difference -> { ActivityLog.where(action: "raffle_prize_updated").count }, 1 do
+        patch "/api/v1/tournaments/#{@tournament.id}/raffle/prizes/#{prize.id}",
+              params: {
+                prize: {
+                  name: prize.name,
+                  tier: prize.tier,
+                  value_cents: prize.value_cents,
+                  remove_image: true
+                }
+              },
+              headers: @headers
+      end
     end
 
     assert_response :success
@@ -229,8 +237,94 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     prize.reload
     assert_not prize.image.attached?
     assert_nil prize.image_url
+    log = ActivityLog.where(action: "raffle_prize_updated").last
+    assert_includes log.metadata.fetch("changed_fields"), "image"
+    assert_equal "removed", log.metadata.fetch("image_action")
   ensure
     image_file&.close
+  end
+
+  test "admin prize edits and deletes are recorded in activity log" do
+    prize = @tournament.raffle_prizes.create!(
+      name: "Original Prize",
+      tier: "standard",
+      value_cents: 10000
+    )
+
+    assert_difference -> { ActivityLog.where(action: "raffle_prize_updated").count }, 1 do
+      patch "/api/v1/tournaments/#{@tournament.id}/raffle/prizes/#{prize.id}",
+            params: {
+              prize: {
+                name: "Updated Prize",
+                tier: "gold",
+                value_cents: 15000
+              }
+            },
+            headers: @headers
+    end
+
+    assert_response :success
+    update_log = ActivityLog.where(action: "raffle_prize_updated").last
+    assert_equal prize.id, update_log.target_id
+    assert_includes update_log.metadata.fetch("changed_fields"), "name"
+    assert_includes update_log.metadata.fetch("changed_fields"), "tier"
+    assert_includes update_log.details, "Updated raffle prize Updated Prize"
+
+    assert_difference "RafflePrize.count", -1 do
+      assert_difference -> { ActivityLog.where(action: "raffle_prize_deleted").count }, 1 do
+        delete "/api/v1/tournaments/#{@tournament.id}/raffle/prizes/#{prize.id}",
+               headers: @headers
+      end
+    end
+
+    assert_response :success
+    delete_log = ActivityLog.where(action: "raffle_prize_deleted").last
+    assert_equal prize.id, delete_log.target_id
+    assert_equal "Updated Prize", delete_log.metadata.fetch("name")
+  end
+
+  test "direct ticket admin actions are recorded in activity log" do
+    ticket = @tournament.raffle_tickets.create!(
+      purchaser_name: "Walk-up Buyer",
+      purchaser_email: "buyer@example.com",
+      price_cents: 2000,
+      payment_status: "pending"
+    )
+
+    assert_difference -> { ActivityLog.where(action: "raffle_ticket_marked_paid").count }, 1 do
+      post "/api/v1/tournaments/#{@tournament.id}/raffle/tickets/#{ticket.id}/mark_paid",
+           headers: @headers
+    end
+
+    assert_response :success
+    paid_log = ActivityLog.where(action: "raffle_ticket_marked_paid").last
+    assert_equal ticket.id, paid_log.target_id
+    assert_equal "pending", paid_log.metadata.fetch("previous_status")
+
+    assert_difference "RaffleTicket.count", -1 do
+      assert_difference -> { ActivityLog.where(action: "raffle_ticket_deleted").count }, 1 do
+        delete "/api/v1/tournaments/#{@tournament.id}/raffle/tickets/#{ticket.id}",
+               headers: @headers
+      end
+    end
+
+    assert_response :success
+    delete_log = ActivityLog.where(action: "raffle_ticket_deleted").last
+    assert_equal ticket.id, delete_log.target_id
+    assert_equal "paid", delete_log.metadata.fetch("payment_status")
+  end
+
+  test "raffle settings changes are recorded in raffle activity log" do
+    assert_difference -> { ActivityLog.where(action: "raffle_settings_updated").count }, 1 do
+      patch "/api/v1/tournaments/#{@tournament.id}",
+            params: { tournament: { raffle_enabled: !@tournament.raffle_enabled } },
+            headers: @headers
+    end
+
+    assert_response :success
+    log = ActivityLog.where(action: "raffle_settings_updated").last
+    assert_equal @tournament.id, log.tournament_id
+    assert_includes log.metadata.fetch("changed_fields"), "raffle_enabled"
   end
 
   test "sync tickets includes unpaid active registrations and excludes cancelled registrations" do

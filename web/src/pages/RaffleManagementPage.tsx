@@ -27,7 +27,8 @@ import {
   Clock,
   User,
   ImageOff,
-  Upload
+  Upload,
+  Settings
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ActivityLog } from '../services/api';
@@ -441,7 +442,7 @@ export const RaffleManagementPage: React.FC = () => {
     }
   }, [tournament?.id, getToken]);
 
-  const fetchData = useCallback(async (skipTickets = false) => {
+  const fetchData = useCallback(async () => {
     if (!organization || !tournamentSlug) return;
 
     try {
@@ -462,16 +463,12 @@ export const RaffleManagementPage: React.FC = () => {
       );
       const prizesData = await prizesRes.json();
       setPrizes(prizesData.prizes || []);
-
-      if (!skipTickets) {
-        await fetchTickets(tid, ticketSearch, ticketFilter, ticketPage);
-      }
     } catch {
       toast.error('Failed to load raffle data');
     } finally {
       setLoading(false);
     }
-  }, [organization, tournamentSlug, getToken, fetchTickets, ticketSearch, ticketFilter, ticketPage]);
+  }, [organization, tournamentSlug, getToken]);
 
   useEffect(() => {
     fetchData();
@@ -513,6 +510,16 @@ export const RaffleManagementPage: React.FC = () => {
     }
   }, [tournament?.id, getToken]);
 
+  const refreshRaffle = useCallback(async () => {
+    await fetchData();
+    if (tournament?.id) {
+      await fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
+    }
+    if (activeTab === 'activity') {
+      await fetchActivityLogs();
+    }
+  }, [activeTab, fetchActivityLogs, fetchData, fetchTickets, ticketFilter, ticketPage, ticketSearch, tournament?.id]);
+
   useEffect(() => {
     if (activeTab === 'activity') {
       fetchActivityLogs();
@@ -540,7 +547,7 @@ export const RaffleManagementPage: React.FC = () => {
 
       const data = await res.json();
       toast.success(data.message);
-      fetchData();
+      void refreshRaffle();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to draw');
     } finally {
@@ -564,7 +571,7 @@ export const RaffleManagementPage: React.FC = () => {
 
       if (!res.ok) throw new Error('Failed to reset');
       toast.success('Prize reset');
-      fetchData();
+      void refreshRaffle();
     } catch {
       toast.error('Failed to reset prize');
     } finally {
@@ -586,7 +593,7 @@ export const RaffleManagementPage: React.FC = () => {
 
       if (!res.ok) throw new Error('Failed to claim');
       toast.success('Prize marked as claimed');
-      fetchData();
+      void refreshRaffle();
     } catch {
       toast.error('Failed to claim prize');
     } finally {
@@ -613,7 +620,7 @@ export const RaffleManagementPage: React.FC = () => {
       }
 
       toast.success('Prize deleted');
-      fetchData();
+      void refreshRaffle();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete');
     }
@@ -641,7 +648,7 @@ export const RaffleManagementPage: React.FC = () => {
 
       const data = await res.json();
       toast.success(data.message);
-      fetchData();
+      void refreshRaffle();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to draw');
     } finally {
@@ -692,7 +699,7 @@ export const RaffleManagementPage: React.FC = () => {
       if (!res.ok) throw new Error('Failed to sync tickets');
       const data = await res.json();
       toast.success(data.message);
-      fetchData();
+      void refreshRaffle();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to sync tickets');
     } finally {
@@ -745,7 +752,7 @@ export const RaffleManagementPage: React.FC = () => {
       setSellBuyerEmail('');
       setSellBuyerPhone('+1671');
       toast.success(`Sold ${bundle.quantity} tickets for ${totalDollars}`);
-      fetchData();
+      void refreshRaffle();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to sell tickets');
     } finally {
@@ -798,7 +805,7 @@ export const RaffleManagementPage: React.FC = () => {
       setSellBuyerEmail('');
       setSellBuyerPhone('+1671');
       toast.success(`Sold ${quantity} tickets for ${totalDollars}`);
-      fetchData();
+      void refreshRaffle();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to sell tickets');
     } finally {
@@ -899,7 +906,7 @@ export const RaffleManagementPage: React.FC = () => {
               </Link>
               <button
                 onClick={() => {
-                  void fetchData();
+                  void refreshRaffle();
                 }}
                 className="p-2 bg-white/10 rounded-lg hover:bg-white/20"
               >
@@ -1672,15 +1679,23 @@ export const RaffleManagementPage: React.FC = () => {
                       <div className="flex items-start gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
                           log.action?.includes('sold') ? 'bg-green-100 text-green-600' :
+                          log.action?.includes('paid') ? 'bg-green-100 text-green-600' :
                           log.action?.includes('drawn') || log.action?.includes('draw') ? 'bg-yellow-100 text-yellow-600' :
-                          log.action?.includes('void') ? 'bg-red-100 text-red-600' :
+                          log.action?.includes('void') || log.action?.includes('deleted') ? 'bg-red-100 text-red-600' :
+                          log.action?.includes('created') ? 'bg-blue-100 text-blue-600' :
+                          log.action?.includes('updated') || log.action?.includes('settings') ? 'bg-purple-100 text-purple-600' :
                           log.action?.includes('resend') ? 'bg-blue-100 text-blue-600' :
                           log.action?.includes('claimed') ? 'bg-emerald-100 text-emerald-600' :
                           'bg-gray-100 text-gray-600'
                         }`}>
                           {log.action?.includes('sold') ? <DollarSign className="w-4 h-4" /> :
+                           log.action?.includes('paid') ? <DollarSign className="w-4 h-4" /> :
                            log.action?.includes('drawn') || log.action?.includes('draw') ? <Play className="w-3.5 h-3.5" /> :
                            log.action?.includes('void') ? <Ban className="w-4 h-4" /> :
+                           log.action?.includes('deleted') ? <Trash2 className="w-4 h-4" /> :
+                           log.action?.includes('created') ? <Gift className="w-4 h-4" /> :
+                           log.action?.includes('settings') ? <Settings className="w-4 h-4" /> :
+                           log.action?.includes('updated') ? <Edit className="w-4 h-4" /> :
                            log.action?.includes('resend') ? <Send className="w-4 h-4" /> :
                            log.action?.includes('claimed') ? <CheckCircle className="w-4 h-4" /> :
                            <Clock className="w-4 h-4" />}
@@ -1724,7 +1739,7 @@ export const RaffleManagementPage: React.FC = () => {
                   : [savedPrize, ...prev];
               });
             }
-            void fetchData(true);
+            void refreshRaffle();
           }}
         />
       )}
