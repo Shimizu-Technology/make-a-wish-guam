@@ -61,7 +61,7 @@ module Api
             total_prizes: prizes.count,
             prizes_won: prizes.won.count,
             prizes_remaining: prizes.available.count,
-            total_tickets_sold: @tournament.raffle_tickets.active.paid.with_eligible_participant.count
+            total_tickets_sold: @tournament.raffle_tickets.paid.with_eligible_participant.count
           },
           last_updated: Time.current.iso8601
         }
@@ -74,7 +74,7 @@ module Api
         return render json: { error: 'Search query required' }, status: :bad_request unless query.present?
 
         q = query.strip
-        base = @tournament.raffle_tickets.active.paid.with_eligible_participant
+        base = @tournament.raffle_tickets.paid.with_eligible_participant
 
         tickets = base.where(purchaser_email: q.downcase)
                       .or(base.where(purchaser_phone: q))

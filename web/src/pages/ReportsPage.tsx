@@ -215,6 +215,8 @@ export function ReportsPage() {
             'Starting Position': start,
             'Player 1': p.name,
             'Player 2': p.partner_name || '',
+            Category: p.team_category || '',
+            'Sponsor Company': p.sponsor_display_name || p.sponsor_name || '',
           }));
         });
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Groups by Start');
@@ -788,6 +790,15 @@ function GroupsTab({
                       <div className="flex items-center gap-2 text-sm mt-0.5 pl-5">
                         <span className="w-3 h-3 rounded-full bg-gray-200 text-gray-500 text-[9px] font-bold flex items-center justify-center shrink-0">2</span>
                         <span className="text-gray-600">{p.partner_name}</span>
+                      </div>
+                    )}
+                    {(p.team_category || p.sponsor_display_name || p.sponsor_name) && (
+                      <div className="mt-1 pl-5 text-[11px] text-gray-500">
+                        {p.team_category}
+                        {p.team_category && (p.sponsor_display_name || p.sponsor_name) ? ' · ' : ''}
+                        {(p.sponsor_display_name || p.sponsor_name) && (
+                          <span className="text-blue-600">{p.sponsor_display_name || p.sponsor_name}</span>
+                        )}
                       </div>
                     )}
                   </div>
