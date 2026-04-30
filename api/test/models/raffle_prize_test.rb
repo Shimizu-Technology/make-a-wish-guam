@@ -138,6 +138,20 @@ class RafflePrizeTest < ActiveSupport::TestCase
     assert_not result, "draw_winner! should return false if already won"
   end
 
+  test "draw_winner! does not reuse a winning ticket for another prize" do
+    RaffleTicket.where.not(id: @tournament.raffle_tickets.first.id).delete_all
+    second_prize = @tournament.raffle_prizes.create!(
+      name: "Second Prize",
+      tier: "standard",
+      value_cents: 50000,
+      position: 2
+    )
+
+    assert @prize.draw_winner!
+    assert_not second_prize.draw_winner!
+    assert_not second_prize.reload.won?
+  end
+
   test "reset! clears winner" do
     @prize.draw_winner!
     assert @prize.won?

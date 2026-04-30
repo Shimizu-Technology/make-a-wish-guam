@@ -399,15 +399,20 @@ module Api
       # POST /api/v1/golfers/:id/check_in
       def check_in
         golfer = Golfer.find(params[:id])
-        was_checked_in = golfer.checked_in_at.present?
-        golfer.check_in!(admin: current_admin)
+        checked_in_now = false
+        golfer.with_lock do
+          checked_in_now = !golfer.checked_in?
+          golfer.check_in!(admin: current_admin)
+        end
 
-        ActivityLog.log(
-          admin: current_admin,
-          action: was_checked_in ? 'golfer_unchecked' : 'golfer_checked_in',
-          target: golfer,
-          details: was_checked_in ? "Unchecked #{golfer.name}" : "Checked in #{golfer.name}"
-        )
+        if checked_in_now
+          ActivityLog.log(
+            admin: current_admin,
+            action: 'golfer_checked_in',
+            target: golfer,
+            details: "Checked in #{golfer.name}"
+          )
+        end
 
         broadcast_golfer_update(golfer)
         render json: golfer
@@ -461,7 +466,7 @@ module Api
           return
         end
 
-        golfer.update!(checked_in_at: nil)
+        golfer.with_lock { golfer.undo_check_in! }
 
         ActivityLog.log(
           admin: current_admin,

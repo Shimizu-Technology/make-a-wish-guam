@@ -183,15 +183,17 @@ class Api::V1::GolfersControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil golfer.checked_in_at
   end
 
-  test "check_in unchecks already checked-in golfer" do
+  test "check_in is idempotent for already checked-in golfer" do
     golfer = golfers(:confirmed_checked_in)
     assert_not_nil golfer.checked_in_at
+    checked_in_at = golfer.checked_in_at
     
     post check_in_api_v1_golfer_url(golfer), headers: auth_headers
     assert_response :success
     
     golfer.reload
-    assert_nil golfer.checked_in_at
+    assert_not_nil golfer.checked_in_at
+    assert_equal checked_in_at.to_i, golfer.checked_in_at.to_i
   end
 
   test "check_in creates activity log" do
@@ -200,6 +202,16 @@ class Api::V1::GolfersControllerTest < ActionDispatch::IntegrationTest
     assert_difference "ActivityLog.count", 1 do
       post check_in_api_v1_golfer_url(golfer), headers: auth_headers
     end
+  end
+
+  test "check_in does not create duplicate activity log when already checked in" do
+    golfer = golfers(:confirmed_checked_in)
+
+    assert_no_difference "ActivityLog.count" do
+      post check_in_api_v1_golfer_url(golfer), headers: auth_headers
+    end
+
+    assert_response :success
   end
 
   test "refund leaves golfer assigned when Stripe refund fails" do

@@ -242,7 +242,8 @@ class ConcurrentOperationsTest < ActionDispatch::IntegrationTest
         payment_type: 'pay_on_day',
         waiver_accepted_at: Time.current,
         registration_status: 'confirmed',
-        payment_status: 'unpaid'
+        payment_status: 'unpaid',
+        team_category: 'Co-Ed'
       )
     end
   end
