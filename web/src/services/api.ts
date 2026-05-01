@@ -606,7 +606,7 @@ export class ApiClient {
   }
 
   async getAdminOrganizationTournaments(orgSlug: string): Promise<Tournament[]> {
-    type AdminTournamentSummary = Partial<Tournament> & {
+    type AdminTournamentSummary = Tournament & {
       date?: string | null;
       capacity?: number | null;
       pending_count?: number;
