@@ -343,7 +343,7 @@ export const RaffleManagementPage: React.FC = () => {
   const [prizeSearch, setPrizeSearch] = useState('');
   const [prizeTierFilter, setPrizeTierFilter] = useState('');
   const [prizeStatusFilter, setPrizeStatusFilter] = useState<PrizeStatusFilter>('');
-  const [prizeSort, setPrizeSort] = useState<PrizeSort>('position');
+  const [prizeSort, setPrizeSort] = useState<PrizeSort>('tier');
   const [prizePage, setPrizePage] = useState(1);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1116,8 +1116,8 @@ export const RaffleManagementPage: React.FC = () => {
                   onChange={(e) => setPrizeSort(e.target.value as PrizeSort)}
                   className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
-                  <option value="position">Sort by position</option>
                   <option value="tier">Sort by tier</option>
+                  <option value="position">Sort by list order</option>
                   <option value="name">Sort by name</option>
                   <option value="value_desc">Value high to low</option>
                   <option value="value_asc">Value low to high</option>
@@ -1128,14 +1128,14 @@ export const RaffleManagementPage: React.FC = () => {
                   Showing {paginatedPrizes.length ? ((prizePage - 1) * PRIZES_PER_PAGE) + 1 : 0}
                   –{Math.min(prizePage * PRIZES_PER_PAGE, filteredPrizes.length)} of {filteredPrizes.length} prizes
                 </span>
-                {(prizeSearch || prizeTierFilter || prizeStatusFilter || prizeSort !== 'position') && (
+                {(prizeSearch || prizeTierFilter || prizeStatusFilter || prizeSort !== 'tier') && (
                   <button
                     type="button"
                     onClick={() => {
                       setPrizeSearch('');
                       setPrizeTierFilter('');
                       setPrizeStatusFilter('');
-                      setPrizeSort('position');
+                      setPrizeSort('tier');
                     }}
                     className="font-medium text-brand-600 hover:text-brand-700"
                   >
