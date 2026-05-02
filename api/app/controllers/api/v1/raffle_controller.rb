@@ -290,18 +290,19 @@ module Api
           return render json: { error: 'Prize has not been won yet' }, status: :unprocessable_entity
         end
 
-        channels = []
+        delivery = {
+          email: skipped_delivery_result('No winner email available'),
+          sms: skipped_delivery_result('No winner phone available')
+        }
 
         if prize.winner_email.present?
           begin
             result = RaffleMailer.winner_email(prize)
-            if result.is_a?(Hash) && result[:error]
-              Rails.logger.error "Resend winner email failed: #{result[:error]}"
-            else
-              channels << 'email'
-            end
+            delivery[:email] = normalize_delivery_result(result)
+            Rails.logger.error "Resend winner email failed: #{delivery[:email][:error]}" unless delivery_success?(delivery[:email])
           rescue => e
             Rails.logger.error "Resend winner email failed: #{e.message}"
+            delivery[:email] = failed_delivery_result(e.message)
           end
         end
 
@@ -309,26 +310,26 @@ module Api
         if winner_phone.present?
           begin
             result = RaffleSmsService.winner_notification(raffle_prize: prize)
-            if result.is_a?(Hash) && result[:success] == false
-              Rails.logger.error "Resend winner SMS failed: #{result[:error]}"
-            elsif result.is_a?(Hash) && result[:success]
-              channels << 'SMS'
-            end
+            delivery[:sms] = normalize_delivery_result(result)
+            Rails.logger.error "Resend winner SMS failed: #{delivery[:sms][:error]}" unless delivery_success?(delivery[:sms])
           rescue => e
             Rails.logger.error "Resend winner SMS failed: #{e.message}"
+            delivery[:sms] = failed_delivery_result(e.message)
           end
         end
+
+        channels = delivery_success_channels(delivery)
 
         if channels.any?
           ActivityLog.log(
             admin: current_user, action: 'raffle_winner_notification_resent', target: prize,
             details: "Resent winner notification for #{prize.name} to #{prize.winner_name} via #{channels.join(' and ')}",
-            metadata: { channels: channels, winner_name: prize.winner_name },
+            metadata: { channels: channels, winner_name: prize.winner_name, delivery: delivery },
             tournament: @tournament
           )
-          render json: { message: "Notification resent via #{channels.join(' and ')}" }
+          render json: { message: "Notification resent via #{channels.join(' and ')}", delivery: delivery }
         else
-          render json: { error: 'No contact info available for this winner or delivery failed' }, status: :unprocessable_entity
+          render json: { error: 'No contact info available for this winner or delivery failed', delivery: delivery }, status: :unprocessable_entity
         end
       end
 
@@ -608,13 +609,6 @@ module Api
           return render json: { error: 'No active paid tickets were found for this buyer group' }, status: :unprocessable_entity
         end
 
-        apply_ticket_contact_updates(
-          tickets,
-          buyer_name: buyer_name,
-          buyer_email: buyer_email,
-          buyer_phone: buyer_phone
-        )
-
         delivery = send_purchase_notifications(
           tickets: tickets,
           buyer_email: buyer_email,
@@ -628,6 +622,13 @@ module Api
             delivery: delivery
           }, status: :bad_gateway
         end
+
+        apply_ticket_contact_updates(
+          tickets,
+          buyer_name: buyer_name,
+          buyer_email: buyer_email,
+          buyer_phone: buyer_phone
+        )
 
         ticket_numbers = tickets.map(&:display_number)
         ActivityLog.log(
@@ -795,9 +796,9 @@ module Api
 
       def apply_ticket_contact_updates(tickets, buyer_name:, buyer_email:, buyer_phone:)
         updates = {}
-        updates[:purchaser_name] = buyer_name if params.key?(:buyer_name)
-        updates[:purchaser_email] = buyer_email if params.key?(:buyer_email)
-        updates[:purchaser_phone] = buyer_phone if params.key?(:buyer_phone)
+        updates[:purchaser_name] = buyer_name if params.key?(:buyer_name) && buyer_name.present?
+        updates[:purchaser_email] = buyer_email if params.key?(:buyer_email) && buyer_email.present?
+        updates[:purchaser_phone] = buyer_phone if params.key?(:buyer_phone) && buyer_phone.present?
         return if updates.empty?
 
         updates[:updated_at] = Time.current
@@ -831,6 +832,13 @@ module Api
 
       def delivery_success?(result)
         result.present? && result[:success] == true
+      end
+
+      def delivery_success_channels(delivery)
+        channels = []
+        channels << 'email' if delivery_success?(delivery[:email])
+        channels << 'SMS' if delivery_success?(delivery[:sms])
+        channels
       end
 
       def prize_params

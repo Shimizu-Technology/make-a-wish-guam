@@ -475,7 +475,7 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
       with_singleton_method(RaffleSmsService, :purchase_confirmation, sms_stub) do
         with_singleton_method(RaffleMailer, :purchase_confirmation_email, email_stub) do
           post "/api/v1/tournaments/#{@tournament.id}/raffle/tickets/#{sale_tickets.first.id}/resend_confirmation",
-               params: { buyer_phone: "+16715550999" },
+               params: { buyer_email: "", buyer_phone: "+16715550999" },
                headers: @headers
         end
       end
@@ -486,16 +486,14 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     assert_equal 3, json.fetch("ticket_count")
     assert_equal sale_tickets.map(&:display_number), json.fetch("ticket_numbers")
     assert_equal true, json.dig("delivery", "sms", "success")
-    assert_equal true, json.dig("delivery", "email", "success")
+    assert_equal true, json.dig("delivery", "email", "skipped")
 
     assert_equal 1, sms_calls.size
     assert_equal sale_tickets.map(&:ticket_number), sms_calls.first.fetch(:ticket_numbers)
     assert_equal "+16715550999", sms_calls.first.fetch(:buyer_phone)
     assert_equal @tournament, sms_calls.first.fetch(:tournament)
 
-    assert_equal 1, email_calls.size
-    assert_equal sale_tickets.map(&:ticket_number), email_calls.first.fetch(:ticket_numbers)
-    assert_equal "buyer@example.com", email_calls.first.fetch(:buyer_email)
+    assert_empty email_calls
     assert_not_includes json.fetch("ticket_numbers"), same_buyer_extra.display_number
 
     log = ActivityLog.where(action: "raffle_ticket_confirmation_resent").last
@@ -504,7 +502,50 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     assert_equal "sms_123", log.metadata.dig("delivery", "sms", "message_id")
 
     assert_equal ["+16715550999"], sale_tickets.map { |ticket| ticket.reload.purchaser_phone }.uniq
+    assert_equal ["buyer@example.com"], sale_tickets.map(&:purchaser_email).uniq
     assert_equal "+16715550123", same_buyer_extra.reload.purchaser_phone
+  end
+
+  test "resend ticket confirmation does not persist corrected contact when delivery fails" do
+    tickets = 2.times.map do
+      @tournament.raffle_tickets.create!(
+        purchaser_name: "Wrong Contact",
+        purchaser_email: "old@example.com",
+        purchaser_phone: "+16715550123",
+        price_cents: 1000,
+        payment_status: "paid",
+        purchased_at: Time.current,
+        sold_by_user_id: @admin.id
+      )
+    end
+
+    ActivityLog.log(
+      admin: @admin,
+      action: "raffle_tickets_sold",
+      target: @tournament,
+      details: "Sold 2 ticket(s) for $20.0 to Wrong Contact",
+      metadata: {
+        buyer_name: "Wrong Contact",
+        buyer_email: "old@example.com",
+        buyer_phone: "+16715550123",
+        ticket_numbers: tickets.map(&:ticket_number)
+      },
+      tournament: @tournament
+    )
+
+    sms_stub = ->(tickets:, buyer_phone:, buyer_name:, tournament:) { { success: false, error: "Carrier rejected message" } }
+
+    assert_no_difference -> { ActivityLog.where(action: "raffle_ticket_confirmation_resent").count } do
+      with_singleton_method(RaffleSmsService, :purchase_confirmation, sms_stub) do
+        post "/api/v1/tournaments/#{@tournament.id}/raffle/tickets/#{tickets.first.id}/resend_confirmation",
+             params: { buyer_email: "", buyer_phone: "+16715550999" },
+             headers: @headers
+      end
+    end
+
+    assert_response :bad_gateway
+    assert_equal ["+16715550123"], tickets.map { |ticket| ticket.reload.purchaser_phone }.uniq
+    assert_equal ["old@example.com"], tickets.map(&:purchaser_email).uniq
   end
 
   test "resend ticket confirmation rejects tickets without delivery contact" do
@@ -523,6 +564,52 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_match "no email or phone", JSON.parse(response.body).fetch("error")
+  end
+
+  test "resend winner notification returns delivery status and logs results" do
+    ticket = @tournament.raffle_tickets.create!(
+      purchaser_name: "Winner Person",
+      purchaser_email: "winner@example.com",
+      purchaser_phone: "+16715550123",
+      price_cents: 500,
+      payment_status: "paid",
+      purchased_at: Time.current,
+      is_winner: true
+    )
+    prize = @tournament.raffle_prizes.create!(
+      name: "Golf Bag",
+      tier: "standard",
+      value_cents: 30000,
+      won: true,
+      won_at: Time.current,
+      winning_ticket: ticket,
+      winner_name: "Winner Person",
+      winner_email: "winner@example.com",
+      winner_phone: "+16715550123"
+    )
+    ticket.update!(raffle_prize: prize)
+
+    email_stub = ->(raffle_prize) { { success: true, data: { id: "email_winner_123" } } }
+    sms_stub = ->(raffle_prize:) { { success: false, error: "Carrier rejected winner SMS" } }
+
+    assert_difference -> { ActivityLog.where(action: "raffle_winner_notification_resent").count }, 1 do
+      with_singleton_method(RaffleMailer, :winner_email, email_stub) do
+        with_singleton_method(RaffleSmsService, :winner_notification, sms_stub) do
+          post "/api/v1/tournaments/#{@tournament.id}/raffle/prizes/#{prize.id}/resend_notification",
+               headers: @headers
+        end
+      end
+    end
+
+    assert_response :success
+    json = JSON.parse(response.body)
+    assert_equal true, json.dig("delivery", "email", "success")
+    assert_equal false, json.dig("delivery", "sms", "success")
+    assert_equal "Carrier rejected winner SMS", json.dig("delivery", "sms", "error")
+
+    log = ActivityLog.where(action: "raffle_winner_notification_resent").last
+    assert_equal [ "email" ], log.metadata.fetch("channels")
+    assert_equal "Carrier rejected winner SMS", log.metadata.dig("delivery", "sms", "error")
   end
 
   test "public ticket lookup excludes tickets linked to waitlisted golfers" do

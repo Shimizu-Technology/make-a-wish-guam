@@ -871,12 +871,18 @@ export const RaffleManagementPage: React.FC = () => {
         `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}/raffle/prizes/${prize.id}/resend_notification`,
         { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }
       );
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to resend');
-      }
       const data = await res.json();
-      toast.success(data.message);
+      if (!res.ok) {
+        throw new Error(data.error || deliveryFailureMessage(data.delivery) || 'Failed to resend');
+      }
+      const channels = deliverySuccessLabels(data.delivery);
+      const channelText = channels.length > 0 ? ` via ${channels.join(' and ')}` : '';
+      toast.success(data.message || `Winner notification resent${channelText}`);
+
+      const deliveryWarning = deliveryFailureMessage(data.delivery);
+      if (deliveryWarning) {
+        toast.error(deliveryWarning);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to resend notification');
     } finally {
@@ -933,15 +939,15 @@ export const RaffleManagementPage: React.FC = () => {
     setActionLoading(`resend-ticket-${ticket.id}`);
     try {
       const token = await getToken();
+      const body: { buyer_email?: string; buyer_phone?: string } = {};
+      if (nextEmail.trim()) body.buyer_email = nextEmail.trim();
+      if (nextPhone.trim()) body.buyer_phone = nextPhone.trim();
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}/raffle/tickets/${ticket.id}/resend_confirmation`,
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            buyer_email: nextEmail.trim(),
-            buyer_phone: nextPhone.trim(),
-          }),
+          body: JSON.stringify(body),
         }
       );
       const data = await res.json();
