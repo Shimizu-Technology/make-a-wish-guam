@@ -566,6 +566,59 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     assert_match "no email or phone", JSON.parse(response.body).fetch("error")
   end
 
+  test "resend ticket confirmation does not group anonymous tickets without a sale log" do
+    matching_contact = @tournament.raffle_tickets.create!(
+      purchaser_name: "Cash Buyer",
+      purchaser_email: nil,
+      purchaser_phone: "+16715550123",
+      price_cents: 500,
+      payment_status: "paid",
+      purchased_at: Time.current,
+      sold_by_user_id: @admin.id
+    )
+
+    anonymous_ticket = @tournament.raffle_tickets.create!(
+      purchaser_name: "Cash Buyer",
+      purchaser_email: nil,
+      purchaser_phone: nil,
+      price_cents: 500,
+      payment_status: "paid",
+      purchased_at: nil,
+      sold_by_user_id: @admin.id
+    )
+    unrelated_anonymous_ticket = @tournament.raffle_tickets.create!(
+      purchaser_name: "Cash Buyer",
+      purchaser_email: nil,
+      purchaser_phone: nil,
+      price_cents: 500,
+      payment_status: "paid",
+      purchased_at: nil,
+      sold_by_user_id: @admin.id
+    )
+    anonymous_ticket.update_columns(purchaser_name: nil)
+    unrelated_anonymous_ticket.update_columns(purchaser_name: nil)
+
+    sms_calls = []
+    sms_stub = lambda do |tickets:, buyer_phone:, buyer_name:, tournament:|
+      sms_calls << tickets.map(&:ticket_number)
+      { success: true, message_id: "sms_anon" }
+    end
+
+    assert_no_difference -> { ActivityLog.where(action: "raffle_ticket_confirmation_resent").count } do
+      with_singleton_method(RaffleSmsService, :purchase_confirmation, sms_stub) do
+        post "/api/v1/tournaments/#{@tournament.id}/raffle/tickets/#{anonymous_ticket.id}/resend_confirmation",
+             params: { buyer_phone: "+16715550999" },
+             headers: @headers
+      end
+    end
+
+    assert_response :unprocessable_entity
+    assert_empty sms_calls
+    assert_equal "+16715550123", matching_contact.reload.purchaser_phone
+    assert_nil anonymous_ticket.reload.purchaser_phone
+    assert_nil unrelated_anonymous_ticket.reload.purchaser_phone
+  end
+
   test "resend winner notification returns delivery status and logs results" do
     ticket = @tournament.raffle_tickets.create!(
       purchaser_name: "Winner Person",

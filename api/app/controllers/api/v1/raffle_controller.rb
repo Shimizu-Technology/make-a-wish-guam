@@ -771,6 +771,10 @@ module Api
           return scope.where(golfer_id: ticket.golfer_id, price_cents: [0, nil]).order(:sequence_number).to_a
         end
 
+        if ticket.purchaser_name.blank? && ticket.purchaser_email.blank? && ticket.purchaser_phone.blank?
+          return []
+        end
+
         fallback = scope.where(
           purchaser_name: ticket.purchaser_name,
           purchaser_email: ticket.purchaser_email,

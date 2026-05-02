@@ -939,15 +939,15 @@ export const RaffleManagementPage: React.FC = () => {
     setActionLoading(`resend-ticket-${ticket.id}`);
     try {
       const token = await getToken();
-      const body: { buyer_email?: string; buyer_phone?: string } = {};
-      if (nextEmail.trim()) body.buyer_email = nextEmail.trim();
-      if (nextPhone.trim()) body.buyer_phone = nextPhone.trim();
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}/raffle/tickets/${ticket.id}/resend_confirmation`,
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            buyer_email: nextEmail.trim(),
+            buyer_phone: nextPhone.trim(),
+          }),
         }
       );
       const data = await res.json();
