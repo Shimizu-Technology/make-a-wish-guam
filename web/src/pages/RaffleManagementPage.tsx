@@ -196,7 +196,9 @@ function SellTicketsTab({
 
   const bundles = tournament.raffle_bundles?.length ? tournament.raffle_bundles : DEFAULT_BUNDLES;
   const phoneValue = sellBuyerPhone.trim().replace(/^\+1671$/, '');
+  const hasBuyerName = sellBuyerName.trim() !== '';
   const hasContact = sellBuyerEmail.trim() !== '' || phoneValue !== '';
+  const canSell = hasBuyerName && hasContact;
 
   return (
     <div className="space-y-6">
@@ -227,13 +229,16 @@ function SellTicketsTab({
       {/* Buyer info */}
       <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 space-y-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Buyer name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Buyer name <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={sellBuyerName}
             onChange={(e) => onBuyerNameChange(e.target.value)}
-            placeholder="Walk-up buyer"
+            placeholder="Full name"
             className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+            required
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -263,7 +268,7 @@ function SellTicketsTab({
           </div>
         </div>
         <p className="text-xs text-gray-500">
-          At least one is required — ticket numbers and winner notifications are sent via email and/or text.
+          Name plus at least one contact method are required so ticket numbers can be found and delivered.
         </p>
       </div>
 
@@ -275,7 +280,7 @@ function SellTicketsTab({
             <button
               key={idx}
               onClick={() => onSellBundle(bundle)}
-              disabled={sellLoading || !hasContact}
+              disabled={sellLoading || !canSell}
               className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-gray-200 bg-white hover:border-brand-500 hover:bg-brand-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="text-3xl font-bold text-brand-600">{bundle.quantity}</span>
@@ -329,7 +334,7 @@ function SellTicketsTab({
                   setCustomPrice('');
                 }
               }}
-              disabled={sellLoading || !customQty || !customPrice || !hasContact}
+              disabled={sellLoading || !customQty || !customPrice || !canSell}
               className="px-5 py-2.5 bg-brand-600 text-white rounded-xl font-medium text-sm hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
             >
               {sellLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sell'}
@@ -753,7 +758,11 @@ export const RaffleManagementPage: React.FC = () => {
       toast.error('Please enter an email or phone number');
       return;
     }
-    const buyerLabel = sellBuyerName.trim() || 'Walk-up buyer';
+    const buyerLabel = sellBuyerName.trim();
+    if (!buyerLabel) {
+      toast.error('Please enter the buyer name');
+      return;
+    }
     if (!confirm(`Sell ${bundle.quantity} tickets for $${(bundle.price_cents / 100).toFixed(0)} to "${buyerLabel}"?`)) return;
     setSellLoading(true);
     try {
@@ -766,7 +775,7 @@ export const RaffleManagementPage: React.FC = () => {
           body: JSON.stringify({
             quantity: bundle.quantity,
             price_cents: bundle.price_cents,
-            buyer_name: sellBuyerName.trim() || undefined,
+            buyer_name: buyerLabel,
             buyer_email: sellBuyerEmail.trim() || undefined,
             buyer_phone: sellBuyerPhone.trim() || undefined,
           }),
@@ -784,7 +793,7 @@ export const RaffleManagementPage: React.FC = () => {
       setLastSale({
         quantity: bundle.quantity,
         total: totalDollars,
-        buyer: sellBuyerName.trim() || 'Walk-up buyer',
+        buyer: buyerLabel,
         ticketNumbers: ticketNums,
       });
       setSellBuyerName('');
@@ -810,7 +819,11 @@ export const RaffleManagementPage: React.FC = () => {
       toast.error('Please enter an email or phone number');
       return;
     }
-    const buyerLabel = sellBuyerName.trim() || 'Walk-up buyer';
+    const buyerLabel = sellBuyerName.trim();
+    if (!buyerLabel) {
+      toast.error('Please enter the buyer name');
+      return;
+    }
     if (!confirm(`Sell ${quantity} tickets for $${(priceCents / 100).toFixed(2)} to "${buyerLabel}"?`)) return;
     setSellLoading(true);
     try {
@@ -823,7 +836,7 @@ export const RaffleManagementPage: React.FC = () => {
           body: JSON.stringify({
             quantity,
             price_cents: priceCents,
-            buyer_name: sellBuyerName.trim() || undefined,
+            buyer_name: buyerLabel,
             buyer_email: sellBuyerEmail.trim() || undefined,
             buyer_phone: sellBuyerPhone.trim() || undefined,
           }),
@@ -841,7 +854,7 @@ export const RaffleManagementPage: React.FC = () => {
       setLastSale({
         quantity,
         total: totalDollars,
-        buyer: sellBuyerName.trim() || 'Walk-up buyer',
+        buyer: buyerLabel,
         ticketNumbers: ticketNums,
       });
       setSellBuyerName('');

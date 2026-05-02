@@ -389,6 +389,7 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
              params: {
                quantity: 4,
                price_cents: 2000,
+               buyer_name: "Cash Buyer",
                buyer_phone: "+16715550123"
              },
              headers: @headers
@@ -404,7 +405,7 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, sms_calls.size
     assert_equal 4, sms_calls.first.fetch(:count)
     assert_equal "+16715550123", sms_calls.first.fetch(:buyer_phone)
-    assert_equal "Walk-up buyer", sms_calls.first.fetch(:buyer_name)
+    assert_equal "Cash Buyer", sms_calls.first.fetch(:buyer_name)
     assert_equal @tournament, sms_calls.first.fetch(:tournament)
 
     log = ActivityLog.where(action: "raffle_tickets_sold").last
@@ -420,6 +421,7 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
              params: {
                quantity: 2,
                price_cents: 1000,
+               buyer_name: "Cash Buyer",
                buyer_phone: "+16715550123"
              },
              headers: @headers
@@ -435,6 +437,21 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     log = ActivityLog.where(action: "raffle_tickets_sold").last
     assert_equal true, log.metadata.dig("delivery", "sms", "skipped")
     assert_equal "Delivery service not configured", log.metadata.dig("delivery", "sms", "error")
+  end
+
+  test "sell tickets requires buyer name" do
+    assert_no_difference -> { @tournament.raffle_tickets.count } do
+      post "/api/v1/tournaments/#{@tournament.id}/raffle/sell",
+           params: {
+             quantity: 2,
+             price_cents: 1000,
+             buyer_phone: "+16715550123"
+           },
+           headers: @headers
+    end
+
+    assert_response :unprocessable_entity
+    assert_match "Buyer name is required", JSON.parse(response.body).fetch("error")
   end
 
   test "resend ticket confirmation sends the original sale group and logs delivery results" do

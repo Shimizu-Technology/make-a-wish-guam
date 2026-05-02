@@ -525,9 +525,13 @@ module Api
       def sell_tickets
         quantity = params[:quantity].to_i
         price_cents = params[:price_cents].to_i
-        buyer_name = params[:buyer_name].presence || 'Walk-up buyer'
+        buyer_name = params[:buyer_name]&.strip.presence
         buyer_email = params[:buyer_email]&.strip&.downcase.presence
         buyer_phone = params[:buyer_phone]&.strip.presence
+
+        unless buyer_name.present?
+          return render json: { error: 'Buyer name is required so raffle tickets can be identified during the drawing' }, status: :unprocessable_entity
+        end
 
         unless buyer_email.present? || buyer_phone.present?
           return render json: { error: 'Email or phone number is required so the buyer can receive their ticket numbers' }, status: :unprocessable_entity
@@ -737,6 +741,7 @@ module Api
               buyer_name: buyer_name, tournament: @tournament
             )
             delivery[:email] = normalize_delivery_result(result)
+            log_delivery_failure("Raffle purchase email failed: #{delivery[:email][:error]}", delivery[:email])
           rescue => e
             Rails.logger.warn("Raffle purchase email failed: #{e.message}")
             delivery[:email] = failed_delivery_result(e.message)
@@ -750,6 +755,7 @@ module Api
               buyer_name: buyer_name, tournament: @tournament
             )
             delivery[:sms] = normalize_delivery_result(result)
+            log_delivery_failure("Raffle purchase SMS failed: #{delivery[:sms][:error]}", delivery[:sms])
           rescue => e
             Rails.logger.warn("Raffle purchase SMS failed: #{e.message}")
             delivery[:sms] = failed_delivery_result(e.message)
