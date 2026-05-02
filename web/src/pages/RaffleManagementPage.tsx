@@ -934,7 +934,7 @@ export const RaffleManagementPage: React.FC = () => {
       return;
     }
 
-    if (!confirm(`Resend ticket numbers for ${ticket.purchaser_name}?`)) return;
+    if (!confirm(`Resend ticket numbers for ${ticket.purchaser_name || ticket.ticket_number}?`)) return;
 
     setActionLoading(`resend-ticket-${ticket.id}`);
     try {
@@ -1706,11 +1706,11 @@ export const RaffleManagementPage: React.FC = () => {
                                 <div>
                                   <p className="text-xs font-medium text-gray-500">Delivery</p>
                                   <p className="text-gray-600">
-                                  Resend all ticket numbers from this buyer's original sale.
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => handleResendTicketConfirmation(ticket)}
+                                    Resend all ticket numbers from this buyer's original sale.
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => handleResendTicketConfirmation(ticket)}
                                   disabled={actionLoading === `resend-ticket-${ticket.id}`}
                                   className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                   title="Resend ticket numbers"
