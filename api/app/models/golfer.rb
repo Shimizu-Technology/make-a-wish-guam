@@ -204,7 +204,7 @@ class Golfer < ApplicationRecord
   end
 
   def verify_payment!(admin:, method: nil, notes: nil)
-    attrs = {
+    attrs = paid_registration_attributes(
       payment_status: 'paid',
       paid_at: Time.current,
       payment_method: method,
@@ -212,10 +212,16 @@ class Golfer < ApplicationRecord
       payment_verified_by_id: admin.id,
       payment_verified_by_name: admin.name || admin.email,
       payment_verified_at: Time.current
-    }
+    )
     attrs[:payment_amount_cents] = tournament&.entry_fee if payment_amount_cents.blank?
     assign_attributes(attrs)
     save!(validate: false)
+  end
+
+  def paid_registration_attributes(attributes)
+    return attributes unless registration_status == "pending"
+
+    attributes.merge(registration_status: "confirmed")
   end
 
   def create_raffle_tickets!

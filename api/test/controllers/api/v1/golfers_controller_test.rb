@@ -288,6 +288,32 @@ class Api::V1::GolfersControllerTest < ActionDispatch::IntegrationTest
     assert_equal "R999", golfer.receipt_number
   end
 
+  test "payment_details confirms pending registration when payment is recorded" do
+    golfer = create_pending_golfer(email: "payment-details-pending@example.com")
+
+    post payment_details_api_v1_golfer_url(golfer), params: {
+      payment_method: "swipe_simple_confirmed"
+    }, headers: auth_headers
+
+    assert_response :success
+    golfer.reload
+    assert_equal "paid", golfer.payment_status
+    assert_equal "confirmed", golfer.registration_status
+  end
+
+  test "verify_payment confirms pending registration" do
+    golfer = create_pending_golfer(email: "verify-payment-pending@example.com")
+
+    post verify_payment_api_v1_golfer_url(golfer), params: {
+      payment_method: "swipe_simple_confirmed"
+    }, headers: auth_headers
+
+    assert_response :success
+    golfer.reload
+    assert_equal "paid", golfer.payment_status
+    assert_equal "confirmed", golfer.registration_status
+  end
+
   # ==================
   # POST /api/v1/golfers/:id/promote
   # ==================
@@ -361,6 +387,19 @@ class Api::V1::GolfersControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     golfer.reload
     assert_equal "paid", golfer.payment_status
+  end
+
+  test "update_payment_status confirms pending registration when marking paid" do
+    golfer = create_pending_golfer(email: "update-payment-pending@example.com")
+
+    post update_payment_status_api_v1_golfer_url(golfer), params: {
+      payment_status: "paid"
+    }, headers: auth_headers
+
+    assert_response :success
+    golfer.reload
+    assert_equal "paid", golfer.payment_status
+    assert_equal "confirmed", golfer.registration_status
   end
 
   test "update_payment_status rejects invalid status" do
@@ -459,6 +498,19 @@ class Api::V1::GolfersControllerTest < ActionDispatch::IntegrationTest
     assert_equal tournament.entry_fee, golfer.payment_amount_cents
   end
 
+  test "mark_paid confirms pending registration" do
+    golfer = create_pending_golfer(email: "mark-paid-pending@example.com")
+
+    patch mark_paid_api_v1_golfer_url(golfer), params: {
+      payment_method: "swipe_simple_confirmed"
+    }, headers: auth_headers
+
+    assert_response :success
+    golfer.reload
+    assert_equal "paid", golfer.payment_status
+    assert_equal "confirmed", golfer.registration_status
+  end
+
   test "payment_details preserves entry fee regardless of golfer type flags" do
     golfer = golfers(:confirmed_unpaid)
     tournament = golfer.tournament
@@ -470,5 +522,21 @@ class Api::V1::GolfersControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     golfer.reload
     assert_equal tournament.entry_fee, golfer.payment_amount_cents
+  end
+
+  private
+
+  def create_pending_golfer(email:)
+    tournaments(:tournament_one).golfers.create!(
+      name: "Pending Payment Team",
+      email: email,
+      phone: "671-555-2222",
+      payment_type: "swipe_simple",
+      payment_status: "unpaid",
+      registration_status: "pending",
+      registration_source: "admin",
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
+    )
   end
 end

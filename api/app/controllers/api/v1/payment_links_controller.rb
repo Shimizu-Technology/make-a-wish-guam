@@ -142,13 +142,15 @@ module Api
           end
 
           golfer.update!(
-            payment_status: "paid",
-            payment_type: "stripe",
-            stripe_checkout_session_id: test_session_id,
-            stripe_payment_intent_id: test_payment_intent_id,
-            payment_method: "stripe",
-            payment_amount_cents: entry_fee,
-            payment_notes: "Paid via payment link (test mode) on #{Time.current.in_time_zone('Pacific/Guam').strftime('%B %d, %Y at %I:%M %p')} (Guam Time)"
+            golfer.paid_registration_attributes(
+              payment_status: "paid",
+              payment_type: "stripe",
+              stripe_checkout_session_id: test_session_id,
+              stripe_payment_intent_id: test_payment_intent_id,
+              payment_method: "stripe",
+              payment_amount_cents: entry_fee,
+              payment_notes: "Paid via payment link (test mode) on #{Time.current.in_time_zone('Pacific/Guam').strftime('%B %d, %Y at %I:%M %p')} (Guam Time)"
+            )
           )
 
           ActivityLog.log(

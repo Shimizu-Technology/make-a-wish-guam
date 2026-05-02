@@ -259,14 +259,16 @@ module Api
             formatted_time = Time.current.in_time_zone('Pacific/Guam').strftime('%B %d, %Y at %I:%M %p')
 
             golfer.update!(
-              payment_status: "paid",
-              payment_type: "stripe",
-              stripe_payment_intent_id: payment_intent_id,
-              payment_method: "stripe",
-              payment_amount_cents: payment_amount,
-              stripe_card_brand: card_brand,
-              stripe_card_last4: card_last4,
-              payment_notes: "Paid via Stripe on #{formatted_time} (Guam Time)"
+              golfer.paid_registration_attributes(
+                payment_status: "paid",
+                payment_type: "stripe",
+                stripe_payment_intent_id: payment_intent_id,
+                payment_method: "stripe",
+                payment_amount_cents: payment_amount,
+                stripe_card_brand: card_brand,
+                stripe_card_last4: card_last4,
+                payment_notes: "Paid via Stripe on #{formatted_time} (Guam Time)"
+              )
             )
 
             ActivityLog.log(
@@ -500,12 +502,14 @@ module Api
           end
 
           golfer.update!(
-            payment_status: "paid",
-            payment_type: "stripe",
-            stripe_payment_intent_id: "test_pi_#{SecureRandom.hex(8)}",
-            payment_method: "stripe",
-            payment_amount_cents: entry_fee,
-            payment_notes: "SIMULATED PAYMENT (Test Mode) - #{Time.current.strftime('%Y-%m-%d %H:%M:%S')}"
+            golfer.paid_registration_attributes(
+              payment_status: "paid",
+              payment_type: "stripe",
+              stripe_payment_intent_id: "test_pi_#{SecureRandom.hex(8)}",
+              payment_method: "stripe",
+              payment_amount_cents: entry_fee,
+              payment_notes: "SIMULATED PAYMENT (Test Mode) - #{Time.current.strftime('%Y-%m-%d %H:%M:%S')}"
+            )
           )
 
           ActivityLog.log(
