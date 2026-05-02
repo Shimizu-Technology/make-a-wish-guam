@@ -528,7 +528,7 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     assert_equal "sms_123", log.metadata.dig("delivery", "sms", "message_id")
 
     assert_equal ["+16715550999"], sale_tickets.map { |ticket| ticket.reload.purchaser_phone }.uniq
-    assert_equal ["buyer@example.com"], sale_tickets.map(&:purchaser_email).uniq
+    assert_equal ["buyer@example.com"], sale_tickets.map { |ticket| ticket.reload.purchaser_email }.uniq
     assert_equal "+16715550123", same_buyer_extra.reload.purchaser_phone
   end
 
@@ -571,7 +571,7 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :bad_gateway
     assert_equal ["+16715550123"], tickets.map { |ticket| ticket.reload.purchaser_phone }.uniq
-    assert_equal ["old@example.com"], tickets.map(&:purchaser_email).uniq
+    assert_equal ["old@example.com"], tickets.map { |ticket| ticket.reload.purchaser_email }.uniq
   end
 
   test "resend ticket confirmation rejects tickets without delivery contact" do
