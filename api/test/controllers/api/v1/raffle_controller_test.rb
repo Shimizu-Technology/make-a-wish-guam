@@ -411,6 +411,32 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Carrier rejected message", log.metadata.dig("delivery", "sms", "error")
   end
 
+  test "sell tickets treats nil SMS delivery result as skipped service" do
+    sms_stub = ->(tickets:, buyer_phone:, buyer_name:, tournament:) { nil }
+
+    assert_difference -> { @tournament.raffle_tickets.count }, 2 do
+      with_singleton_method(RaffleSmsService, :purchase_confirmation, sms_stub) do
+        post "/api/v1/tournaments/#{@tournament.id}/raffle/sell",
+             params: {
+               quantity: 2,
+               price_cents: 1000,
+               buyer_phone: "+16715550123"
+             },
+             headers: @headers
+      end
+    end
+
+    assert_response :created
+    json = JSON.parse(response.body)
+    assert_equal false, json.dig("delivery", "sms", "success")
+    assert_equal true, json.dig("delivery", "sms", "skipped")
+    assert_equal "Delivery service not configured", json.dig("delivery", "sms", "error")
+
+    log = ActivityLog.where(action: "raffle_tickets_sold").last
+    assert_equal true, log.metadata.dig("delivery", "sms", "skipped")
+    assert_equal "Delivery service not configured", log.metadata.dig("delivery", "sms", "error")
+  end
+
   test "resend ticket confirmation sends the original sale group and logs delivery results" do
     same_buyer_extra = @tournament.raffle_tickets.create!(
       purchaser_name: "Walk-up buyer",

@@ -818,6 +818,7 @@ module Api
       end
 
       def normalize_delivery_result(result)
+        return skipped_delivery_result('Delivery service not configured') if result.nil?
         return failed_delivery_result('No delivery result returned') if result.blank?
 
         normalized = result.with_indifferent_access
