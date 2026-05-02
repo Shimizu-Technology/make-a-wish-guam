@@ -525,7 +525,7 @@ export const RaffleManagementPage: React.FC = () => {
   useEffect(() => {
     if (tournament?.id) {
       setExpandedTicketId(null);
-      fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
+      void fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
     }
   }, [tournament?.id, ticketSearch, ticketFilter, ticketPage, fetchTickets]);
 
@@ -912,7 +912,7 @@ export const RaffleManagementPage: React.FC = () => {
       }
       const data = await res.json();
       toast.success(data.message);
-      fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
+      await fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to void ticket');
     } finally {
@@ -964,7 +964,7 @@ export const RaffleManagementPage: React.FC = () => {
         toast.error(deliveryWarning);
       }
 
-      fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
+      await fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to resend ticket numbers');
     } finally {

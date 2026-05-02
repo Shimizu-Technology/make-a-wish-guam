@@ -762,6 +762,7 @@ module Api
       def ticket_confirmation_group(ticket)
         ticket_numbers = sale_ticket_numbers_for(ticket)
         scope = @tournament.raffle_tickets.active.paid
+        return [] unless scope.exists?(id: ticket.id)
 
         if ticket_numbers.present?
           return scope.where(ticket_number: ticket_numbers).order(:sequence_number).to_a
@@ -774,6 +775,8 @@ module Api
         if ticket.purchaser_name.blank? && ticket.purchaser_email.blank? && ticket.purchaser_phone.blank?
           return []
         end
+
+        return [ticket] if ticket.purchased_at.blank?
 
         fallback = scope.where(
           purchaser_name: ticket.purchaser_name,
@@ -794,6 +797,7 @@ module Api
           .where("metadata::text ILIKE ?", "%#{ActiveRecord::Base.sanitize_sql_like(ticket.ticket_number)}%")
           .order(created_at: :desc)
           .each
+          .lazy
           .map { |log| Array(log.metadata&.fetch('ticket_numbers', nil)) }
           .find { |numbers| numbers.include?(ticket.ticket_number) }
       end
