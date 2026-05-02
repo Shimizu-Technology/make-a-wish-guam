@@ -299,7 +299,7 @@ module Api
           begin
             result = RaffleMailer.winner_email(prize)
             delivery[:email] = normalize_delivery_result(result)
-            Rails.logger.error "Resend winner email failed: #{delivery[:email][:error]}" unless delivery_success?(delivery[:email])
+            log_delivery_failure("Resend winner email failed: #{delivery[:email][:error]}", delivery[:email])
           rescue => e
             Rails.logger.error "Resend winner email failed: #{e.message}"
             delivery[:email] = failed_delivery_result(e.message)
@@ -311,7 +311,7 @@ module Api
           begin
             result = RaffleSmsService.winner_notification(raffle_prize: prize)
             delivery[:sms] = normalize_delivery_result(result)
-            Rails.logger.error "Resend winner SMS failed: #{delivery[:sms][:error]}" unless delivery_success?(delivery[:sms])
+            log_delivery_failure("Resend winner SMS failed: #{delivery[:sms][:error]}", delivery[:sms])
           rescue => e
             Rails.logger.error "Resend winner SMS failed: #{e.message}"
             delivery[:sms] = failed_delivery_result(e.message)
@@ -784,9 +784,7 @@ module Api
           purchaser_phone: ticket.purchaser_phone
         )
 
-        if ticket.purchased_at.present?
-          fallback = fallback.where(purchased_at: (ticket.purchased_at - 2.minutes)..(ticket.purchased_at + 2.minutes))
-        end
+        fallback = fallback.where(purchased_at: (ticket.purchased_at - 2.minutes)..(ticket.purchased_at + 2.minutes))
 
         fallback.order(:sequence_number).to_a
       end
@@ -841,6 +839,12 @@ module Api
 
       def delivery_success?(result)
         result.present? && result[:success] == true
+      end
+
+      def log_delivery_failure(message, result)
+        return if result.blank? || delivery_success?(result) || result[:skipped] == true
+
+        Rails.logger.error message
       end
 
       def delivery_success_channels(delivery)
