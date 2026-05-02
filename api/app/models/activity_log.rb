@@ -37,6 +37,7 @@ class ActivityLog < ApplicationRecord
     bulk_payment_links_sent
     raffle_tickets_sold
     raffle_ticket_marked_paid
+    raffle_ticket_confirmation_resent
     raffle_ticket_voided
     raffle_ticket_deleted
     raffle_prize_created

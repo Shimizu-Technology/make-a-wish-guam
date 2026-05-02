@@ -72,6 +72,19 @@ interface RaffleTicket {
   created_at?: string | null;
 }
 
+interface DeliveryResult {
+  success: boolean;
+  skipped?: boolean;
+  error?: string | null;
+  message_id?: string | null;
+  data?: unknown;
+}
+
+interface DeliveryResults {
+  email?: DeliveryResult;
+  sms?: DeliveryResult;
+}
+
 interface Stats {
   total: number;
   paid: number;
@@ -88,6 +101,32 @@ interface Pagination {
   total: number;
   total_pages: number;
 }
+
+const deliveryFailureMessage = (delivery?: DeliveryResults) => {
+  if (!delivery) return null;
+
+  const failures = ([
+    ['Email', delivery.email],
+    ['Text message', delivery.sms],
+  ] as const).filter(([, result]) => result && !result.skipped && !result.success);
+
+  if (failures.length === 0) return null;
+
+  return failures
+    .map(([label, result]) => `${label} failed${result?.error ? `: ${result.error}` : ''}`)
+    .join('. ');
+};
+
+const deliverySuccessLabels = (delivery?: DeliveryResults) => {
+  if (!delivery) return [];
+
+  return ([
+    ['email', delivery.email],
+    ['text message', delivery.sms],
+  ] as const)
+    .filter(([, result]) => result?.success)
+    .map(([label]) => label);
+};
 
 interface RaffleBundleDef {
   quantity: number;
@@ -752,6 +791,10 @@ export const RaffleManagementPage: React.FC = () => {
       setSellBuyerEmail('');
       setSellBuyerPhone('+1671');
       toast.success(`Sold ${bundle.quantity} tickets for ${totalDollars}`);
+      const deliveryWarning = deliveryFailureMessage(data.delivery);
+      if (deliveryWarning) {
+        toast.error(`Tickets were created, but ${deliveryWarning}`);
+      }
       void refreshRaffle();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to sell tickets');
@@ -805,6 +848,10 @@ export const RaffleManagementPage: React.FC = () => {
       setSellBuyerEmail('');
       setSellBuyerPhone('+1671');
       toast.success(`Sold ${quantity} tickets for ${totalDollars}`);
+      const deliveryWarning = deliveryFailureMessage(data.delivery);
+      if (deliveryWarning) {
+        toast.error(`Tickets were created, but ${deliveryWarning}`);
+      }
       void refreshRaffle();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to sell tickets');
@@ -862,6 +909,58 @@ export const RaffleManagementPage: React.FC = () => {
       fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to void ticket');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResendTicketConfirmation = async (ticket: RaffleTicket) => {
+    if (!tournament) return;
+
+    const nextEmail = prompt('Email for ticket confirmation (optional):', ticket.purchaser_email || '');
+    if (nextEmail === null) return;
+
+    const nextPhone = prompt('Phone for ticket confirmation (optional):', ticket.purchaser_phone || '');
+    if (nextPhone === null) return;
+
+    if (!nextEmail.trim() && !nextPhone.trim()) {
+      toast.error('Please enter an email or phone number');
+      return;
+    }
+
+    if (!confirm(`Resend ticket numbers for ${ticket.purchaser_name}?`)) return;
+
+    setActionLoading(`resend-ticket-${ticket.id}`);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}/raffle/tickets/${ticket.id}/resend_confirmation`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            buyer_email: nextEmail.trim(),
+            buyer_phone: nextPhone.trim(),
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || deliveryFailureMessage(data.delivery) || 'Failed to resend ticket numbers');
+      }
+
+      const channels = deliverySuccessLabels(data.delivery);
+      const channelText = channels.length > 0 ? ` via ${channels.join(' and ')}` : '';
+      toast.success(`Resent ${data.ticket_count || 1} ticket number${data.ticket_count === 1 ? '' : 's'}${channelText}`);
+
+      const deliveryWarning = deliveryFailureMessage(data.delivery);
+      if (deliveryWarning) {
+        toast.error(deliveryWarning);
+      }
+
+      fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resend ticket numbers');
     } finally {
       setActionLoading(null);
     }
@@ -1594,6 +1693,29 @@ export const RaffleManagementPage: React.FC = () => {
                                   <p className="text-xs font-medium text-gray-500">Prize won</p>
                                   <p className="text-yellow-700">{ticket.prize_won}</p>
                                 </div>
+                              </div>
+                            )}
+                            {!isVoided && (
+                              <div className="sm:col-span-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-gray-200 pt-3 mt-1">
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500">Delivery</p>
+                                  <p className="text-gray-600">
+                                  Resend all ticket numbers from this buyer's original sale.
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => handleResendTicketConfirmation(ticket)}
+                                  disabled={actionLoading === `resend-ticket-${ticket.id}`}
+                                  className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Resend ticket numbers"
+                                >
+                                  {actionLoading === `resend-ticket-${ticket.id}` ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Send className="w-4 h-4" />
+                                  )}
+                                  Resend ticket numbers
+                                </button>
                               </div>
                             )}
                           </div>

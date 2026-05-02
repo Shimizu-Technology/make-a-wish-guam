@@ -19,7 +19,7 @@ module Api
         :sync_tickets, :resend_winner_notification
       ]
       before_action :authorize_volunteer_or_admin!, only: [
-        :admin_tickets, :create_tickets, :sell_tickets
+        :admin_tickets, :create_tickets, :sell_tickets, :resend_ticket_confirmation
       ]
 
       # ===========================================
@@ -560,14 +560,15 @@ module Api
           end
         end
 
-        send_purchase_notifications(tickets: tickets, buyer_email: buyer_email, buyer_phone: buyer_phone, buyer_name: buyer_name)
+        delivery = send_purchase_notifications(tickets: tickets, buyer_email: buyer_email, buyer_phone: buyer_phone, buyer_name: buyer_name)
 
         ticket_numbers = tickets.map(&:ticket_number)
         ActivityLog.log(
           admin: current_user, action: 'raffle_tickets_sold', target: @tournament,
           details: "Sold #{tickets.size} ticket(s) for $#{(price_cents / 100.0).round(2)} to #{buyer_name}",
           metadata: { quantity: tickets.size, total_cents: price_cents, buyer_name: buyer_name,
-                      buyer_email: buyer_email, buyer_phone: buyer_phone, ticket_numbers: ticket_numbers },
+                      buyer_email: buyer_email, buyer_phone: buyer_phone, ticket_numbers: ticket_numbers,
+                      delivery: delivery },
           tournament: @tournament
         )
 
@@ -578,10 +579,85 @@ module Api
             total_cents: price_cents,
             buyer_name: buyer_name,
             sold_by: current_user.name || current_user.email
-          }
+          },
+          delivery: delivery
         }, status: :created
       rescue ActiveRecord::RecordInvalid => e
         render json: { error: e.message }, status: :unprocessable_entity
+      end
+
+      # POST /api/v1/tournaments/:tournament_id/raffle/tickets/:id/resend_confirmation
+      # Volunteer/Admin - resend the full original sale's ticket numbers to the buyer
+      def resend_ticket_confirmation
+        ticket = @tournament.raffle_tickets.find(params[:id])
+
+        if ticket.voided?
+          return render json: { error: 'Cannot resend confirmation for a voided ticket' }, status: :unprocessable_entity
+        end
+
+        buyer_email = params.key?(:buyer_email) ? params[:buyer_email]&.strip&.downcase.presence : ticket.purchaser_email
+        buyer_phone = params.key?(:buyer_phone) ? params[:buyer_phone]&.strip.presence : ticket.purchaser_phone
+        buyer_name = params.key?(:buyer_name) ? params[:buyer_name].presence || ticket.purchaser_display : ticket.purchaser_display
+
+        unless buyer_email.present? || buyer_phone.present?
+          return render json: { error: 'This ticket has no email or phone number to resend to' }, status: :unprocessable_entity
+        end
+
+        tickets = ticket_confirmation_group(ticket)
+        if tickets.empty?
+          return render json: { error: 'No active paid tickets were found for this buyer group' }, status: :unprocessable_entity
+        end
+
+        apply_ticket_contact_updates(
+          tickets,
+          buyer_name: buyer_name,
+          buyer_email: buyer_email,
+          buyer_phone: buyer_phone
+        )
+
+        delivery = send_purchase_notifications(
+          tickets: tickets,
+          buyer_email: buyer_email,
+          buyer_phone: buyer_phone,
+          buyer_name: buyer_name
+        )
+
+        unless delivery_success?(delivery[:email]) || delivery_success?(delivery[:sms])
+          return render json: {
+            error: 'Ticket confirmation could not be resent',
+            delivery: delivery
+          }, status: :bad_gateway
+        end
+
+        ticket_numbers = tickets.map(&:display_number)
+        ActivityLog.log(
+          admin: current_user,
+          action: 'raffle_ticket_confirmation_resent',
+          target: ticket,
+          details: "Resent #{tickets.size} raffle ticket number#{'s' unless tickets.size == 1} for #{buyer_name}",
+          metadata: {
+            buyer_name: buyer_name,
+            buyer_email: buyer_email,
+            buyer_phone: buyer_phone,
+            ticket_numbers: ticket_numbers,
+            source_ticket_id: ticket.id,
+            delivery: delivery
+          },
+          tournament: @tournament
+        )
+
+        render json: {
+          message: "Resent #{tickets.size} ticket number#{'s' unless tickets.size == 1}",
+          ticket_count: tickets.size,
+          ticket_numbers: ticket_numbers,
+          buyer: {
+            name: buyer_name,
+            email: buyer_email,
+            phone: buyer_phone
+          },
+          delivery: delivery,
+          tickets: tickets.map { |t| ticket_response(t, admin: true) }
+        }
       end
 
       # POST /api/v1/tournaments/:tournament_id/raffle/sync_tickets
@@ -648,27 +724,113 @@ module Api
       end
 
       def send_purchase_notifications(tickets:, buyer_email:, buyer_phone:, buyer_name:)
+        delivery = {
+          email: skipped_delivery_result('No email provided'),
+          sms: skipped_delivery_result('No phone number provided')
+        }
+
         if buyer_email.present?
           begin
-            RaffleMailer.purchase_confirmation_email(
+            result = RaffleMailer.purchase_confirmation_email(
               tickets: tickets, buyer_email: buyer_email,
               buyer_name: buyer_name, tournament: @tournament
             )
+            delivery[:email] = normalize_delivery_result(result)
           rescue => e
             Rails.logger.warn("Raffle purchase email failed: #{e.message}")
+            delivery[:email] = failed_delivery_result(e.message)
           end
         end
 
         if buyer_phone.present?
           begin
-            RaffleSmsService.purchase_confirmation(
+            result = RaffleSmsService.purchase_confirmation(
               tickets: tickets, buyer_phone: buyer_phone,
               buyer_name: buyer_name, tournament: @tournament
             )
+            delivery[:sms] = normalize_delivery_result(result)
           rescue => e
             Rails.logger.warn("Raffle purchase SMS failed: #{e.message}")
+            delivery[:sms] = failed_delivery_result(e.message)
           end
         end
+
+        delivery
+      end
+
+      def ticket_confirmation_group(ticket)
+        ticket_numbers = sale_ticket_numbers_for(ticket)
+        scope = @tournament.raffle_tickets.active.paid
+
+        if ticket_numbers.present?
+          return scope.where(ticket_number: ticket_numbers).order(:sequence_number).to_a
+        end
+
+        if ticket.golfer_id.present? && ticket.price_cents.to_i.zero?
+          return scope.where(golfer_id: ticket.golfer_id, price_cents: [0, nil]).order(:sequence_number).to_a
+        end
+
+        fallback = scope.where(
+          purchaser_name: ticket.purchaser_name,
+          purchaser_email: ticket.purchaser_email,
+          purchaser_phone: ticket.purchaser_phone
+        )
+
+        if ticket.purchased_at.present?
+          fallback = fallback.where(purchased_at: (ticket.purchased_at - 2.minutes)..(ticket.purchased_at + 2.minutes))
+        end
+
+        fallback.order(:sequence_number).to_a
+      end
+
+      def sale_ticket_numbers_for(ticket)
+        ActivityLog
+          .where(tournament: @tournament, action: 'raffle_tickets_sold')
+          .where("metadata::text ILIKE ?", "%#{ActiveRecord::Base.sanitize_sql_like(ticket.ticket_number)}%")
+          .order(created_at: :desc)
+          .each
+          .map { |log| Array(log.metadata&.fetch('ticket_numbers', nil)) }
+          .find { |numbers| numbers.include?(ticket.ticket_number) }
+      end
+
+      def apply_ticket_contact_updates(tickets, buyer_name:, buyer_email:, buyer_phone:)
+        updates = {}
+        updates[:purchaser_name] = buyer_name if params.key?(:buyer_name)
+        updates[:purchaser_email] = buyer_email if params.key?(:buyer_email)
+        updates[:purchaser_phone] = buyer_phone if params.key?(:buyer_phone)
+        return if updates.empty?
+
+        updates[:updated_at] = Time.current
+        RaffleTicket.where(id: tickets.map(&:id)).update_all(updates)
+
+        updates.except(:updated_at).each do |attribute, value|
+          tickets.each { |ticket| ticket.public_send("#{attribute}=", value) }
+        end
+      end
+
+      def normalize_delivery_result(result)
+        return failed_delivery_result('No delivery result returned') if result.blank?
+
+        normalized = result.with_indifferent_access
+        {
+          success: normalized[:success] == true,
+          skipped: false,
+          message_id: normalized[:message_id],
+          data: normalized[:data],
+          error: normalized[:error]
+        }.compact
+      end
+
+      def skipped_delivery_result(reason)
+        { success: false, skipped: true, error: reason }
+      end
+
+      def failed_delivery_result(error)
+        { success: false, skipped: false, error: error.presence || 'Delivery failed' }
+      end
+
+      def delivery_success?(result)
+        result.present? && result[:success] == true
       end
 
       def prize_params
