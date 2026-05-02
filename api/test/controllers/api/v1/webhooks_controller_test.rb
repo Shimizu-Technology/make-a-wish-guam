@@ -112,6 +112,38 @@ class Api::V1::WebhooksControllerTest < ActionDispatch::IntegrationTest
     assert_equal "stripe", golfer.payment_method
   end
 
+  test "checkout completed webhook confirms pending registration when payment succeeds" do
+    golfer = create_pending_golfer
+
+    @setting.update!(
+      stripe_secret_key: "sk_test_phase_c",
+      stripe_webhook_secret: nil
+    )
+
+    payload = {
+      id: "evt_pending_checkout_completed",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_pending_123",
+          payment_intent: "pi_pending_123",
+          metadata: { golfer_id: golfer.id.to_s }
+        }
+      }
+    }.to_json
+
+    post "/api/v1/webhooks/stripe",
+         params: payload,
+         headers: { "CONTENT_TYPE" => "application/json" }
+
+    assert_response :ok
+    golfer.reload
+    assert_equal "paid", golfer.payment_status
+    assert_equal "confirmed", golfer.registration_status
+    assert_equal "pi_pending_123", golfer.stripe_payment_intent_id
+    assert_equal "stripe", golfer.payment_method
+  end
+
   test "duplicate checkout completed delivery is idempotent for already paid golfer" do
     golfer = golfers(:confirmed_unpaid)
     @setting.update!(
@@ -149,5 +181,21 @@ class Api::V1::WebhooksControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal first_updated_at, golfer.reload.updated_at
     assert_equal "pi_duplicate_123", golfer.stripe_payment_intent_id
+  end
+
+  private
+
+  def create_pending_golfer
+    tournaments(:tournament_one).golfers.create!(
+      name: "Pending Webhook Team",
+      email: "pending-webhook@example.com",
+      phone: "671-555-4444",
+      payment_type: "stripe",
+      payment_status: "unpaid",
+      registration_status: "pending",
+      registration_source: "admin",
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
+    )
   end
 end

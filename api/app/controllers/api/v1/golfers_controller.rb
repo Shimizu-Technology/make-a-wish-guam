@@ -493,12 +493,14 @@ module Api
         payment_amount = tournament&.entry_fee || 12500
 
         golfer.update!(
-          payment_status: "paid",
-          payment_method: params[:payment_method],
-          receipt_number: params[:receipt_number],
-          payment_notes: params[:payment_notes],
-          payment_amount_cents: payment_amount,
-          paid_at: Time.current
+          golfer.paid_registration_attributes(
+            payment_status: "paid",
+            payment_method: params[:payment_method],
+            receipt_number: params[:receipt_number],
+            payment_notes: params[:payment_notes],
+            payment_amount_cents: payment_amount,
+            paid_at: Time.current
+          )
         )
 
         ActivityLog.log(
@@ -645,15 +647,17 @@ module Api
 
         admin_name = current_admin&.name || current_admin&.email
         golfer.update!(
-          payment_status: "paid",
-          paid_at: Time.current,
-          payment_method: params[:payment_method],
-          payment_notes: params[:payment_notes],
-          receipt_number: params[:receipt_number],
-          payment_amount_cents: params[:payment_amount_cents] || golfer.tournament&.entry_fee || 0,
-          payment_verified_by_id: current_admin&.id,
-          payment_verified_by_name: admin_name,
-          payment_verified_at: Time.current
+          golfer.paid_registration_attributes(
+            payment_status: "paid",
+            paid_at: Time.current,
+            payment_method: params[:payment_method],
+            payment_notes: params[:payment_notes],
+            receipt_number: params[:receipt_number],
+            payment_amount_cents: params[:payment_amount_cents] || golfer.tournament&.entry_fee || 0,
+            payment_verified_by_id: current_admin&.id,
+            payment_verified_by_name: admin_name,
+            payment_verified_at: Time.current
+          )
         )
 
         begin
@@ -706,8 +710,10 @@ module Api
           )
         else
           golfer.update!(
-            payment_status: 'paid',
-            paid_at: Time.current
+            golfer.paid_registration_attributes(
+              payment_status: 'paid',
+              paid_at: Time.current
+            )
           )
           
           # Send payment confirmation email when marking as paid

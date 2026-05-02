@@ -63,5 +63,33 @@ class Api::V1::PaymentLinksControllerTest < ActionDispatch::IntegrationTest
     post "/api/v1/payment_links/#{golfer.payment_token}/checkout"
     assert_response :unprocessable_entity
   end
-end
 
+  test "checkout confirms pending registration after test-mode payment link payment" do
+    golfer = create_pending_golfer
+    golfer.generate_payment_token!
+
+    post "/api/v1/payment_links/#{golfer.payment_token}/checkout"
+
+    assert_response :success
+    golfer.reload
+    assert_equal "paid", golfer.payment_status
+    assert_equal "confirmed", golfer.registration_status
+    assert_match(/\Atest_paylink_/, golfer.stripe_checkout_session_id)
+  end
+
+  private
+
+  def create_pending_golfer
+    tournaments(:tournament_one).golfers.create!(
+      name: "Pending Payment Link Team",
+      email: "pending-payment-link@example.com",
+      phone: "671-555-3333",
+      payment_type: "stripe",
+      payment_status: "unpaid",
+      registration_status: "pending",
+      registration_source: "admin",
+      waiver_accepted_at: Time.current,
+      team_category: "Male"
+    )
+  end
+end
