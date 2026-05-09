@@ -1,5 +1,5 @@
 class TournamentSerializer < ActiveModel::Serializer
-  attributes :id, :name, :slug, :year, :edition, :status,
+  attributes :id, :name, :slug, :year, :edition, :event_type, :status,
              :event_date, :registration_time, :start_time,
              :location_name, :location_address,
              :max_capacity, :reserved_slots,

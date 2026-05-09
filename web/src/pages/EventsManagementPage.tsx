@@ -1,24 +1,29 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  Archive,
   Calendar,
   ChevronRight,
+  Copy,
   CreditCard,
   Loader2,
   Plus,
+  Power,
   ShieldCheck,
   Ticket,
   Trophy,
   Users,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useTournament } from '../contexts';
 import { adminEventPath, adminOrgRoutes } from '../utils/adminRoutes';
 import { formatShortDate } from '../utils/dates';
-import type { Tournament } from '../services/api';
+import { api, type Tournament } from '../services/api';
 
 export const EventsManagementPage: React.FC = () => {
   const navigate = useNavigate();
-  const { tournaments, currentTournament, isLoading, error } = useTournament();
+  const { tournaments, currentTournament, isLoading, error, refreshTournaments } = useTournament();
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const activeTournaments = useMemo(
     () => tournaments.filter((tournament) => tournament.status !== 'archived'),
@@ -38,7 +43,7 @@ export const EventsManagementPage: React.FC = () => {
         0
       ),
       total_revenue: tournaments.reduce(
-        (sum, tournament) => sum + tournament.paid_count * Math.round((tournament.entry_fee_dollars || 0) * 100),
+        (sum, tournament) => sum + (tournament.revenue ?? tournament.paid_count * Math.round((tournament.entry_fee_dollars || 0) * 100)),
         0
       ),
     }),
@@ -63,6 +68,68 @@ export const EventsManagementPage: React.FC = () => {
         return 'bg-neutral-200 text-neutral-600';
       default:
         return 'bg-neutral-100 text-neutral-700';
+    }
+  };
+
+  const eventTypeLabel = (eventType?: Tournament['event_type']) => {
+    switch (eventType) {
+      case 'gala':
+        return 'Gala';
+      case 'golf_tournament':
+      default:
+        return 'Golf tournament';
+    }
+  };
+
+  const runEventAction = async (
+    tournament: Tournament,
+    action: 'open' | 'close' | 'complete' | 'archive' | 'copy'
+  ) => {
+    const actionCopy = {
+      open: {
+        confirm: `Open registration for "${tournament.name}"? This will make the public registration page available.`,
+        success: 'Registration opened',
+      },
+      close: {
+        confirm: `Close registration for "${tournament.name}"? This shuts off online and walk-in registration.`,
+        success: 'Registration closed',
+      },
+      complete: {
+        confirm: `Mark "${tournament.name}" complete? This shuts off registration and keeps the event available for review.`,
+        success: 'Event marked complete',
+      },
+      archive: {
+        confirm: `Archive "${tournament.name}"? It will move to historical events but remain available for reference.`,
+        success: 'Event archived',
+      },
+      copy: {
+        confirm: `Clone "${tournament.name}" for next year? Registrations, tickets, winners, groups, and scores will not be copied.`,
+        success: 'Event cloned',
+      },
+    }[action];
+
+    if (!confirm(actionCopy.confirm)) return;
+
+    setActionLoading(`${action}-${tournament.id}`);
+    try {
+      const result = await ({
+        open: () => api.openTournament(tournament.id),
+        close: () => api.closeTournament(tournament.id),
+        complete: () => api.completeTournament(tournament.id),
+        archive: () => api.archiveTournament(tournament.id),
+        copy: () => api.copyTournament(tournament.id),
+      }[action]());
+
+      toast.success(actionCopy.success);
+      await refreshTournaments();
+
+      if (action === 'copy') {
+        navigate(adminEventPath(result.slug, 'settings'));
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Event action failed');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -171,6 +238,9 @@ export const EventsManagementPage: React.FC = () => {
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(tournament.status)}`}>
                         {tournament.status}
                       </span>
+                      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600">
+                        {eventTypeLabel(tournament.event_type)}
+                      </span>
                       {currentTournament?.slug === tournament.slug && (
                         <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">
                           Current event
@@ -197,7 +267,7 @@ export const EventsManagementPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 xl:justify-end">
                     <Link
                       to={adminEventPath(tournament.slug)}
                       className="inline-flex items-center gap-2 rounded-2xl border border-neutral-200 px-4 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
@@ -228,6 +298,67 @@ export const EventsManagementPage: React.FC = () => {
                     </Link>
                   </div>
                 </div>
+
+                <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 sm:p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-neutral-900">Event lifecycle</p>
+                      <p className="mt-0.5 text-xs text-neutral-500">
+                        Close registration, mark the event complete, archive it, or clone the setup for next year.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                      {tournament.status !== 'open' && tournament.status !== 'archived' && (
+                        <button
+                          onClick={() => runEventAction(tournament, 'open')}
+                          disabled={actionLoading === `open-${tournament.id}`}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
+                        >
+                          {actionLoading === `open-${tournament.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />}
+                          Open
+                        </button>
+                      )}
+                      {(tournament.status === 'open' || tournament.status === 'in_progress') && (
+                        <button
+                          onClick={() => runEventAction(tournament, 'close')}
+                          disabled={actionLoading === `close-${tournament.id}`}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-50 disabled:opacity-50"
+                        >
+                          {actionLoading === `close-${tournament.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />}
+                          Close
+                        </button>
+                      )}
+                      {tournament.status !== 'completed' && tournament.status !== 'archived' && (
+                        <button
+                          onClick={() => runEventAction(tournament, 'complete')}
+                          disabled={actionLoading === `complete-${tournament.id}`}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
+                        >
+                          {actionLoading === `complete-${tournament.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                          Complete
+                        </button>
+                      )}
+                      {tournament.status !== 'archived' && (
+                        <button
+                          onClick={() => runEventAction(tournament, 'archive')}
+                          disabled={actionLoading === `archive-${tournament.id}`}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 transition hover:bg-white disabled:opacity-50"
+                        >
+                          {actionLoading === `archive-${tournament.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
+                          Archive
+                        </button>
+                      )}
+                      <button
+                        onClick={() => runEventAction(tournament, 'copy')}
+                        disabled={actionLoading === `copy-${tournament.id}`}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
+                      >
+                        {actionLoading === `copy-${tournament.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                        Clone
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -242,17 +373,30 @@ export const EventsManagementPage: React.FC = () => {
           </div>
           <div className="divide-y divide-neutral-200">
             {archivedTournaments.map((tournament) => (
-              <Link
+              <div
                 key={tournament.id}
-                to={adminEventPath(tournament.slug)}
                 className="flex items-center justify-between gap-4 px-4 sm:px-6 py-3.5 sm:py-4 transition hover:bg-neutral-50"
               >
-                <div className="min-w-0">
+                <Link to={adminEventPath(tournament.slug)} className="min-w-0 flex-1">
                   <p className="font-medium text-sm sm:text-base text-neutral-900 truncate">{tournament.name}</p>
                   <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-neutral-500">{tournament.event_date ? formatShortDate(tournament.event_date) : 'Date TBD'}</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
-              </Link>
+                </Link>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    runEventAction(tournament, 'copy');
+                  }}
+                  disabled={actionLoading === `copy-${tournament.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-white disabled:opacity-50"
+                >
+                  {actionLoading === `copy-${tournament.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+                  Clone
+                </button>
+                <Link to={adminEventPath(tournament.slug)} className="rounded-lg p-2 text-neutral-400 hover:bg-white">
+                  <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                </Link>
+              </div>
             ))}
           </div>
         </section>

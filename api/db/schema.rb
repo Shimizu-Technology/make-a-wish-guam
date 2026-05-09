@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_27_123000) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_09_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -347,6 +347,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_27_123000) do
     t.integer "employee_entry_fee", default: 5000
     t.integer "entry_fee", default: 12500
     t.string "entry_fee_display", default: "$300/team"
+    t.string "event_type", default: "golf_tournament", null: false
     t.string "event_date"
     t.text "event_schedule"
     t.string "fee_includes"
@@ -404,6 +405,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_27_123000) do
     t.string "walkin_swipe_simple_url"
     t.integer "year", null: false
     t.index ["early_bird_deadline"], name: "index_tournaments_on_early_bird_deadline"
+    t.index ["event_type"], name: "index_tournaments_on_event_type"
     t.index ["organization_id", "slug"], name: "index_tournaments_on_organization_id_and_slug", unique: true
     t.index ["organization_id"], name: "index_tournaments_on_organization_id"
     t.index ["public_listed"], name: "index_tournaments_on_public_listed"

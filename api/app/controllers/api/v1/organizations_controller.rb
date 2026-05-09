@@ -142,6 +142,7 @@ module Api
             name: t.name,
             slug: t.slug,
             date: t.event_date,
+            event_type: t.event_type,
             status: t.status,
             registration_count: confirmed_count,
             pending_count: pending_count,
@@ -290,10 +291,10 @@ module Api
         end
 
         if tournament.save
-          render json: { 
+          render json: {
             tournament: tournament.as_json(
-              only: [:id, :name, :slug, :year, :edition, :status, :event_date, 
-                     :location_name, :entry_fee, :max_capacity]
+              only: [:id, :name, :slug, :year, :edition, :status, :event_date,
+                     :location_name, :entry_fee, :max_capacity, :event_type]
             ),
             message: 'Tournament created successfully'
           }, status: :created
@@ -740,7 +741,7 @@ module Api
 
       def tournament_params
         params.require(:tournament).permit(
-          :name, :year, :edition, :status, :slug,
+          :name, :year, :edition, :event_type, :status, :slug,
           :event_date, :registration_time, :start_time, :check_in_time,
           :location_name, :location_address,
           :tournament_format, :scoring_type, :team_size, :teams_per_start_position, :start_positions_per_hole, :shotgun_start,

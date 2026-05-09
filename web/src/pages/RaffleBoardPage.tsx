@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { createConsumer } from '@rails/actioncable';
 import { useOrganization } from '../components/OrganizationProvider';
 import {
   Gift,
@@ -67,6 +68,19 @@ const PUBLIC_PRIZES_PER_PAGE = 12;
 
 type PublicPrizeStatusFilter = '' | 'available' | 'won';
 type PublicPrizeSort = 'tier' | 'position' | 'name' | 'value_desc' | 'value_asc';
+type DrawPhase = 'spinning' | 'revealing';
+
+interface LiveDrawState {
+  drawId: string;
+  phase: DrawPhase;
+  prizeId: number;
+  prizeName: string;
+  eligibleTicketCount: number;
+  previewTicketNumbers: string[];
+  winnerName?: string;
+  winnerTicketNumber?: string;
+  startedAt: number;
+}
 
 // ---------------------------------------------------------------------------
 // Tier styling helpers
@@ -145,6 +159,8 @@ export const RaffleBoardPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<PublicPrizeStatusFilter>('');
   const [sortBy, setSortBy] = useState<PublicPrizeSort>('tier');
   const [page, setPage] = useState(1);
+  const [liveDraw, setLiveDraw] = useState<LiveDrawState | null>(null);
+  const revealTimeoutRef = useRef<number | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -176,6 +192,83 @@ export const RaffleBoardPage: React.FC = () => {
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!data?.tournament?.id) return;
+
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const wsUrl = `${apiUrl.replace(/^http/, 'ws')}/cable`;
+    const consumer = createConsumer(wsUrl);
+    const subscription = consumer.subscriptions.create(
+      { channel: 'RaffleChannel', tournament_id: data.tournament.id },
+      {
+        received(event: {
+          action: string;
+          draw_id?: string;
+          eligible_ticket_count?: number;
+          preview_ticket_numbers?: string[];
+          started_at?: string;
+          prize?: {
+            id: number;
+            name: string;
+            winner_name?: string;
+            winning_ticket?: { ticket_number?: string };
+          };
+        }) {
+          if (event.action === 'draw_started' && event.draw_id && event.prize) {
+            if (revealTimeoutRef.current) window.clearTimeout(revealTimeoutRef.current);
+            setLiveDraw({
+              drawId: event.draw_id,
+              phase: 'spinning',
+              prizeId: event.prize.id,
+              prizeName: event.prize.name,
+              eligibleTicketCount: event.eligible_ticket_count || 0,
+              previewTicketNumbers: event.preview_ticket_numbers || [],
+              startedAt: Date.now(),
+            });
+          }
+
+          if (event.action === 'prize_won' && event.draw_id && event.prize) {
+            const drawId = event.draw_id;
+            const prize = event.prize;
+            const eligibleTicketCount = event.eligible_ticket_count || 0;
+            setLiveDraw((current) => {
+              const startedAt = current?.drawId === drawId ? current.startedAt : Date.now();
+              const elapsed = Date.now() - startedAt;
+              const revealDelay = Math.max(0, 3600 - elapsed);
+
+              if (revealTimeoutRef.current) window.clearTimeout(revealTimeoutRef.current);
+              revealTimeoutRef.current = window.setTimeout(() => {
+                setLiveDraw((latest) => latest?.drawId === drawId ? {
+                  ...latest,
+                  phase: 'revealing',
+                  winnerName: prize.winner_name,
+                  winnerTicketNumber: prize.winning_ticket?.ticket_number,
+                } : latest);
+                void fetchData();
+              }, revealDelay);
+
+              return current || {
+                drawId,
+                phase: 'spinning',
+                prizeId: prize.id,
+                prizeName: prize.name,
+                eligibleTicketCount,
+                previewTicketNumbers: [],
+                startedAt,
+              };
+            });
+          }
+        },
+      }
+    );
+
+    return () => {
+      if (revealTimeoutRef.current) window.clearTimeout(revealTimeoutRef.current);
+      subscription.unsubscribe();
+      consumer.disconnect();
+    };
+  }, [data?.tournament?.id, fetchData]);
 
   const visiblePrizes = useMemo(() => {
     const query = prizeSearch.trim().toLowerCase();
@@ -222,6 +315,13 @@ export const RaffleBoardPage: React.FC = () => {
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  useEffect(() => {
+    if (liveDraw?.phase !== 'revealing') return;
+
+    const timeout = window.setTimeout(() => setLiveDraw(null), 9000);
+    return () => window.clearTimeout(timeout);
+  }, [liveDraw?.phase, liveDraw?.drawId]);
 
   const formatCountdown = (drawTime: string) => {
     const now = new Date();
@@ -325,6 +425,58 @@ export const RaffleBoardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F5F5F5] text-neutral-900">
       <SignedInAdminBar />
+      {liveDraw && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/80 px-4 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="bg-[#0057B8] px-5 py-4 text-white sm:px-8 sm:py-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#F5A800]">Live raffle draw</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl">{liveDraw.prizeName}</h2>
+              <p className="mt-2 text-sm text-white/75">
+                Drawing from {liveDraw.eligibleTicketCount.toLocaleString()} eligible paid ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'}.
+              </p>
+            </div>
+
+            <div className="p-5 sm:p-8">
+              {liveDraw.phase === 'spinning' ? (
+                <>
+                  <div className="rounded-3xl border border-neutral-200 bg-neutral-950 p-4 text-white sm:p-6">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {(liveDraw.previewTicketNumbers.length > 0 ? liveDraw.previewTicketNumbers : ['TIX-0001', 'TIX-0002', 'TIX-0003', 'TIX-0004']).slice(0, 16).map((ticketNumber, index) => (
+                        <div
+                          key={`${ticketNumber}-${index}`}
+                          className="rounded-2xl border border-white/10 bg-white/10 px-3 py-3 text-center font-mono text-sm font-semibold text-white shadow-sm animate-pulse"
+                          style={{ animationDelay: `${(index % 8) * 90}ms`, animationDuration: '700ms' }}
+                        >
+                          {ticketNumber}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-5 flex items-center justify-center gap-3 text-sm font-medium text-neutral-600">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#0057B8]" />
+                    Server is selecting one ticket at random
+                  </div>
+                </>
+              ) : (
+                <div className="text-center">
+                  <PartyPopper className="mx-auto h-14 w-14 text-[#F5A800]" />
+                  <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-[#0057B8]">Winner</p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-neutral-950 sm:text-5xl">{liveDraw.winnerName || 'Winner selected'}</p>
+                  {liveDraw.winnerTicketNumber && (
+                    <p className="mt-3 font-mono text-lg font-semibold text-neutral-600">Ticket #{liveDraw.winnerTicketNumber}</p>
+                  )}
+                  <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-left text-sm text-neutral-600">
+                    <p className="font-semibold text-neutral-900">Draw audit</p>
+                    <p className="mt-1">
+                      Selected by the server using a secure random draw from {liveDraw.eligibleTicketCount.toLocaleString()} eligible paid ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'}.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* ================================================================= */}
       {/* HERO HEADER                                                        */}
       {/* ================================================================= */}

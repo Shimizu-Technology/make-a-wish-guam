@@ -55,6 +55,7 @@ export interface Tournament {
   slug: string;
   year: number;
   edition: string | null;
+  event_type?: 'golf_tournament' | 'gala';
   status: 'draft' | 'open' | 'closed' | 'in_progress' | 'completed' | 'archived';
   event_date: string | null;
   registration_time: string | null;
@@ -89,6 +90,7 @@ export interface Tournament {
   checked_in_count: number;
   paid_count: number;
   pending_payment_count: number;
+  revenue?: number;
   display_name: string;
   short_name: string;
   created_at: string;
@@ -596,6 +598,12 @@ export class ApiClient {
     });
   }
 
+  async completeTournament(id: number): Promise<Tournament> {
+    return this.request(`/api/v1/tournaments/${id}/complete`, {
+      method: 'POST',
+    });
+  }
+
   // Organization endpoints
   async getOrganization(slug: string): Promise<Organization> {
     return this.request(`/api/v1/organizations/${slug}`, {}, false);
@@ -611,6 +619,7 @@ export class ApiClient {
       capacity?: number | null;
       pending_count?: number;
       registration_count?: number;
+      revenue?: number;
     };
 
     const response = await this.request<{ tournaments: AdminTournamentSummary[] }>(
@@ -627,6 +636,9 @@ export class ApiClient {
       public_confirmed_count: tournament.public_confirmed_count ?? tournament.registration_count ?? 0,
       sponsor_confirmed_count: tournament.sponsor_confirmed_count ?? 0,
       pending_payment_count: tournament.pending_payment_count ?? tournament.pending_count ?? 0,
+      paid_count: tournament.paid_count ?? 0,
+      revenue: tournament.revenue ?? 0,
+      event_type: tournament.event_type ?? 'golf_tournament',
       short_name: tournament.short_name ?? tournament.name,
       display_name: tournament.display_name ?? tournament.name,
     }));

@@ -84,6 +84,7 @@ Rails.application.routes.draw do
           post :copy
           post :open
           post :close
+          post :complete
         end
       end
       post 'admin/tournaments' => 'tournaments#create'

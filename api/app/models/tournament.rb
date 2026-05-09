@@ -22,6 +22,7 @@ class Tournament < ApplicationRecord
   validates :max_capacity, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validates :entry_fee, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
   validates :slug, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
+  validates :event_type, presence: true, inclusion: { in: %w[golf_tournament gala] }
   validate :course_configs_are_valid
 
   # Callbacks
@@ -38,6 +39,7 @@ class Tournament < ApplicationRecord
 
   # Status constants
   STATUSES = %w[draft open closed in_progress completed archived].freeze
+  EVENT_TYPES = %w[golf_tournament gala].freeze
   
   # Default sponsor tier definitions
   DEFAULT_SPONSOR_TIERS = [
@@ -208,6 +210,14 @@ class Tournament < ApplicationRecord
     status == 'archived'
   end
 
+  def golf_tournament?
+    event_type == 'golf_tournament'
+  end
+
+  def gala?
+    event_type == 'gala'
+  end
+
   # Money helpers
   def entry_fee_dollars
     return 0.00 if entry_fee.nil?
@@ -358,7 +368,7 @@ class Tournament < ApplicationRecord
 
   # Actions
   def archive!
-    update!(status: 'archived', registration_open: false)
+    update!(status: 'archived', registration_open: false, walkin_registration_open: false)
   end
 
   def open_registration!
@@ -366,40 +376,93 @@ class Tournament < ApplicationRecord
   end
 
   def close_registration!
-    update!(registration_open: false)
+    update!(registration_open: false, walkin_registration_open: false)
   end
 
   def start!
-    update!(status: 'in_progress', registration_open: false)
+    update!(status: 'in_progress', registration_open: false, walkin_registration_open: false)
   end
 
   def complete!
-    update!(status: 'completed')
+    update!(status: 'completed', registration_open: false, walkin_registration_open: false)
   end
 
   # Copy tournament for next year
   def copy_for_next_year
     Tournament.new(
       organization: organization,
+      event_type: event_type,
       name: name,
       year: year + 1,
       edition: increment_edition,
       status: 'draft',
       event_date: nil,
       registration_time: registration_time,
+      check_in_time: check_in_time,
       start_time: start_time,
       location_name: location_name,
       location_address: location_address,
+      tournament_format: tournament_format,
+      scoring_type: scoring_type,
+      team_size: team_size,
+      allow_partial_teams: allow_partial_teams,
+      shotgun_start: shotgun_start,
+      tee_times_enabled: tee_times_enabled,
+      tee_time_interval_minutes: tee_time_interval_minutes,
+      total_holes: total_holes,
+      total_par: total_par,
+      course_name: course_name,
+      tee_name: tee_name,
+      course_rating: course_rating,
+      slope_rating: slope_rating,
+      hole_pars: hole_pars,
+      hole_handicaps: hole_handicaps,
+      use_flights: use_flights,
+      flights_config: flights_config,
+      handicap_required: handicap_required,
+      handicap_max: handicap_max,
       max_capacity: max_capacity,
       reserved_slots: reserved_slots,
       entry_fee: entry_fee,
+      entry_fee_display: entry_fee_display,
+      early_bird_fee: early_bird_fee,
+      employee_entry_fee: employee_entry_fee,
+      employee_discount_enabled: employee_discount_enabled,
       format_name: format_name,
       fee_includes: fee_includes,
       checks_payable_to: checks_payable_to,
+      payment_instructions: payment_instructions,
+      allow_cash: allow_cash,
+      allow_check: allow_check,
+      allow_card: allow_card,
+      waitlist_enabled: waitlist_enabled,
+      waitlist_max: waitlist_max,
       contact_name: contact_name,
       contact_phone: contact_phone,
+      contact_email: contact_email,
+      raffle_enabled: raffle_enabled,
+      raffle_ticket_price_cents: raffle_ticket_price_cents,
+      raffle_description: raffle_description,
+      raffle_auto_draw: raffle_auto_draw,
+      raffle_max_tickets_per_person: raffle_max_tickets_per_person,
+      raffle_tickets_per_purchase: raffle_tickets_per_purchase,
+      walkin_fee: walkin_fee,
+      sponsor_edit_deadline: sponsor_edit_deadline,
+      event_schedule: event_schedule,
+      tournament_info: tournament_info,
+      public_listed: public_listed,
+      use_org_branding: use_org_branding,
+      theme_preset: theme_preset,
+      primary_color_override: primary_color_override,
+      accent_color_override: accent_color_override,
+      logo_url_override: logo_url_override,
+      signature_image_url_override: signature_image_url_override,
+      banner_url_override: banner_url_override,
+      swipe_simple_url: swipe_simple_url,
+      walkin_swipe_simple_url: walkin_swipe_simple_url,
       registration_open: false,
-      config: config
+      walkin_registration_open: false,
+      config: config&.deep_dup || {}
     )
   end
 

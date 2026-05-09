@@ -10,7 +10,7 @@ module ApplicationCable
 
     def find_verified_admin
       token = request.params[:token].presence || bearer_token_from_header
-      reject_unauthorized_connection if token.blank?
+      return nil if token.blank?
 
       decoded = ClerkAuth.verify(token)
       reject_unauthorized_connection if decoded.blank?
@@ -35,4 +35,3 @@ module ApplicationCable
     end
   end
 end
-
