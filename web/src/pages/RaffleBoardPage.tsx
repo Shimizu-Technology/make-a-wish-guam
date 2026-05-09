@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
+  X,
 } from 'lucide-react';
 import { SignedInAdminBar } from '../components/SignedInAdminBar';
 
@@ -161,6 +162,23 @@ export const RaffleBoardPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [liveDraw, setLiveDraw] = useState<LiveDrawState | null>(null);
   const revealTimeoutRef = useRef<number | null>(null);
+  const drawSafetyTimeoutRef = useRef<number | null>(null);
+
+  const clearLiveDrawTimers = useCallback(() => {
+    if (revealTimeoutRef.current) {
+      window.clearTimeout(revealTimeoutRef.current);
+      revealTimeoutRef.current = null;
+    }
+    if (drawSafetyTimeoutRef.current) {
+      window.clearTimeout(drawSafetyTimeoutRef.current);
+      drawSafetyTimeoutRef.current = null;
+    }
+  }, []);
+
+  const dismissLiveDraw = useCallback(() => {
+    clearLiveDrawTimers();
+    setLiveDraw(null);
+  }, [clearLiveDrawTimers]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -216,9 +234,10 @@ export const RaffleBoardPage: React.FC = () => {
           };
         }) {
           if (event.action === 'draw_started' && event.draw_id && event.prize) {
-            if (revealTimeoutRef.current) window.clearTimeout(revealTimeoutRef.current);
+            const drawId = event.draw_id;
+            clearLiveDrawTimers();
             setLiveDraw({
-              drawId: event.draw_id,
+              drawId,
               phase: 'spinning',
               prizeId: event.prize.id,
               prizeName: event.prize.name,
@@ -226,18 +245,31 @@ export const RaffleBoardPage: React.FC = () => {
               previewTicketNumbers: event.preview_ticket_numbers || [],
               startedAt: Date.now(),
             });
+            drawSafetyTimeoutRef.current = window.setTimeout(() => {
+              setLiveDraw((current) => (
+                current?.drawId === drawId && current.phase === 'spinning' ? null : current
+              ));
+              void fetchData();
+            }, 15000);
           }
 
           if (event.action === 'prize_won' && event.draw_id && event.prize) {
             const drawId = event.draw_id;
             const prize = event.prize;
             const eligibleTicketCount = event.eligible_ticket_count || 0;
+            if (drawSafetyTimeoutRef.current) {
+              window.clearTimeout(drawSafetyTimeoutRef.current);
+              drawSafetyTimeoutRef.current = null;
+            }
             setLiveDraw((current) => {
               const startedAt = current?.drawId === drawId ? current.startedAt : Date.now();
               const elapsed = Date.now() - startedAt;
               const revealDelay = Math.max(0, 3600 - elapsed);
 
-              if (revealTimeoutRef.current) window.clearTimeout(revealTimeoutRef.current);
+              if (revealTimeoutRef.current) {
+                window.clearTimeout(revealTimeoutRef.current);
+                revealTimeoutRef.current = null;
+              }
               revealTimeoutRef.current = window.setTimeout(() => {
                 setLiveDraw((latest) => latest?.drawId === drawId ? {
                   ...latest,
@@ -264,11 +296,11 @@ export const RaffleBoardPage: React.FC = () => {
     );
 
     return () => {
-      if (revealTimeoutRef.current) window.clearTimeout(revealTimeoutRef.current);
+      clearLiveDrawTimers();
       subscription.unsubscribe();
       consumer.disconnect();
     };
-  }, [data?.tournament?.id, fetchData]);
+  }, [clearLiveDrawTimers, data?.tournament?.id, fetchData]);
 
   const visiblePrizes = useMemo(() => {
     const query = prizeSearch.trim().toLowerCase();
@@ -427,7 +459,15 @@ export const RaffleBoardPage: React.FC = () => {
       <SignedInAdminBar />
       {liveDraw && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/80 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <button
+              type="button"
+              onClick={dismissLiveDraw}
+              className="absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/70"
+              aria-label="Dismiss live draw"
+            >
+              <X className="h-4 w-4" />
+            </button>
             <div className="bg-[#0057B8] px-5 py-4 text-white sm:px-8 sm:py-6">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#F5A800]">Live raffle draw</p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl">{liveDraw.prizeName}</h2>

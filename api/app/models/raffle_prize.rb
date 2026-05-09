@@ -47,7 +47,6 @@ class RafflePrize < ApplicationRecord
         # award the same ticket or redraw the same prize.
         available_tickets = tournament.raffle_tickets.eligible_for_draw.order(:id).lock("FOR UPDATE OF raffle_tickets").to_a
         eligible_snapshot = eligible_ticket_snapshot(available_tickets)
-        broadcast_draw_started(draw_id: draw_id, eligible_snapshot: eligible_snapshot) if eligible_snapshot[:count].positive?
         winning_ticket = available_tickets.empty? ? nil : available_tickets[random_ticket_index(available_tickets.length)]
 
         if winning_ticket
@@ -72,7 +71,9 @@ class RafflePrize < ApplicationRecord
 
     return false unless winner_drawn
 
-    broadcast_winner(draw_id: draw_id, eligible_snapshot: eligible_snapshot || { count: 0, preview_numbers: [] })
+    eligible_snapshot ||= { count: 0, preview_numbers: [] }
+    broadcast_draw_started(draw_id: draw_id, eligible_snapshot: eligible_snapshot)
+    broadcast_winner(draw_id: draw_id, eligible_snapshot: eligible_snapshot)
     notify_winner
 
     true

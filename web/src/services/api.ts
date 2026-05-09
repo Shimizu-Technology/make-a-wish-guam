@@ -55,7 +55,7 @@ export interface Tournament {
   slug: string;
   year: number;
   edition: string | null;
-  event_type?: 'golf_tournament' | 'gala';
+  event_type: 'golf_tournament' | 'gala';
   status: 'draft' | 'open' | 'closed' | 'in_progress' | 'completed' | 'archived';
   event_date: string | null;
   registration_time: string | null;
