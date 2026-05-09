@@ -241,30 +241,31 @@ function SellTicketsTab({
             required
           />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email {!sellBuyerPhone.trim() && <span className="text-red-500">*</span>}
-            </label>
-            <input
-              type="email"
-              value={sellBuyerEmail}
-              onChange={(e) => onBuyerEmailChange(e.target.value)}
-              placeholder="buyer@email.com"
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone {!sellBuyerEmail.trim() && <span className="text-red-500">*</span>}
-            </label>
-            <input
-              type="tel"
-              value={sellBuyerPhone}
-              onChange={(e) => onBuyerPhoneChange(e.target.value)}
-              placeholder="+1671..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
+        <div>
+          <p className="block text-sm font-medium text-gray-700 mb-1">
+            Contact method <span className="text-red-500">*</span>
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={sellBuyerEmail}
+                onChange={(e) => onBuyerEmailChange(e.target.value)}
+                placeholder="buyer@email.com"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <input
+                type="tel"
+                value={sellBuyerPhone}
+                onChange={(e) => onBuyerPhoneChange(e.target.value)}
+                placeholder="+1671..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
           </div>
         </div>
         <p className="text-xs text-gray-500">
