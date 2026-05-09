@@ -72,6 +72,19 @@ interface RaffleTicket {
   created_at?: string | null;
 }
 
+interface DeliveryResult {
+  success: boolean;
+  skipped?: boolean;
+  error?: string | null;
+  message_id?: string | null;
+  data?: unknown;
+}
+
+interface DeliveryResults {
+  email?: DeliveryResult;
+  sms?: DeliveryResult;
+}
+
 interface Stats {
   total: number;
   paid: number;
@@ -88,6 +101,32 @@ interface Pagination {
   total: number;
   total_pages: number;
 }
+
+const deliveryFailureMessage = (delivery?: DeliveryResults) => {
+  if (!delivery) return null;
+
+  const failures = ([
+    ['Email', delivery.email],
+    ['Text message', delivery.sms],
+  ] as const).filter(([, result]) => result && !result.skipped && !result.success);
+
+  if (failures.length === 0) return null;
+
+  return failures
+    .map(([label, result]) => `${label} failed${result?.error ? `: ${result.error}` : ''}`)
+    .join('. ');
+};
+
+const deliverySuccessLabels = (delivery?: DeliveryResults) => {
+  if (!delivery) return [];
+
+  return ([
+    ['email', delivery.email],
+    ['text message', delivery.sms],
+  ] as const)
+    .filter(([, result]) => result?.success)
+    .map(([label]) => label);
+};
 
 interface RaffleBundleDef {
   quantity: number;
@@ -157,7 +196,9 @@ function SellTicketsTab({
 
   const bundles = tournament.raffle_bundles?.length ? tournament.raffle_bundles : DEFAULT_BUNDLES;
   const phoneValue = sellBuyerPhone.trim().replace(/^\+1671$/, '');
+  const hasBuyerName = sellBuyerName.trim() !== '';
   const hasContact = sellBuyerEmail.trim() !== '' || phoneValue !== '';
+  const canSell = hasBuyerName && hasContact;
 
   return (
     <div className="space-y-6">
@@ -188,43 +229,47 @@ function SellTicketsTab({
       {/* Buyer info */}
       <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 space-y-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Buyer name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Buyer name <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={sellBuyerName}
             onChange={(e) => onBuyerNameChange(e.target.value)}
-            placeholder="Walk-up buyer"
+            placeholder="Full name"
             className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+            required
           />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email {!sellBuyerPhone.trim() && <span className="text-red-500">*</span>}
-            </label>
-            <input
-              type="email"
-              value={sellBuyerEmail}
-              onChange={(e) => onBuyerEmailChange(e.target.value)}
-              placeholder="buyer@email.com"
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone {!sellBuyerEmail.trim() && <span className="text-red-500">*</span>}
-            </label>
-            <input
-              type="tel"
-              value={sellBuyerPhone}
-              onChange={(e) => onBuyerPhoneChange(e.target.value)}
-              placeholder="+1671..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
+        <div>
+          <p className="block text-sm font-medium text-gray-700 mb-1">
+            Contact method <span className="text-red-500">*</span>
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={sellBuyerEmail}
+                onChange={(e) => onBuyerEmailChange(e.target.value)}
+                placeholder="buyer@email.com"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <input
+                type="tel"
+                value={sellBuyerPhone}
+                onChange={(e) => onBuyerPhoneChange(e.target.value)}
+                placeholder="+1671..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
           </div>
         </div>
         <p className="text-xs text-gray-500">
-          At least one is required — ticket numbers and winner notifications are sent via email and/or text.
+          Name plus at least one contact method are required so ticket numbers can be found and delivered.
         </p>
       </div>
 
@@ -236,7 +281,7 @@ function SellTicketsTab({
             <button
               key={idx}
               onClick={() => onSellBundle(bundle)}
-              disabled={sellLoading || !hasContact}
+              disabled={sellLoading || !canSell}
               className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-gray-200 bg-white hover:border-brand-500 hover:bg-brand-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="text-3xl font-bold text-brand-600">{bundle.quantity}</span>
@@ -290,7 +335,7 @@ function SellTicketsTab({
                   setCustomPrice('');
                 }
               }}
-              disabled={sellLoading || !customQty || !customPrice || !hasContact}
+              disabled={sellLoading || !customQty || !customPrice || !canSell}
               className="px-5 py-2.5 bg-brand-600 text-white rounded-xl font-medium text-sm hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
             >
               {sellLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sell'}
@@ -486,7 +531,7 @@ export const RaffleManagementPage: React.FC = () => {
   useEffect(() => {
     if (tournament?.id) {
       setExpandedTicketId(null);
-      fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
+      void fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
     }
   }, [tournament?.id, ticketSearch, ticketFilter, ticketPage, fetchTickets]);
 
@@ -714,7 +759,11 @@ export const RaffleManagementPage: React.FC = () => {
       toast.error('Please enter an email or phone number');
       return;
     }
-    const buyerLabel = sellBuyerName.trim() || 'Walk-up buyer';
+    const buyerLabel = sellBuyerName.trim();
+    if (!buyerLabel) {
+      toast.error('Please enter the buyer name');
+      return;
+    }
     if (!confirm(`Sell ${bundle.quantity} tickets for $${(bundle.price_cents / 100).toFixed(0)} to "${buyerLabel}"?`)) return;
     setSellLoading(true);
     try {
@@ -727,7 +776,7 @@ export const RaffleManagementPage: React.FC = () => {
           body: JSON.stringify({
             quantity: bundle.quantity,
             price_cents: bundle.price_cents,
-            buyer_name: sellBuyerName.trim() || undefined,
+            buyer_name: buyerLabel,
             buyer_email: sellBuyerEmail.trim() || undefined,
             buyer_phone: sellBuyerPhone.trim() || undefined,
           }),
@@ -745,13 +794,17 @@ export const RaffleManagementPage: React.FC = () => {
       setLastSale({
         quantity: bundle.quantity,
         total: totalDollars,
-        buyer: sellBuyerName.trim() || 'Walk-up buyer',
+        buyer: buyerLabel,
         ticketNumbers: ticketNums,
       });
       setSellBuyerName('');
       setSellBuyerEmail('');
       setSellBuyerPhone('+1671');
       toast.success(`Sold ${bundle.quantity} tickets for ${totalDollars}`);
+      const deliveryWarning = deliveryFailureMessage(data.delivery);
+      if (deliveryWarning) {
+        toast.error(`Tickets were created, but ${deliveryWarning}`);
+      }
       void refreshRaffle();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to sell tickets');
@@ -767,7 +820,11 @@ export const RaffleManagementPage: React.FC = () => {
       toast.error('Please enter an email or phone number');
       return;
     }
-    const buyerLabel = sellBuyerName.trim() || 'Walk-up buyer';
+    const buyerLabel = sellBuyerName.trim();
+    if (!buyerLabel) {
+      toast.error('Please enter the buyer name');
+      return;
+    }
     if (!confirm(`Sell ${quantity} tickets for $${(priceCents / 100).toFixed(2)} to "${buyerLabel}"?`)) return;
     setSellLoading(true);
     try {
@@ -780,7 +837,7 @@ export const RaffleManagementPage: React.FC = () => {
           body: JSON.stringify({
             quantity,
             price_cents: priceCents,
-            buyer_name: sellBuyerName.trim() || undefined,
+            buyer_name: buyerLabel,
             buyer_email: sellBuyerEmail.trim() || undefined,
             buyer_phone: sellBuyerPhone.trim() || undefined,
           }),
@@ -798,13 +855,17 @@ export const RaffleManagementPage: React.FC = () => {
       setLastSale({
         quantity,
         total: totalDollars,
-        buyer: sellBuyerName.trim() || 'Walk-up buyer',
+        buyer: buyerLabel,
         ticketNumbers: ticketNums,
       });
       setSellBuyerName('');
       setSellBuyerEmail('');
       setSellBuyerPhone('+1671');
       toast.success(`Sold ${quantity} tickets for ${totalDollars}`);
+      const deliveryWarning = deliveryFailureMessage(data.delivery);
+      if (deliveryWarning) {
+        toast.error(`Tickets were created, but ${deliveryWarning}`);
+      }
       void refreshRaffle();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to sell tickets');
@@ -824,12 +885,18 @@ export const RaffleManagementPage: React.FC = () => {
         `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}/raffle/prizes/${prize.id}/resend_notification`,
         { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }
       );
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to resend');
-      }
       const data = await res.json();
-      toast.success(data.message);
+      if (!res.ok) {
+        throw new Error(data.error || deliveryFailureMessage(data.delivery) || 'Failed to resend');
+      }
+      const channels = deliverySuccessLabels(data.delivery);
+      const channelText = channels.length > 0 ? ` via ${channels.join(' and ')}` : '';
+      toast.success(data.message || `Winner notification resent${channelText}`);
+
+      const deliveryWarning = deliveryFailureMessage(data.delivery);
+      if (deliveryWarning) {
+        toast.error(deliveryWarning);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to resend notification');
     } finally {
@@ -859,9 +926,61 @@ export const RaffleManagementPage: React.FC = () => {
       }
       const data = await res.json();
       toast.success(data.message);
-      fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
+      await fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to void ticket');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResendTicketConfirmation = async (ticket: RaffleTicket) => {
+    if (!tournament) return;
+
+    const nextEmail = prompt('Email for ticket confirmation (optional):', ticket.purchaser_email || '');
+    if (nextEmail === null) return;
+
+    const nextPhone = prompt('Phone for ticket confirmation (optional):', ticket.purchaser_phone || '');
+    if (nextPhone === null) return;
+
+    if (!nextEmail.trim() && !nextPhone.trim()) {
+      toast.error('Please enter an email or phone number');
+      return;
+    }
+
+    if (!confirm(`Resend ticket numbers for ${ticket.purchaser_name || ticket.ticket_number}?`)) return;
+
+    setActionLoading(`resend-ticket-${ticket.id}`);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/tournaments/${tournament.id}/raffle/tickets/${ticket.id}/resend_confirmation`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            buyer_email: nextEmail.trim(),
+            buyer_phone: nextPhone.trim(),
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || deliveryFailureMessage(data.delivery) || 'Failed to resend ticket numbers');
+      }
+
+      const channels = deliverySuccessLabels(data.delivery);
+      const channelText = channels.length > 0 ? ` via ${channels.join(' and ')}` : '';
+      toast.success(`Resent ${data.ticket_count || 1} ticket number${data.ticket_count === 1 ? '' : 's'}${channelText}`);
+
+      const deliveryWarning = deliveryFailureMessage(data.delivery);
+      if (deliveryWarning) {
+        toast.error(deliveryWarning);
+      }
+
+      await fetchTickets(tournament.id, ticketSearch, ticketFilter, ticketPage);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resend ticket numbers');
     } finally {
       setActionLoading(null);
     }
@@ -1594,6 +1713,29 @@ export const RaffleManagementPage: React.FC = () => {
                                   <p className="text-xs font-medium text-gray-500">Prize won</p>
                                   <p className="text-yellow-700">{ticket.prize_won}</p>
                                 </div>
+                              </div>
+                            )}
+                            {!isVoided && (
+                              <div className="sm:col-span-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-gray-200 pt-3 mt-1">
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500">Delivery</p>
+                                  <p className="text-gray-600">
+                                    Resend all ticket numbers from this buyer's original sale.
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => handleResendTicketConfirmation(ticket)}
+                                  disabled={actionLoading === `resend-ticket-${ticket.id}`}
+                                  className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Resend ticket numbers"
+                                >
+                                  {actionLoading === `resend-ticket-${ticket.id}` ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Send className="w-4 h-4" />
+                                  )}
+                                  Resend ticket numbers
+                                </button>
                               </div>
                             )}
                           </div>
