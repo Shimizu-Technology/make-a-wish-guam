@@ -798,7 +798,7 @@ module Api
       def sale_ticket_numbers_for(ticket)
         ActivityLog
           .where(tournament: @tournament, action: 'raffle_tickets_sold')
-          .where("metadata::text ILIKE ?", "%#{ActiveRecord::Base.sanitize_sql_like(ticket.ticket_number)}%")
+          .where("metadata -> 'ticket_numbers' ? :ticket_number", ticket_number: ticket.ticket_number)
           .order(created_at: :desc)
           .each
           .lazy
