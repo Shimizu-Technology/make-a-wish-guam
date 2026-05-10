@@ -2,8 +2,8 @@ module Api
   module V1
     class TournamentsController < BaseController
       skip_before_action :authenticate_user!, only: [:current]
-      before_action :set_tournament, only: [:show, :update, :destroy, :archive, :copy, :open, :close]
-      before_action :authorize_tournament_access!, only: [:show, :update, :destroy, :archive, :copy, :open, :close]
+      before_action :set_tournament, only: [:show, :update, :destroy, :archive, :copy, :open, :close, :complete]
+      before_action :authorize_tournament_access!, only: [:show, :update, :destroy, :archive, :copy, :open, :close, :complete]
 
       # GET /api/v1/tournaments
       # List all tournaments (for admin dropdown)
@@ -182,12 +182,17 @@ module Api
       # POST /api/v1/tournaments/:id/open
       # Open tournament for registration
       def open
+        unless @tournament.can_open_registration?
+          render json: { error: "Only draft or closed events can be opened for registration." }, status: :unprocessable_entity
+          return
+        end
+
         # Close any other open tournaments in the same organization first
         Tournament.where(status: 'open', organization_id: @tournament.organization_id)
                   .where.not(id: @tournament.id)
                   .update_all(status: 'closed')
         
-        @tournament.update!(status: 'open', registration_open: true)
+        @tournament.open_registration!
         
         ActivityLog.log(
           admin: current_admin,
@@ -202,7 +207,7 @@ module Api
       # POST /api/v1/tournaments/:id/close
       # Close tournament registration
       def close
-        @tournament.update!(status: 'closed', registration_open: false)
+        @tournament.update!(status: 'closed', registration_open: false, walkin_registration_open: false)
         
         ActivityLog.log(
           admin: current_admin,
@@ -211,6 +216,26 @@ module Api
           details: "Closed tournament: #{@tournament.display_name}"
         )
         
+        render json: @tournament, serializer: TournamentSerializer
+      end
+
+      # POST /api/v1/tournaments/:id/complete
+      # Mark event complete and shut off all registration paths
+      def complete
+        unless @tournament.can_complete?
+          render json: { error: "Only open, closed, or in-progress events can be marked complete." }, status: :unprocessable_entity
+          return
+        end
+
+        @tournament.complete!
+
+        ActivityLog.log(
+          admin: current_admin,
+          action: 'tournament_updated',
+          target: @tournament,
+          details: "Marked tournament completed: #{@tournament.display_name}"
+        )
+
         render json: @tournament, serializer: TournamentSerializer
       end
 
@@ -261,6 +286,7 @@ module Api
       def tournament_params
         params.require(:tournament).permit(
           :organization_id,
+          :event_type,
           :name, :year, :edition, :status,
           :event_date, :registration_time, :start_time,
           :location_name, :location_address,

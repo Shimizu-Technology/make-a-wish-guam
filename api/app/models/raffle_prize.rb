@@ -37,12 +37,16 @@ class RafflePrize < ApplicationRecord
   # Draw a winner from available tickets
   def draw_winner!
     winner_drawn = false
+    draw_id = SecureRandom.uuid
+    eligible_snapshot = nil
+
     transaction do
       lock!
       unless won?
         # Lock eligible tickets while selecting so simultaneous draw requests cannot
         # award the same ticket or redraw the same prize.
         available_tickets = tournament.raffle_tickets.eligible_for_draw.order(:id).lock("FOR UPDATE OF raffle_tickets").to_a
+        eligible_snapshot = eligible_ticket_snapshot(available_tickets)
         winning_ticket = available_tickets.empty? ? nil : available_tickets[random_ticket_index(available_tickets.length)]
 
         if winning_ticket
@@ -67,7 +71,9 @@ class RafflePrize < ApplicationRecord
 
     return false unless winner_drawn
 
-    broadcast_winner
+    eligible_snapshot ||= { count: 0, preview_numbers: [] }
+    broadcast_draw_started(draw_id: draw_id, eligible_snapshot: eligible_snapshot)
+    broadcast_winner(draw_id: draw_id, eligible_snapshot: eligible_snapshot)
     notify_winner
 
     true
@@ -108,12 +114,40 @@ class RafflePrize < ApplicationRecord
     SecureRandom.random_number(ticket_count)
   end
 
-  def broadcast_winner
+  def eligible_ticket_snapshot(tickets)
+    ticket_numbers = tickets.sort_by { |ticket| [ticket.sequence_number.to_i, ticket.id] }.map(&:ticket_number)
+    {
+      count: ticket_numbers.length,
+      preview_numbers: ticket_numbers.sample([ticket_numbers.length, 80].min)
+    }
+  end
+
+  def broadcast_draw_started(draw_id:, eligible_snapshot:)
+    ActionCable.server.broadcast(
+      "tournament_#{tournament_id}_raffle",
+      {
+        action: 'draw_started',
+        draw_id: draw_id,
+        prize: as_json(only: [:id, :name, :tier, :value_cents]),
+        eligible_ticket_count: eligible_snapshot[:count],
+        preview_ticket_numbers: eligible_snapshot[:preview_numbers],
+        started_at: Time.current.iso8601
+      }
+    )
+  rescue => e
+    Rails.logger.error "Failed to broadcast raffle draw start: #{e.message}"
+  end
+
+  def broadcast_winner(draw_id:, eligible_snapshot:)
     ActionCable.server.broadcast(
       "tournament_#{tournament_id}_raffle",
       {
         action: 'prize_won',
-        prize: as_json(only: [:id, :name, :tier, :value_cents, :winner_name, :won_at])
+        draw_id: draw_id,
+        eligible_ticket_count: eligible_snapshot[:count],
+        prize: as_json(only: [:id, :name, :tier, :value_cents, :winner_name, :won_at]).merge(
+          winning_ticket: { ticket_number: winning_ticket&.display_number }
+        )
       }
     )
   rescue => e

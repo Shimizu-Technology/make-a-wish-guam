@@ -21,6 +21,7 @@ import toast, { Toaster } from 'react-hot-toast';
 interface TournamentFormData {
   // Basic Info
   name: string;
+  event_type: 'golf_tournament' | 'gala';
   year: number;
   edition: string;
   status: 'draft' | 'open';
@@ -71,6 +72,7 @@ interface TournamentFormData {
 
 const defaultFormData: TournamentFormData = {
   name: '',
+  event_type: 'golf_tournament',
   year: new Date().getFullYear(),
   edition: '',
   status: 'draft',
@@ -164,7 +166,7 @@ export const CreateTournamentPage: React.FC = () => {
     const newErrors: Record<string, string> = {};
     
     if (!formData.name.trim()) {
-      newErrors.name = 'Tournament name is required';
+      newErrors.name = 'Event name is required';
     }
     if (!formData.event_date) {
       newErrors.event_date = 'Event date is required';
@@ -314,7 +316,7 @@ export const CreateTournamentPage: React.FC = () => {
             <ArrowLeft className="w-5 h-5" />
             <span>Back to Dashboard</span>
           </button>
-          <h1 className="text-2xl font-bold">Create New Tournament</h1>
+          <h1 className="text-2xl font-bold">Create New Event</h1>
           <p className="text-white/80 mt-1">{organization?.name}</p>
         </div>
       </header>
@@ -327,13 +329,60 @@ export const CreateTournamentPage: React.FC = () => {
             {expandedSections.basic && (
               <div className="p-6 space-y-4">
                 <InputField
-                  label="Tournament Name"
+                  label="Event Name"
                   name="name"
-                  placeholder="e.g., Annual Charity Golf Classic"
+                  placeholder="e.g., Golf for Wishes 2027"
                   required
                   value={formData.name}
                   error={errors.name}
                 />
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Event Type</label>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {[
+                      {
+                        value: 'golf_tournament' as const,
+                        title: 'Golf tournament',
+                        description: 'Teams, hole assignments, check-in, sponsors, scoring, leaderboard, and raffle.',
+                      },
+                      {
+                        value: 'gala' as const,
+                        title: 'Gala / seated event',
+                        description: 'Sets up a draft event for future table and seat management.',
+                      },
+                    ].map((option) => (
+                      <label
+                        key={option.value}
+                        className={`rounded-2xl border-2 p-4 transition ${
+                          formData.event_type === option.value
+                            ? 'border-brand-500 bg-brand-50'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="event_type"
+                          value={option.value}
+                          checked={formData.event_type === option.value}
+                          onChange={(event) => {
+                            const nextType = event.target.value as TournamentFormData['event_type'];
+                            setFormData((prev) => ({
+                              ...prev,
+                              event_type: nextType,
+                              status: nextType === 'gala' ? 'draft' : prev.status,
+                              team_size: nextType === 'gala' ? 1 : prev.team_size || 2,
+                              max_capacity: nextType === 'gala' ? 300 : prev.max_capacity,
+                            }));
+                          }}
+                          className="sr-only"
+                        />
+                        <span className="block text-sm font-semibold text-gray-900">{option.title}</span>
+                        <span className="mt-1 block text-xs leading-5 text-gray-500">{option.description}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <InputField
@@ -358,12 +407,16 @@ export const CreateTournamentPage: React.FC = () => {
                   <select
                     name="status"
                     value={formData.status}
+                    disabled={formData.event_type === 'gala'}
                     onChange={handleChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                   >
                     <option value="draft">Draft (not visible to public)</option>
                     <option value="open">Open (registration available)</option>
                   </select>
+                  {formData.event_type === 'gala' && (
+                    <p className="mt-1 text-xs text-gray-500">Gala events stay in draft until table and seat registration is enabled.</p>
+                  )}
                 </div>
               </div>
             )}
@@ -424,6 +477,7 @@ export const CreateTournamentPage: React.FC = () => {
           </div>
           
           {/* Format */}
+          {formData.event_type === 'golf_tournament' && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <SectionHeader title="Tournament Format" icon={<Trophy className="w-5 h-5" />} section="format" />
             {expandedSections.format && (
@@ -516,6 +570,7 @@ export const CreateTournamentPage: React.FC = () => {
               </div>
             )}
           </div>
+          )}
           
           {/* Capacity */}
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -743,7 +798,7 @@ export const CreateTournamentPage: React.FC = () => {
               ) : (
                 <Save className="w-5 h-5" />
               )}
-              <span>{saving ? 'Creating...' : 'Create Tournament'}</span>
+              <span>{saving ? 'Creating...' : 'Create Event'}</span>
             </button>
           </div>
         </form>

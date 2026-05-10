@@ -1,8 +1,10 @@
 require "test_helper"
 
 class ApplicationCable::ConnectionTest < ActionCable::Connection::TestCase
-  test "rejects connection without token" do
-    assert_reject_connection { connect "/cable" }
+  test "allows public guest connection without token" do
+    connect "/cable"
+
+    assert_nil connection.current_admin
   end
 
   test "rejects connection with invalid token" do

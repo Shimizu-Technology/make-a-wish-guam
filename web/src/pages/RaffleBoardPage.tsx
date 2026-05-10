@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { createConsumer } from '@rails/actioncable';
 import { useOrganization } from '../components/OrganizationProvider';
 import {
   Gift,
@@ -16,6 +17,7 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
+  X,
 } from 'lucide-react';
 import { SignedInAdminBar } from '../components/SignedInAdminBar';
 
@@ -64,9 +66,25 @@ const TIER_RANK = TIERS.reduce<Record<string, number>>((acc, tier, index) => {
   return acc;
 }, {});
 const PUBLIC_PRIZES_PER_PAGE = 12;
+const SPINNING_TICKET_COUNT = 16;
+const SPINNING_TICKET_ROTATE_STEP = 8;
+const FALLBACK_SPINNING_TICKETS = ['TIX-0001', 'TIX-0002', 'TIX-0003', 'TIX-0004'];
 
 type PublicPrizeStatusFilter = '' | 'available' | 'won';
 type PublicPrizeSort = 'tier' | 'position' | 'name' | 'value_desc' | 'value_asc';
+type DrawPhase = 'spinning' | 'revealing';
+
+interface LiveDrawState {
+  drawId: string;
+  phase: DrawPhase;
+  prizeId: number;
+  prizeName: string;
+  eligibleTicketCount: number;
+  previewTicketNumbers: string[];
+  winnerName?: string;
+  winnerTicketNumber?: string;
+  startedAt: number;
+}
 
 // ---------------------------------------------------------------------------
 // Tier styling helpers
@@ -145,6 +163,26 @@ export const RaffleBoardPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<PublicPrizeStatusFilter>('');
   const [sortBy, setSortBy] = useState<PublicPrizeSort>('tier');
   const [page, setPage] = useState(1);
+  const [liveDraw, setLiveDraw] = useState<LiveDrawState | null>(null);
+  const [spinSampleOffset, setSpinSampleOffset] = useState(0);
+  const revealTimeoutRef = useRef<number | null>(null);
+  const drawSafetyTimeoutRef = useRef<number | null>(null);
+
+  const clearLiveDrawTimers = useCallback(() => {
+    if (revealTimeoutRef.current) {
+      window.clearTimeout(revealTimeoutRef.current);
+      revealTimeoutRef.current = null;
+    }
+    if (drawSafetyTimeoutRef.current) {
+      window.clearTimeout(drawSafetyTimeoutRef.current);
+      drawSafetyTimeoutRef.current = null;
+    }
+  }, []);
+
+  const dismissLiveDraw = useCallback(() => {
+    clearLiveDrawTimers();
+    setLiveDraw(null);
+  }, [clearLiveDrawTimers]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -176,6 +214,99 @@ export const RaffleBoardPage: React.FC = () => {
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!data?.tournament?.id) return;
+
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const wsUrl = `${apiUrl.replace(/^http/, 'ws')}/cable`;
+    const consumer = createConsumer(wsUrl);
+    const subscription = consumer.subscriptions.create(
+      { channel: 'RaffleChannel', tournament_id: data.tournament.id },
+      {
+        received(event: {
+          action: string;
+          draw_id?: string;
+          eligible_ticket_count?: number;
+          preview_ticket_numbers?: string[];
+          started_at?: string;
+          prize?: {
+            id: number;
+            name: string;
+            winner_name?: string;
+            winning_ticket?: { ticket_number?: string };
+          };
+        }) {
+          if (event.action === 'draw_started' && event.draw_id && event.prize) {
+            const drawId = event.draw_id;
+            clearLiveDrawTimers();
+            setSpinSampleOffset(0);
+            setLiveDraw({
+              drawId,
+              phase: 'spinning',
+              prizeId: event.prize.id,
+              prizeName: event.prize.name,
+              eligibleTicketCount: event.eligible_ticket_count || 0,
+              previewTicketNumbers: event.preview_ticket_numbers || [],
+              startedAt: Date.now(),
+            });
+            drawSafetyTimeoutRef.current = window.setTimeout(() => {
+              setLiveDraw((current) => (
+                current?.drawId === drawId && current.phase === 'spinning' ? null : current
+              ));
+              void fetchData();
+            }, 15000);
+          }
+
+          if (event.action === 'prize_won' && event.draw_id && event.prize) {
+            const drawId = event.draw_id;
+            const prize = event.prize;
+            const eligibleTicketCount = event.eligible_ticket_count || 0;
+            if (drawSafetyTimeoutRef.current) {
+              window.clearTimeout(drawSafetyTimeoutRef.current);
+              drawSafetyTimeoutRef.current = null;
+            }
+            setLiveDraw((current) => {
+              const startedAt = current?.drawId === drawId ? current.startedAt : Date.now();
+              const elapsed = Date.now() - startedAt;
+              const revealDelay = Math.max(0, 3600 - elapsed);
+
+              if (revealTimeoutRef.current) {
+                window.clearTimeout(revealTimeoutRef.current);
+                revealTimeoutRef.current = null;
+              }
+              revealTimeoutRef.current = window.setTimeout(() => {
+                setSpinSampleOffset(0);
+                setLiveDraw((latest) => latest?.drawId === drawId ? {
+                  ...latest,
+                  phase: 'revealing',
+                  winnerName: prize.winner_name,
+                  winnerTicketNumber: prize.winning_ticket?.ticket_number,
+                } : latest);
+                void fetchData();
+              }, revealDelay);
+
+              return current || {
+                drawId,
+                phase: 'spinning',
+                prizeId: prize.id,
+                prizeName: prize.name,
+                eligibleTicketCount,
+                previewTicketNumbers: [],
+                startedAt,
+              };
+            });
+          }
+        },
+      }
+    );
+
+    return () => {
+      clearLiveDrawTimers();
+      subscription.unsubscribe();
+      consumer.disconnect();
+    };
+  }, [clearLiveDrawTimers, data?.tournament?.id, fetchData]);
 
   const visiblePrizes = useMemo(() => {
     const query = prizeSearch.trim().toLowerCase();
@@ -214,6 +345,17 @@ export const RaffleBoardPage: React.FC = () => {
 
   const totalPages = Math.max(1, Math.ceil(visiblePrizes.length / PUBLIC_PRIZES_PER_PAGE));
   const paginatedPrizes = visiblePrizes.slice((page - 1) * PUBLIC_PRIZES_PER_PAGE, page * PUBLIC_PRIZES_PER_PAGE);
+  const spinningTicketNumbers = useMemo(() => {
+    const source = liveDraw?.previewTicketNumbers.length
+      ? liveDraw.previewTicketNumbers
+      : FALLBACK_SPINNING_TICKETS;
+
+    if (source.length <= SPINNING_TICKET_COUNT) return source;
+
+    return Array.from({ length: SPINNING_TICKET_COUNT }, (_, index) => (
+      source[(spinSampleOffset + index) % source.length]
+    ));
+  }, [liveDraw?.previewTicketNumbers, spinSampleOffset]);
 
   useEffect(() => {
     setPage(1);
@@ -222,6 +364,25 @@ export const RaffleBoardPage: React.FC = () => {
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  useEffect(() => {
+    if (liveDraw?.phase !== 'revealing') return;
+
+    const timeout = window.setTimeout(() => setLiveDraw(null), 9000);
+    return () => window.clearTimeout(timeout);
+  }, [liveDraw?.phase, liveDraw?.drawId]);
+
+  useEffect(() => {
+    if (liveDraw?.phase !== 'spinning') return;
+    const previewCount = liveDraw.previewTicketNumbers.length;
+    if (previewCount <= SPINNING_TICKET_COUNT) return;
+
+    const interval = window.setInterval(() => {
+      setSpinSampleOffset((current) => (current + SPINNING_TICKET_ROTATE_STEP) % previewCount);
+    }, 520);
+
+    return () => window.clearInterval(interval);
+  }, [liveDraw?.phase, liveDraw?.drawId, liveDraw?.previewTicketNumbers.length]);
 
   const formatCountdown = (drawTime: string) => {
     const now = new Date();
@@ -325,6 +486,60 @@ export const RaffleBoardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F5F5F5] text-neutral-900">
       <SignedInAdminBar />
+      {liveDraw && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/80 px-4 py-6 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <button
+              type="button"
+              onClick={dismissLiveDraw}
+              className="absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/70"
+              aria-label="Dismiss live draw"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="bg-[#0057B8] px-5 py-4 text-white sm:px-8 sm:py-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#F5A800]">Live raffle draw</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl">{liveDraw.prizeName}</h2>
+              <p className="mt-2 text-sm text-white/75">
+                Drawing from {liveDraw.eligibleTicketCount.toLocaleString()} ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'} in this draw.
+              </p>
+            </div>
+
+            <div className="p-5 sm:p-8">
+              {liveDraw.phase === 'spinning' ? (
+                <>
+                  <div className="rounded-3xl border border-neutral-200 bg-neutral-950 p-4 text-white sm:p-6">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {spinningTicketNumbers.map((ticketNumber, index) => (
+                        <div
+                          key={`${liveDraw.drawId}-${spinSampleOffset}-${ticketNumber}-${index}`}
+                          className={`${index >= 8 ? 'hidden sm:block' : ''} rounded-2xl border border-white/10 bg-white/10 px-3 py-3 text-center font-mono text-sm font-semibold text-white shadow-sm animate-pulse`}
+                          style={{ animationDelay: `${(index % 8) * 90}ms`, animationDuration: '700ms' }}
+                        >
+                          {ticketNumber}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-5 flex items-center justify-center gap-3 text-sm font-medium text-neutral-600">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#0057B8]" />
+                    Shuffling {liveDraw.eligibleTicketCount.toLocaleString()} ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'} in this draw
+                  </div>
+                </>
+              ) : (
+                <div className="text-center">
+                  <PartyPopper className="mx-auto h-14 w-14 text-[#F5A800]" />
+                  <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-[#0057B8]">Winner</p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-neutral-950 sm:text-5xl">{liveDraw.winnerName || 'Winner selected'}</p>
+                  {liveDraw.winnerTicketNumber && (
+                    <p className="mt-3 font-mono text-lg font-semibold text-neutral-600">Ticket #{liveDraw.winnerTicketNumber}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* ================================================================= */}
       {/* HERO HEADER                                                        */}
       {/* ================================================================= */}

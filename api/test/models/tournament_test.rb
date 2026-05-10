@@ -19,6 +19,84 @@ class TournamentTest < ActiveSupport::TestCase
     assert_equal original.organization_id, copy.organization_id
   end
 
+  test "copy_for_next_year preserves event configuration but resets operational state" do
+    original = tournaments(:tournament_one)
+    original.update!(
+      event_type: "golf_tournament",
+      team_size: 2,
+      tournament_format: "scramble",
+      scoring_type: "gross",
+      check_in_time: "06:30",
+      contact_email: "events@example.test",
+      entry_fee_display: "$300/team",
+      raffle_enabled: true,
+      raffle_ticket_price_cents: 500,
+      raffle_description: "Event raffle",
+      walkin_fee: 35000,
+      walkin_registration_open: true,
+      config: {
+        "teams_per_start_position" => 2,
+        "start_positions_per_hole" => 2,
+        "raffle_include_with_registration" => true,
+        "raffle_bundles" => [{ "quantity" => 4, "price_cents" => 2000, "label" => "$20 for 4 tickets" }]
+      }
+    )
+
+    copy = original.copy_for_next_year
+
+    assert_equal "draft", copy.status
+    assert_not copy.registration_open
+    assert_not copy.walkin_registration_open
+    assert_nil copy.event_date
+    assert_equal original.event_type, copy.event_type
+    assert_equal 2, copy.team_size
+    assert_equal original.tournament_format, copy.tournament_format
+    assert_equal original.scoring_type, copy.scoring_type
+    assert_equal original.check_in_time, copy.check_in_time
+    assert_equal original.contact_email, copy.contact_email
+    assert_equal original.entry_fee_display, copy.entry_fee_display
+    assert_equal original.raffle_enabled, copy.raffle_enabled
+    assert_equal original.raffle_ticket_price_cents, copy.raffle_ticket_price_cents
+    assert_equal original.raffle_description, copy.raffle_description
+    assert_equal original.walkin_fee, copy.walkin_fee
+    assert_equal original.config, copy.config
+  end
+
+  test "open_registration only allows draft or closed events" do
+    tournament = tournaments(:tournament_one)
+
+    tournament.update!(status: "draft", registration_open: false)
+    assert tournament.open_registration!
+    assert_equal "open", tournament.status
+    assert tournament.registration_open
+
+    tournament.update!(status: "completed", registration_open: false)
+    error = assert_raises(ActiveRecord::RecordInvalid) { tournament.open_registration! }
+    assert_includes error.record.errors[:status], "must be draft or closed to open registration"
+    assert_equal "completed", tournament.reload.status
+    assert_not tournament.registration_open
+  end
+
+  test "complete only allows open closed or in progress events" do
+    tournament = tournaments(:tournament_one)
+
+    tournament.update!(status: "open", registration_open: true, walkin_registration_open: true)
+    assert tournament.complete!
+    assert_equal "completed", tournament.status
+    assert_not tournament.registration_open
+    assert_not tournament.walkin_registration_open
+
+    tournament.update!(status: "archived", registration_open: false, walkin_registration_open: false)
+    error = assert_raises(ActiveRecord::RecordInvalid) { tournament.complete! }
+    assert_includes error.record.errors[:status], "must be open, closed, or in progress to complete"
+    assert_equal "archived", tournament.reload.status
+
+    tournament.update!(status: "draft", registration_open: false, walkin_registration_open: false)
+    error = assert_raises(ActiveRecord::RecordInvalid) { tournament.complete! }
+    assert_includes error.record.errors[:status], "must be open, closed, or in progress to complete"
+    assert_equal "draft", tournament.reload.status
+  end
+
   test "rejects invalid course configs instead of silently dropping them" do
     tournament = tournaments(:tournament_one)
 
