@@ -494,7 +494,7 @@ export const RaffleBoardPage: React.FC = () => {
                   </div>
                   <div className="mt-5 flex items-center justify-center gap-3 text-sm font-medium text-neutral-600">
                     <Loader2 className="h-5 w-5 animate-spin text-[#0057B8]" />
-                    Server is selecting one ticket at random
+                    Shuffling the eligible tickets
                   </div>
                 </>
               ) : (
@@ -506,9 +506,9 @@ export const RaffleBoardPage: React.FC = () => {
                     <p className="mt-3 font-mono text-lg font-semibold text-neutral-600">Ticket #{liveDraw.winnerTicketNumber}</p>
                   )}
                   <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-left text-sm text-neutral-600">
-                    <p className="font-semibold text-neutral-900">Draw audit</p>
+                    <p className="font-semibold text-neutral-900">Fair draw</p>
                     <p className="mt-1">
-                      Selected by the server using a secure random draw from {liveDraw.eligibleTicketCount.toLocaleString()} eligible paid ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'}.
+                      This winner was drawn from {liveDraw.eligibleTicketCount.toLocaleString()} eligible paid ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'}.
                     </p>
                   </div>
                 </div>
