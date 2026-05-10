@@ -81,6 +81,8 @@ export const EventsManagementPage: React.FC = () => {
     }
   };
 
+  const canOpenRegistration = (status: Tournament['status']) => status === 'draft' || status === 'closed';
+
   const runEventAction = async (
     tournament: Tournament,
     action: 'open' | 'close' | 'complete' | 'archive' | 'copy'
@@ -308,7 +310,7 @@ export const EventsManagementPage: React.FC = () => {
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-                      {tournament.status !== 'open' && tournament.status !== 'archived' && (
+                      {canOpenRegistration(tournament.status) && (
                         <button
                           onClick={() => runEventAction(tournament, 'open')}
                           disabled={actionLoading === `open-${tournament.id}`}

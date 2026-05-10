@@ -472,7 +472,7 @@ export const RaffleBoardPage: React.FC = () => {
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#F5A800]">Live raffle draw</p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl">{liveDraw.prizeName}</h2>
               <p className="mt-2 text-sm text-white/75">
-                Drawing from {liveDraw.eligibleTicketCount.toLocaleString()} eligible paid ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'}.
+                Drawing from {liveDraw.eligibleTicketCount.toLocaleString()} ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'} in this draw.
               </p>
             </div>
 
@@ -505,12 +505,6 @@ export const RaffleBoardPage: React.FC = () => {
                   {liveDraw.winnerTicketNumber && (
                     <p className="mt-3 font-mono text-lg font-semibold text-neutral-600">Ticket #{liveDraw.winnerTicketNumber}</p>
                   )}
-                  <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-left text-sm text-neutral-600">
-                    <p className="font-semibold text-neutral-900">Fair draw</p>
-                    <p className="mt-1">
-                      This winner was drawn from {liveDraw.eligibleTicketCount.toLocaleString()} eligible paid ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'}.
-                    </p>
-                  </div>
                 </div>
               )}
             </div>

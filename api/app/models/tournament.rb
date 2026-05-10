@@ -371,7 +371,16 @@ class Tournament < ApplicationRecord
     update!(status: 'archived', registration_open: false, walkin_registration_open: false)
   end
 
+  def can_open_registration?
+    status.in?(%w[draft closed])
+  end
+
   def open_registration!
+    unless can_open_registration?
+      errors.add(:status, 'must be draft or closed to open registration')
+      raise ActiveRecord::RecordInvalid, self
+    end
+
     update!(status: 'open', registration_open: true)
   end
 

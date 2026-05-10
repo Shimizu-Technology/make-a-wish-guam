@@ -182,12 +182,17 @@ module Api
       # POST /api/v1/tournaments/:id/open
       # Open tournament for registration
       def open
+        unless @tournament.can_open_registration?
+          render json: { error: "Only draft or closed events can be opened for registration." }, status: :unprocessable_entity
+          return
+        end
+
         # Close any other open tournaments in the same organization first
         Tournament.where(status: 'open', organization_id: @tournament.organization_id)
                   .where.not(id: @tournament.id)
                   .update_all(status: 'closed')
         
-        @tournament.update!(status: 'open', registration_open: true)
+        @tournament.open_registration!
         
         ActivityLog.log(
           admin: current_admin,

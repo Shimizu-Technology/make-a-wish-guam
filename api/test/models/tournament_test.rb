@@ -62,6 +62,21 @@ class TournamentTest < ActiveSupport::TestCase
     assert_equal original.config, copy.config
   end
 
+  test "open_registration only allows draft or closed events" do
+    tournament = tournaments(:tournament_one)
+
+    tournament.update!(status: "draft", registration_open: false)
+    assert tournament.open_registration!
+    assert_equal "open", tournament.status
+    assert tournament.registration_open
+
+    tournament.update!(status: "completed", registration_open: false)
+    error = assert_raises(ActiveRecord::RecordInvalid) { tournament.open_registration! }
+    assert_includes error.record.errors[:status], "must be draft or closed to open registration"
+    assert_equal "completed", tournament.reload.status
+    assert_not tournament.registration_open
+  end
+
   test "rejects invalid course configs instead of silently dropping them" do
     tournament = tournaments(:tournament_one)
 
