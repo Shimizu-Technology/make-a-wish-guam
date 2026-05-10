@@ -66,6 +66,9 @@ const TIER_RANK = TIERS.reduce<Record<string, number>>((acc, tier, index) => {
   return acc;
 }, {});
 const PUBLIC_PRIZES_PER_PAGE = 12;
+const SPINNING_TICKET_COUNT = 16;
+const SPINNING_TICKET_ROTATE_STEP = 8;
+const FALLBACK_SPINNING_TICKETS = ['TIX-0001', 'TIX-0002', 'TIX-0003', 'TIX-0004'];
 
 type PublicPrizeStatusFilter = '' | 'available' | 'won';
 type PublicPrizeSort = 'tier' | 'position' | 'name' | 'value_desc' | 'value_asc';
@@ -161,6 +164,7 @@ export const RaffleBoardPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<PublicPrizeSort>('tier');
   const [page, setPage] = useState(1);
   const [liveDraw, setLiveDraw] = useState<LiveDrawState | null>(null);
+  const [spinSampleOffset, setSpinSampleOffset] = useState(0);
   const revealTimeoutRef = useRef<number | null>(null);
   const drawSafetyTimeoutRef = useRef<number | null>(null);
 
@@ -236,6 +240,7 @@ export const RaffleBoardPage: React.FC = () => {
           if (event.action === 'draw_started' && event.draw_id && event.prize) {
             const drawId = event.draw_id;
             clearLiveDrawTimers();
+            setSpinSampleOffset(0);
             setLiveDraw({
               drawId,
               phase: 'spinning',
@@ -271,6 +276,7 @@ export const RaffleBoardPage: React.FC = () => {
                 revealTimeoutRef.current = null;
               }
               revealTimeoutRef.current = window.setTimeout(() => {
+                setSpinSampleOffset(0);
                 setLiveDraw((latest) => latest?.drawId === drawId ? {
                   ...latest,
                   phase: 'revealing',
@@ -339,6 +345,17 @@ export const RaffleBoardPage: React.FC = () => {
 
   const totalPages = Math.max(1, Math.ceil(visiblePrizes.length / PUBLIC_PRIZES_PER_PAGE));
   const paginatedPrizes = visiblePrizes.slice((page - 1) * PUBLIC_PRIZES_PER_PAGE, page * PUBLIC_PRIZES_PER_PAGE);
+  const spinningTicketNumbers = useMemo(() => {
+    const source = liveDraw?.previewTicketNumbers.length
+      ? liveDraw.previewTicketNumbers
+      : FALLBACK_SPINNING_TICKETS;
+
+    if (source.length <= SPINNING_TICKET_COUNT) return source;
+
+    return Array.from({ length: SPINNING_TICKET_COUNT }, (_, index) => (
+      source[(spinSampleOffset + index) % source.length]
+    ));
+  }, [liveDraw?.previewTicketNumbers, spinSampleOffset]);
 
   useEffect(() => {
     setPage(1);
@@ -354,6 +371,18 @@ export const RaffleBoardPage: React.FC = () => {
     const timeout = window.setTimeout(() => setLiveDraw(null), 9000);
     return () => window.clearTimeout(timeout);
   }, [liveDraw?.phase, liveDraw?.drawId]);
+
+  useEffect(() => {
+    if (liveDraw?.phase !== 'spinning') return;
+    const previewCount = liveDraw.previewTicketNumbers.length;
+    if (previewCount <= SPINNING_TICKET_COUNT) return;
+
+    const interval = window.setInterval(() => {
+      setSpinSampleOffset((current) => (current + SPINNING_TICKET_ROTATE_STEP) % previewCount);
+    }, 520);
+
+    return () => window.clearInterval(interval);
+  }, [liveDraw?.phase, liveDraw?.drawId, liveDraw?.previewTicketNumbers.length]);
 
   const formatCountdown = (drawTime: string) => {
     const now = new Date();
@@ -481,10 +510,10 @@ export const RaffleBoardPage: React.FC = () => {
                 <>
                   <div className="rounded-3xl border border-neutral-200 bg-neutral-950 p-4 text-white sm:p-6">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      {(liveDraw.previewTicketNumbers.length > 0 ? liveDraw.previewTicketNumbers : ['TIX-0001', 'TIX-0002', 'TIX-0003', 'TIX-0004']).slice(0, 16).map((ticketNumber, index) => (
+                      {spinningTicketNumbers.map((ticketNumber, index) => (
                         <div
-                          key={`${ticketNumber}-${index}`}
-                          className="rounded-2xl border border-white/10 bg-white/10 px-3 py-3 text-center font-mono text-sm font-semibold text-white shadow-sm animate-pulse"
+                          key={`${liveDraw.drawId}-${spinSampleOffset}-${ticketNumber}-${index}`}
+                          className={`${index >= 8 ? 'hidden sm:block' : ''} rounded-2xl border border-white/10 bg-white/10 px-3 py-3 text-center font-mono text-sm font-semibold text-white shadow-sm animate-pulse`}
                           style={{ animationDelay: `${(index % 8) * 90}ms`, animationDuration: '700ms' }}
                         >
                           {ticketNumber}
@@ -494,7 +523,7 @@ export const RaffleBoardPage: React.FC = () => {
                   </div>
                   <div className="mt-5 flex items-center justify-center gap-3 text-sm font-medium text-neutral-600">
                     <Loader2 className="h-5 w-5 animate-spin text-[#0057B8]" />
-                    Shuffling the eligible tickets
+                    Shuffling {liveDraw.eligibleTicketCount.toLocaleString()} ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'} in this draw
                   </div>
                 </>
               ) : (
