@@ -222,6 +222,11 @@ module Api
       # POST /api/v1/tournaments/:id/complete
       # Mark event complete and shut off all registration paths
       def complete
+        unless @tournament.can_complete?
+          render json: { error: "Only open, closed, or in-progress events can be marked complete." }, status: :unprocessable_entity
+          return
+        end
+
         @tournament.complete!
 
         ActivityLog.log(

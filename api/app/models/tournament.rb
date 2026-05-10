@@ -388,11 +388,20 @@ class Tournament < ApplicationRecord
     update!(registration_open: false, walkin_registration_open: false)
   end
 
+  def can_complete?
+    status.in?(%w[open closed in_progress])
+  end
+
   def start!
     update!(status: 'in_progress', registration_open: false, walkin_registration_open: false)
   end
 
   def complete!
+    unless can_complete?
+      errors.add(:status, 'must be open, closed, or in progress to complete')
+      raise ActiveRecord::RecordInvalid, self
+    end
+
     update!(status: 'completed', registration_open: false, walkin_registration_open: false)
   end
 

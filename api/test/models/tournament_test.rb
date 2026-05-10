@@ -77,6 +77,26 @@ class TournamentTest < ActiveSupport::TestCase
     assert_not tournament.registration_open
   end
 
+  test "complete only allows open closed or in progress events" do
+    tournament = tournaments(:tournament_one)
+
+    tournament.update!(status: "open", registration_open: true, walkin_registration_open: true)
+    assert tournament.complete!
+    assert_equal "completed", tournament.status
+    assert_not tournament.registration_open
+    assert_not tournament.walkin_registration_open
+
+    tournament.update!(status: "archived", registration_open: false, walkin_registration_open: false)
+    error = assert_raises(ActiveRecord::RecordInvalid) { tournament.complete! }
+    assert_includes error.record.errors[:status], "must be open, closed, or in progress to complete"
+    assert_equal "archived", tournament.reload.status
+
+    tournament.update!(status: "draft", registration_open: false, walkin_registration_open: false)
+    error = assert_raises(ActiveRecord::RecordInvalid) { tournament.complete! }
+    assert_includes error.record.errors[:status], "must be open, closed, or in progress to complete"
+    assert_equal "draft", tournament.reload.status
+  end
+
   test "rejects invalid course configs instead of silently dropping them" do
     tournament = tournaments(:tournament_one)
 

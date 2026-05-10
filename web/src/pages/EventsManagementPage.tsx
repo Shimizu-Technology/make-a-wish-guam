@@ -82,6 +82,9 @@ export const EventsManagementPage: React.FC = () => {
   };
 
   const canOpenRegistration = (status: Tournament['status']) => status === 'draft' || status === 'closed';
+  const canCompleteEvent = (status: Tournament['status']) => (
+    status === 'open' || status === 'closed' || status === 'in_progress'
+  );
 
   const runEventAction = async (
     tournament: Tournament,
@@ -330,7 +333,7 @@ export const EventsManagementPage: React.FC = () => {
                           Close
                         </button>
                       )}
-                      {tournament.status !== 'completed' && tournament.status !== 'archived' && (
+                      {canCompleteEvent(tournament.status) && (
                         <button
                           onClick={() => runEventAction(tournament, 'complete')}
                           disabled={actionLoading === `complete-${tournament.id}`}
