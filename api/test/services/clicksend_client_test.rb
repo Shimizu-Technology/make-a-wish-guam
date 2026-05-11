@@ -45,4 +45,27 @@ class ClicksendClientTest < ActiveSupport::TestCase
     assert_equal "accepted", result.fetch(:status)
     assert_equal "sms_ok_123", result.fetch(:message_id)
   end
+
+  test "normalizes provider account failures as failed even with top-level success" do
+    response = {
+      "response_code" => "SUCCESS",
+      "response_msg" => "Messages queued.",
+      "data" => {
+        "messages" => [
+          {
+            "message_id" => "sms_credit_123",
+            "status_code" => "INSUFFICIENT_CREDIT",
+            "status_text" => "INSUFFICIENT_CREDIT"
+          }
+        ]
+      }
+    }
+
+    result = ClicksendClient.send(:normalize_send_response, response)
+
+    assert_equal false, result.fetch(:success)
+    assert_equal "failed", result.fetch(:status)
+    assert_equal "sms_credit_123", result.fetch(:message_id)
+    assert_equal "INSUFFICIENT_CREDIT", result.fetch(:error)
+  end
 end

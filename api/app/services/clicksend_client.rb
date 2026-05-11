@@ -91,8 +91,7 @@ class ClicksendClient
       status_code = message["status_code"].presence || message["status"].presence
       status_text = message["status_text"].presence || message["response_msg"].presence || top_message
       message_id = message["message_id"].presence
-      failure_text = [ top_code, top_message, status_code, status_text ].join(" ")
-      success = top_code == "SUCCESS" && !MessageDelivery.failure_status_text?(failure_text)
+      success = clicksend_send_success?(top_code: top_code, top_message: top_message, status_code: status_code, status_text: status_text)
 
       {
         success: success,
@@ -110,6 +109,20 @@ class ClicksendClient
       normalized = phone.to_s
       return "****" if normalized.length <= 4
       "#{'*' * (normalized.length - 4)}#{normalized[-4, 4]}"
+    end
+
+    def clicksend_send_success?(top_code:, top_message:, status_code:, status_text:)
+      return false unless top_code == "SUCCESS"
+
+      if status_code.present?
+        status_code_text = status_code.to_s
+        return status_code_text.match?(/\A20\d\z/) if status_code_text.match?(/\A\d+\z/)
+        return false if MessageDelivery.failure_status_text?(status_code_text)
+      end
+
+      text = status_text.presence || top_message
+      normalized = MessageDelivery.normalize_status(text)
+      %w[accepted delivered delayed].include?(normalized) && !MessageDelivery.failure_status_text?(text)
     end
   end
 end

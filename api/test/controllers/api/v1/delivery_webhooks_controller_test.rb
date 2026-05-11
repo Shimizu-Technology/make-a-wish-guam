@@ -76,4 +76,28 @@ class Api::V1::DeliveryWebhooksControllerTest < ActionDispatch::IntegrationTest
     assert_equal 2, delivery.response_payload.fetch("events").length
     assert_equal [ "delayed", "delivered" ], delivery.response_payload.fetch("events").map { |event| event.fetch("status") }
   end
+
+  test "unknown resend events preserve the current status while recording the event" do
+    delivery = MessageDelivery.create!(
+      provider: "resend",
+      channel: "email",
+      purpose: "sponsor_portal_invite",
+      recipient: "sponsor@example.com",
+      status: "pending",
+      provider_message_id: "email_unknown_123"
+    )
+
+    post "/api/v1/webhooks/resend",
+         params: {
+           type: "email.opened",
+           data: { email_id: "email_unknown_123" }
+         }
+
+    assert_response :success
+    delivery.reload
+    assert_equal "pending", delivery.status
+    assert_equal "email.opened", delivery.provider_status_text
+    assert_equal 1, delivery.response_payload.fetch("events").length
+    assert_equal "pending", delivery.response_payload.fetch("events").first.fetch("status")
+  end
 end

@@ -94,7 +94,7 @@ class MessageDelivery < ApplicationRecord
   end
 
   def self.failure_status_text?(text)
-    text.to_s.match?(/fail|invalid|reject|bounce|undeliver|expired|blocked|unsubscribed|spam/i)
+    text.to_s.match?(/fail|invalid|reject|bounce|undeliver|expired|blocked|unsubscribed|spam|insufficient|credit|balance|unauthori[sz]ed|forbidden|quota|limit|opt.?out|stopped|cancel/i)
   end
 
   private

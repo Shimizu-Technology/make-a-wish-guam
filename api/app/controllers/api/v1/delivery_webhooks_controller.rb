@@ -17,7 +17,7 @@ module Api
         return render json: { message: "No matching delivery", provider_message_id: provider_message_id }, status: :accepted if delivery.blank?
 
         delivery.apply_provider_event!(
-          status: resend_status(event_type),
+          status: resend_status(event_type, current_status: delivery.status),
           provider_status_text: event_type,
           error_text: data[:error].presence || data[:reason].presence,
           payload: payload
@@ -71,7 +71,7 @@ module Api
         render json: { error: "Invalid webhook token" }, status: :unauthorized unless valid
       end
 
-      def resend_status(event_type)
+      def resend_status(event_type, current_status:)
         case event_type
         when "email.sent"
           "accepted"
@@ -84,7 +84,7 @@ module Api
         when "email.complained"
           "complained"
         else
-          event_type.include?("failed") ? "failed" : "accepted"
+          event_type.include?("failed") ? "failed" : current_status
         end
       end
     end
