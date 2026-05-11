@@ -201,7 +201,7 @@ module Api
         when [ 4, 2000 ] then "$20 bundle"
         when [ 12, 5000 ] then "$50 bundle"
         when [ 25, 10_000 ] then "$100 bundle"
-        else "#{ticket_count} tickets for $#{format('%.2f', amount_cents / 100.0)}"
+        else "#{ticket_count} #{'ticket'.pluralize(ticket_count)} for $#{format('%.2f', amount_cents / 100.0)}"
         end
       end
 
