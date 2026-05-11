@@ -305,7 +305,7 @@ export interface RaffleSaleReportRow {
   id: number;
   type: 'raffle';
   ticket_number: string;
-  purchaser_name: string;
+  purchaser_name: string | null;
   purchaser_email: string | null;
   purchaser_phone: string | null;
   golfer_id: number | null;
@@ -331,7 +331,7 @@ export interface RaffleSaleGroupReportRow {
   id: number | string;
   type: 'raffle_sale_group';
   source: 'recorded_batch' | 'inferred';
-  purchaser_name: string;
+  purchaser_name: string | null;
   purchaser_email: string | null;
   purchaser_phone: string | null;
   linked_registration_names: string[];

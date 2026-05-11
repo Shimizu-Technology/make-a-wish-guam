@@ -687,7 +687,7 @@ function raffleExportRow(row: RaffleSaleReportRow) {
   return {
     Type: row.complimentary ? (row.included_with_registration ? 'Included Raffle Ticket' : 'Complimentary Raffle Ticket') : 'Raffle Sale',
     'Ticket Number': row.ticket_number,
-    Buyer: row.purchaser_name,
+    Buyer: row.purchaser_name || 'Unknown buyer',
     Email: row.purchaser_email || '',
     Phone: row.purchaser_phone || '',
     'Linked Registration': row.golfer_name || '',
@@ -706,7 +706,7 @@ function raffleExportRow(row: RaffleSaleReportRow) {
 function raffleGroupExportRow(row: RaffleSaleGroupReportRow) {
   return {
     Type: 'Raffle Sale',
-    Buyer: row.purchaser_name,
+    Buyer: row.purchaser_name || 'Unknown buyer',
     Email: row.purchaser_email || '',
     Phone: row.purchaser_phone || '',
     Tickets: row.ticket_count,
@@ -1045,7 +1045,7 @@ function RaffleSaleGroupsTable({ rows }: { rows: RaffleSaleGroupReportRow[] }) {
           {rows.map((row) => (
             <tr key={row.id} className="hover:bg-gray-50/50 align-top">
               <td className="px-4 py-2.5 font-medium text-gray-900">
-                {row.purchaser_name}
+                {row.purchaser_name || 'Unknown buyer'}
                 <span className="block text-[11px] font-normal text-gray-400">
                   {row.purchaser_email || '-'}{row.purchaser_phone ? ` · ${row.purchaser_phone}` : ''}
                 </span>
@@ -1096,7 +1096,7 @@ function ReportRaffleTable({ rows, emptyMessage }: { rows: RaffleSaleReportRow[]
             <tr key={row.id} className="hover:bg-gray-50/50">
               <td className="px-4 py-2.5 font-mono text-xs font-semibold text-gray-900">{row.ticket_number}</td>
               <td className="px-4 py-2.5 font-medium text-gray-900">
-                {row.purchaser_name}
+                {row.purchaser_name || 'Unknown buyer'}
                 {row.golfer_name && <span className="block text-[11px] font-normal text-gray-400">Registration: {row.golfer_name}</span>}
               </td>
               <td className="px-4 py-2.5 text-gray-500">
@@ -1131,7 +1131,7 @@ function CombinedLedgerTable({ rows }: { rows: CombinedLedgerReportRow[] }) {
         </thead>
         <tbody className="divide-y divide-gray-50">
           {rows.map((row, idx) => (
-            <tr key={`${row.type}-${row.name}-${row.paid_at || idx}`} className="hover:bg-gray-50/50">
+            <tr key={idx} className="hover:bg-gray-50/50">
               <td className="px-4 py-2.5 text-gray-500">{ledgerTypeLabel(row.type)}</td>
               <td className="px-4 py-2.5 font-medium text-gray-900">{row.name}</td>
               <td className="px-4 py-2.5 text-gray-500">{row.detail}</td>
