@@ -112,6 +112,10 @@ const DEFAULT_RAFFLE_BUNDLES: RaffleBundleDef[] = [
   { quantity: 25, price_cents: 10000, label: '$100 for 25 tickets' },
 ];
 
+const formatMoney = (cents: number, digits = 2) => `$${(cents / 100).toFixed(digits)}`;
+const effectiveBundlePriceCents = (bundle: RaffleBundleDef) =>
+  bundle.quantity > 0 ? bundle.price_cents / bundle.quantity : 0;
+
 const DEFAULT_COURSE_CONFIGS: CourseConfigDef[] = [
   { key: 'course-1', name: 'Course', hole_count: 18 },
 ];
@@ -1669,48 +1673,61 @@ export const OrgSettingsPage: React.FC = () => {
                       </label>
                       <p className="text-xs text-gray-500 mb-3">Configure quick-tap bundle options for selling raffle tickets at the event.</p>
                       <div className="space-y-2">
-                        {tournamentSettings.raffle_bundles.map((bundle, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              value={bundle.quantity}
-                              onChange={(e) => {
-                                const updated = [...tournamentSettings.raffle_bundles];
-                                updated[idx] = { ...bundle, quantity: parseInt(e.target.value) || 0 };
-                                handleTournamentChange('raffle_bundles', updated);
-                              }}
-                              placeholder="Qty"
-                              className="w-20 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                            />
-                            <span className="text-sm text-gray-500">tickets for</span>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">$</span>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={(bundle.price_cents / 100).toFixed(2)}
-                                onChange={(e) => {
-                                  const updated = [...tournamentSettings.raffle_bundles];
-                                  const cents = Math.round(parseFloat(e.target.value || '0') * 100);
-                                  updated[idx] = { ...bundle, price_cents: cents };
-                                  handleTournamentChange('raffle_bundles', updated);
-                                }}
-                                placeholder="0.00"
-                                className="w-24 px-3 py-2 pl-7 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                              />
+                        {tournamentSettings.raffle_bundles.map((bundle, idx) => {
+                          const individualPriceCents = parseInt(tournamentSettings.raffle_ticket_price_cents || '500') || 500;
+                          const bundleTicketCents = effectiveBundlePriceCents(bundle);
+                          const expectedBundleCents = individualPriceCents * bundle.quantity;
+                          const hasBundleDiscount = bundle.quantity > 0 && bundle.price_cents !== expectedBundleCents;
+
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  value={bundle.quantity}
+                                  onChange={(e) => {
+                                    const updated = [...tournamentSettings.raffle_bundles];
+                                    updated[idx] = { ...bundle, quantity: parseInt(e.target.value) || 0 };
+                                    handleTournamentChange('raffle_bundles', updated);
+                                  }}
+                                  placeholder="Qty"
+                                  className="w-20 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                />
+                                <span className="text-sm text-gray-500">tickets for</span>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">$</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={(bundle.price_cents / 100).toFixed(2)}
+                                    onChange={(e) => {
+                                      const updated = [...tournamentSettings.raffle_bundles];
+                                      const cents = Math.round(parseFloat(e.target.value || '0') * 100);
+                                      updated[idx] = { ...bundle, price_cents: cents };
+                                      handleTournamentChange('raffle_bundles', updated);
+                                    }}
+                                    placeholder="0.00"
+                                    className="w-24 px-3 py-2 pl-7 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = tournamentSettings.raffle_bundles.filter((_, i) => i !== idx);
+                                    handleTournamentChange('raffle_bundles', updated);
+                                  }}
+                                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <p className={`ml-1 text-xs ${hasBundleDiscount ? 'text-amber-600' : 'text-gray-500'}`}>
+                                Effective {formatMoney(bundleTicketCents)}/ticket
+                                {hasBundleDiscount ? ` vs ${formatMoney(individualPriceCents)}/individual ticket` : ''}
+                              </p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = tournamentSettings.raffle_bundles.filter((_, i) => i !== idx);
-                                handleTournamentChange('raffle_bundles', updated);
-                              }}
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
+                          );
+                        })}
                         <button
                           type="button"
                           onClick={() => {

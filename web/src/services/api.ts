@@ -244,6 +244,115 @@ export interface Golfer {
   checked_in_by_name: string | null;
 }
 
+export interface PaymentReportSummary {
+  registration_revenue_cents: number;
+  raffle_revenue_cents: number;
+  total_revenue_cents: number;
+  registration_paid_count: number;
+  registration_pending_count: number;
+  sponsored_registration_count: number;
+  raffle_paid_ticket_count: number;
+  raffle_purchased_ticket_count: number;
+  raffle_complimentary_ticket_count: number;
+  raffle_pending_ticket_count: number;
+  raffle_voided_ticket_count: number;
+  raffle_winner_count: number;
+  raffle_pending_revenue_cents: number;
+  refunded_registration_amount_cents: number;
+}
+
+export interface RegistrationPaymentReportRow {
+  id: number;
+  type: 'registration';
+  name: string;
+  partner_name: string | null;
+  email: string;
+  phone: string | null;
+  company: string | null;
+  registration_status: string;
+  payment_status: string;
+  payment_type: string;
+  payment_method: string | null;
+  payment_method_label: string | null;
+  amount_cents: number;
+  paid_at: string | null;
+  verified_at: string | null;
+  verified_by_name: string | null;
+  receipt_number: string | null;
+  payment_notes: string | null;
+  source: string | null;
+  created_at: string | null;
+  refund_amount_cents: number | null;
+  refunded_at: string | null;
+  refund_reason: string | null;
+}
+
+export interface SponsoredRegistrationReportRow {
+  id: number;
+  type: 'sponsored_registration';
+  name: string;
+  partner_name: string | null;
+  sponsor_name: string | null;
+  registration_status: string;
+  payment_status: string;
+  operationally_cleared: boolean;
+  source: string | null;
+  created_at: string | null;
+  notes: string | null;
+}
+
+export interface RaffleSaleReportRow {
+  id: number;
+  type: 'raffle';
+  ticket_number: string;
+  purchaser_name: string;
+  purchaser_email: string | null;
+  purchaser_phone: string | null;
+  golfer_id: number | null;
+  golfer_name: string | null;
+  payment_status: string;
+  payment_method: string | null;
+  payment_method_label: string | null;
+  amount_cents: number;
+  complimentary: boolean;
+  included_with_registration: boolean;
+  purchased_at: string | null;
+  created_at: string | null;
+  sold_by_name: string | null;
+  receipt_number: string | null;
+  payment_notes: string | null;
+  is_winner: boolean;
+  prize_won: string | null;
+  voided_at: string | null;
+  void_reason: string | null;
+}
+
+export interface CombinedLedgerReportRow {
+  type: 'registration' | 'registration_refund' | 'raffle';
+  name: string;
+  detail: string;
+  payment_status: string;
+  payment_method: string | null;
+  amount_cents: number;
+  paid_at: string | null;
+  reference: string | null;
+  notes: string | null;
+}
+
+export interface PaymentReport {
+  tournament: {
+    id: number;
+    name: string;
+    event_date: string | null;
+    entry_fee_cents: number | null;
+  };
+  summary: PaymentReportSummary;
+  registration_payments: RegistrationPaymentReportRow[];
+  sponsored_registrations: SponsoredRegistrationReportRow[];
+  raffle_sales: RaffleSaleReportRow[];
+  combined_ledger: CombinedLedgerReportRow[];
+}
+
 export interface Group {
   id: number;
   tournament_id: number;
@@ -741,6 +850,14 @@ export class ApiClient {
     }
     const query = searchParams.toString();
     return this.request(`/api/v1/golfers${query ? `?${query}` : ''}`);
+  }
+
+  async getPaymentReport(tournamentId?: number): Promise<PaymentReport | null> {
+    const id = tournamentId || this.currentTournamentId;
+    if (!id) {
+      return null;
+    }
+    return this.request(`/api/v1/tournaments/${id}/payment_report`);
   }
 
   async getGolfer(id: number): Promise<Golfer> {

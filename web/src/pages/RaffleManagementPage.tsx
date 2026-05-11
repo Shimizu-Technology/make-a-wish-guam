@@ -70,6 +70,9 @@ interface RaffleTicket {
   void_reason?: string | null;
   sold_by?: string | null;
   created_at?: string | null;
+  payment_method?: string | null;
+  receipt_number?: string | null;
+  payment_notes?: string | null;
 }
 
 interface DeliveryResult {
@@ -156,6 +159,10 @@ const TIER_RANK = TIERS.reduce<Record<string, number>>((acc, tier, index) => {
 type PrizeStatusFilter = '' | 'available' | 'won' | 'claimed';
 type PrizeSort = 'position' | 'tier' | 'name' | 'value_desc' | 'value_asc';
 
+const formatMoney = (cents: number, digits = 0) => `$${(cents / 100).toFixed(digits)}`;
+const bundlePerTicketCents = (bundle: RaffleBundleDef) =>
+  bundle.quantity > 0 ? bundle.price_cents / bundle.quantity : 0;
+
 const DEFAULT_BUNDLES: RaffleBundleDef[] = [
   { quantity: 4,  price_cents: 2000,  label: '$20 for 4 tickets' },
   { quantity: 12, price_cents: 5000,  label: '$50 for 12 tickets' },
@@ -170,6 +177,8 @@ interface SellTicketsTabProps {
   onBuyerEmailChange: (v: string) => void;
   sellBuyerPhone: string;
   onBuyerPhoneChange: (v: string) => void;
+  sellPaymentMethod: string;
+  onPaymentMethodChange: (v: string) => void;
   sellLoading: boolean;
   lastSale: { quantity: number; total: string; buyer: string; ticketNumbers?: string[] } | null;
   onSellBundle: (bundle: RaffleBundleDef) => void;
@@ -185,6 +194,8 @@ function SellTicketsTab({
   onBuyerEmailChange,
   sellBuyerPhone,
   onBuyerPhoneChange,
+  sellPaymentMethod,
+  onPaymentMethodChange,
   sellLoading,
   lastSale,
   onSellBundle,
@@ -195,6 +206,11 @@ function SellTicketsTab({
   const [customPrice, setCustomPrice] = useState('');
 
   const bundles = tournament.raffle_bundles?.length ? tournament.raffle_bundles : DEFAULT_BUNDLES;
+  const ticketPriceCents = tournament.raffle_ticket_price_cents || 500;
+  const customQtyNumber = parseInt(customQty) || 0;
+  const customPricePlaceholder = customQtyNumber > 0
+    ? (customQtyNumber * ticketPriceCents / 100).toFixed(2)
+    : (ticketPriceCents / 100).toFixed(2);
   const phoneValue = sellBuyerPhone.trim().replace(/^\+1671$/, '');
   const hasBuyerName = sellBuyerName.trim() !== '';
   const hasContact = sellBuyerEmail.trim() !== '' || phoneValue !== '';
@@ -271,6 +287,20 @@ function SellTicketsTab({
         <p className="text-xs text-gray-500">
           Name plus at least one contact method are required so ticket numbers can be found and delivered.
         </p>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Payment method</label>
+          <select
+            value={sellPaymentMethod}
+            onChange={(e) => onPaymentMethodChange(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+          >
+            <option value="swipe_simple">SwipeSimple</option>
+            <option value="cash">Cash</option>
+            <option value="check">Check</option>
+            <option value="card">Card</option>
+            <option value="comp">Comp</option>
+          </select>
+        </div>
       </div>
 
       {/* Quick-tap bundles */}
@@ -287,8 +317,9 @@ function SellTicketsTab({
               <span className="text-3xl font-bold text-brand-600">{bundle.quantity}</span>
               <span className="text-sm text-gray-600">tickets</span>
               <span className="text-lg font-bold text-gray-900">
-                ${(bundle.price_cents / 100).toFixed(0)}
+                {formatMoney(bundle.price_cents)}
               </span>
+              <span className="text-xs text-gray-500">{formatMoney(bundlePerTicketCents(bundle), 2)}/ticket</span>
               {sellLoading && (
                 <Loader2 className="w-4 h-4 animate-spin text-brand-500" />
               )}
@@ -320,7 +351,7 @@ function SellTicketsTab({
               step="0.01"
               value={customPrice}
               onChange={(e) => setCustomPrice(e.target.value)}
-              placeholder="50.00"
+              placeholder={customPricePlaceholder}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
@@ -398,6 +429,7 @@ export const RaffleManagementPage: React.FC = () => {
   const [sellBuyerName, setSellBuyerName] = useState('');
   const [sellBuyerEmail, setSellBuyerEmail] = useState('');
   const [sellBuyerPhone, setSellBuyerPhone] = useState('+1671');
+  const [sellPaymentMethod, setSellPaymentMethod] = useState('swipe_simple');
   const [sellLoading, setSellLoading] = useState(false);
   const [lastSale, setLastSale] = useState<{ quantity: number; total: string; buyer: string; ticketNumbers?: string[] } | null>(null);
   
@@ -779,6 +811,7 @@ export const RaffleManagementPage: React.FC = () => {
             buyer_name: buyerLabel,
             buyer_email: sellBuyerEmail.trim() || undefined,
             buyer_phone: sellBuyerPhone.trim() || undefined,
+            payment_method: sellPaymentMethod,
           }),
         }
       );
@@ -800,6 +833,7 @@ export const RaffleManagementPage: React.FC = () => {
       setSellBuyerName('');
       setSellBuyerEmail('');
       setSellBuyerPhone('+1671');
+      setSellPaymentMethod('swipe_simple');
       toast.success(`Sold ${bundle.quantity} tickets for ${totalDollars}`);
       const deliveryWarning = deliveryFailureMessage(data.delivery);
       if (deliveryWarning) {
@@ -840,6 +874,7 @@ export const RaffleManagementPage: React.FC = () => {
             buyer_name: buyerLabel,
             buyer_email: sellBuyerEmail.trim() || undefined,
             buyer_phone: sellBuyerPhone.trim() || undefined,
+            payment_method: sellPaymentMethod,
           }),
         }
       );
@@ -861,6 +896,7 @@ export const RaffleManagementPage: React.FC = () => {
       setSellBuyerName('');
       setSellBuyerEmail('');
       setSellBuyerPhone('+1671');
+      setSellPaymentMethod('swipe_simple');
       toast.success(`Sold ${quantity} tickets for ${totalDollars}`);
       const deliveryWarning = deliveryFailureMessage(data.delivery);
       if (deliveryWarning) {
@@ -1491,6 +1527,8 @@ export const RaffleManagementPage: React.FC = () => {
             onBuyerEmailChange={setSellBuyerEmail}
             sellBuyerPhone={sellBuyerPhone}
             onBuyerPhoneChange={setSellBuyerPhone}
+            sellPaymentMethod={sellPaymentMethod}
+            onPaymentMethodChange={setSellPaymentMethod}
             sellLoading={sellLoading}
             lastSale={lastSale}
             onSellBundle={handleSellBundle}
@@ -1684,6 +1722,15 @@ export const RaffleManagementPage: React.FC = () => {
                                 <p className="text-gray-900">{ticket.sold_by || (isComplimentary ? 'System (registration)' : 'Unknown')}</p>
                               </div>
                             </div>
+                            {ticket.payment_method && (
+                              <div className="flex items-start gap-2">
+                                <DollarSign className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500">Payment method</p>
+                                  <p className="text-gray-900">{ticket.payment_method.replace(/_/g, ' ')}</p>
+                                </div>
+                              </div>
+                            )}
                             {/* Mobile-only contact info */}
                             <div className="sm:hidden flex items-start gap-2">
                               <Send className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />

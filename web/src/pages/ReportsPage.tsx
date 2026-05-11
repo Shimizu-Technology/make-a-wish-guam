@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   ClipboardList,
   DollarSign,
@@ -11,7 +12,17 @@ import {
   UserCheck,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { api, Golfer, GolferStats, Group } from '../services/api';
+import {
+  api,
+  CombinedLedgerReportRow,
+  Golfer,
+  GolferStats,
+  Group,
+  PaymentReport,
+  RaffleSaleReportRow,
+  RegistrationPaymentReportRow,
+  SponsoredRegistrationReportRow,
+} from '../services/api';
 import { useGolferChannel } from '../hooks/useGolferChannel';
 import { useTournament } from '../contexts';
 import { formatDate, formatShortDate } from '../utils/dates';
@@ -21,12 +32,30 @@ type ReportTab = 'registrations' | 'checkin' | 'payments' | 'groups' | 'contacts
 const startingPositionText = (golfer: Pick<Golfer, 'hole_position_label'>) =>
   golfer.hole_position_label || 'Unassigned';
 
+const formatCents = (cents?: number | null) => `$${((cents || 0) / 100).toLocaleString(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}`;
+
+const formatReportDate = (value?: string | null) => (value ? formatShortDate(value) : '');
+
 export function ReportsPage() {
-  const { activeTournament } = useTournament();
+  const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
+  const {
+    activeTournament: contextActiveTournament,
+    tournaments,
+    isLoading: tournamentsLoading,
+  } = useTournament();
+  const activeTournament = useMemo(() => {
+    if (!tournamentSlug) return contextActiveTournament;
+
+    return tournaments.find((tournament) => tournament.slug === tournamentSlug) ?? null;
+  }, [contextActiveTournament, tournamentSlug, tournaments]);
 
   const [golfers, setGolfers] = useState<Golfer[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [stats, setStats] = useState<GolferStats | null>(null);
+  const [paymentReport, setPaymentReport] = useState<PaymentReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ReportTab>('registrations');
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,23 +65,35 @@ export function ReportsPage() {
   const [sortAscending, setSortAscending] = useState(true);
 
   const fetchData = useCallback(async () => {
+    if (tournamentSlug && tournamentsLoading) return;
+
     setLoading(true);
+    setPaymentReport(null);
     try {
       const tournamentId = activeTournament?.id;
-      const [golfersRes, groupsData, statsData] = await Promise.all([
+      if (tournamentSlug && !tournamentId) {
+        setGolfers([]);
+        setGroups([]);
+        setStats(null);
+        return;
+      }
+
+      const [golfersRes, groupsData, statsData, paymentReportData] = await Promise.all([
         api.getGolfers({ per_page: 1000, ...(tournamentId ? { tournament_id: tournamentId } : {}) }),
         api.getGroups(tournamentId),
         api.getGolferStats(tournamentId),
+        api.getPaymentReport(tournamentId),
       ]);
       setGolfers(golfersRes.golfers);
       setGroups(groupsData);
       setStats(statsData);
+      setPaymentReport(paymentReportData);
     } catch (err) {
       console.error('Failed to load reports data:', err);
     } finally {
       setLoading(false);
     }
-  }, [activeTournament?.id]);
+  }, [activeTournament?.id, tournamentSlug, tournamentsLoading]);
 
   useEffect(() => {
     fetchData();
@@ -96,7 +137,7 @@ export function ReportsPage() {
   );
 
   const paidGolfers = useMemo(() => {
-    let result = confirmedGolfers.filter((g) => g.payment_status === 'paid');
+    let result = confirmedGolfers.filter((g) => g.payment_status === 'paid' && g.payment_type !== 'sponsor');
     if (paymentTimingFilter !== 'all') {
       result = result.filter((g) => g.payment_timing === paymentTimingFilter);
     }
@@ -184,6 +225,47 @@ export function ReportsPage() {
         break;
       }
       case 'payments': {
+        if (paymentReport) {
+          const sponsoredRows = paymentReport.sponsored_registrations.filter((row) => row.registration_status !== 'cancelled');
+          const summaryData = [
+            { Metric: 'Net Registration Revenue', Value: formatCents(paymentReport.summary.registration_revenue_cents) },
+            { Metric: 'Raffle Revenue', Value: formatCents(paymentReport.summary.raffle_revenue_cents) },
+            { Metric: 'Net Total Collected', Value: formatCents(paymentReport.summary.total_revenue_cents) },
+            { Metric: 'Refunded Registration Amount', Value: formatCents(paymentReport.summary.refunded_registration_amount_cents) },
+            { Metric: 'Paid Registrations', Value: paymentReport.summary.registration_paid_count },
+            { Metric: 'Pending Registrations', Value: paymentReport.summary.registration_pending_count },
+            { Metric: 'Sponsored Registrations (Cleared)', Value: paymentReport.summary.sponsored_registration_count },
+            { Metric: 'Sponsored Registration Rows', Value: sponsoredRows.length },
+            { Metric: 'Paid Raffle Tickets', Value: paymentReport.summary.raffle_paid_ticket_count },
+            { Metric: 'Purchased Raffle Tickets', Value: paymentReport.summary.raffle_purchased_ticket_count },
+            { Metric: 'Included Raffle Tickets', Value: paymentReport.summary.raffle_complimentary_ticket_count },
+            { Metric: 'Voided Raffle Tickets', Value: paymentReport.summary.raffle_voided_ticket_count },
+          ];
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Summary');
+
+          XLSX.utils.book_append_sheet(
+            wb,
+            XLSX.utils.json_to_sheet(paymentReport.registration_payments.map(registrationExportRow)),
+            'Registration Payments'
+          );
+          XLSX.utils.book_append_sheet(
+            wb,
+            XLSX.utils.json_to_sheet(sponsoredRows.map(sponsorExportRow)),
+            'Sponsored Registrations'
+          );
+          XLSX.utils.book_append_sheet(
+            wb,
+            XLSX.utils.json_to_sheet(paymentReport.raffle_sales.map(raffleExportRow)),
+            'Raffle Sales'
+          );
+          XLSX.utils.book_append_sheet(
+            wb,
+            XLSX.utils.json_to_sheet(paymentReport.combined_ledger.map(ledgerExportRow)),
+            'Combined Ledger'
+          );
+          break;
+        }
+
         const paidData = paidGolfers.map((g) => ({
           'Player 1': g.name,
           'Player 2': g.partner_name || '',
@@ -389,6 +471,7 @@ export function ReportsPage() {
             paid={paidGolfers}
             unpaid={unpaidGolfers}
             stats={paymentStats}
+            report={paymentReport}
             timingFilter={paymentTimingFilter}
             channelFilter={paymentChannelFilter}
             onTimingChange={setPaymentTimingFilter}
@@ -558,9 +641,78 @@ function CheckInTab({ golfers }: { golfers: Golfer[] }) {
   );
 }
 
+function registrationExportRow(row: RegistrationPaymentReportRow) {
+  return {
+    Type: 'Registration',
+    Team: row.name,
+    Partner: row.partner_name || '',
+    Email: row.email,
+    Phone: row.phone || '',
+    Company: row.company || '',
+    'Registration Status': row.registration_status,
+    'Payment Status': row.payment_status,
+    'Payment Type': row.payment_type,
+    'Payment Method': row.payment_method_label || row.payment_method || '',
+    Amount: formatCents(row.amount_cents),
+    'Paid At': formatReportDate(row.paid_at || row.verified_at),
+    'Verified By': row.verified_by_name || '',
+    'Receipt / Reference': row.receipt_number || '',
+    Source: row.source || '',
+    Notes: row.payment_notes || '',
+  };
+}
+
+function sponsorExportRow(row: SponsoredRegistrationReportRow) {
+  return {
+    Type: 'Sponsored Registration',
+    Team: row.name,
+    Partner: row.partner_name || '',
+    Sponsor: row.sponsor_name || '',
+    'Registration Status': row.registration_status,
+    'Financially Cleared': row.operationally_cleared ? 'Yes' : 'No',
+    Source: row.source || '',
+    Notes: row.notes || '',
+  };
+}
+
+function raffleExportRow(row: RaffleSaleReportRow) {
+  return {
+    Type: row.complimentary ? (row.included_with_registration ? 'Included Raffle Ticket' : 'Complimentary Raffle Ticket') : 'Raffle Sale',
+    'Ticket Number': row.ticket_number,
+    Buyer: row.purchaser_name,
+    Email: row.purchaser_email || '',
+    Phone: row.purchaser_phone || '',
+    'Linked Registration': row.golfer_name || '',
+    'Payment Status': row.payment_status,
+    'Payment Method': row.payment_method_label || row.payment_method || '',
+    Amount: formatCents(row.amount_cents),
+    'Purchased At': formatReportDate(row.purchased_at || row.created_at),
+    'Sold By': row.sold_by_name || '',
+    Winner: row.is_winner ? 'Yes' : 'No',
+    Prize: row.prize_won || '',
+    'Receipt / Reference': row.receipt_number || '',
+    Notes: row.payment_notes || row.void_reason || '',
+  };
+}
+
+function ledgerExportRow(row: CombinedLedgerReportRow) {
+  return {
+    Type: row.type === 'registration_refund' ? 'Registration Refund' : row.type === 'registration' ? 'Registration' : 'Raffle',
+    Name: row.name,
+    Detail: row.detail,
+    Status: row.payment_status,
+    Method: row.payment_method || '',
+    Amount: formatCents(row.amount_cents),
+    Date: formatReportDate(row.paid_at),
+    Reference: row.reference || '',
+    Notes: row.notes || '',
+  };
+}
+
 interface PaymentsTabProps {
   paid: Golfer[];
   unpaid: Golfer[];
+  report: PaymentReport | null;
   stats: {
     totalPaid: number;
     totalAmount: number;
@@ -576,18 +728,31 @@ interface PaymentsTabProps {
   onChannelChange: (v: string) => void;
 }
 
-function PaymentsTab({ paid, unpaid, stats, timingFilter, channelFilter, onTimingChange, onChannelChange }: PaymentsTabProps) {
+function PaymentsTab({ paid, unpaid, report, stats, timingFilter, channelFilter, onTimingChange, onChannelChange }: PaymentsTabProps) {
   const hasFilter = timingFilter !== 'all' || channelFilter !== 'all';
+  const paidRaffleSales = report?.raffle_sales.filter((row) => row.payment_status === 'paid' && row.amount_cents > 0) || [];
+  const includedRaffleTickets = report?.raffle_sales.filter((row) => row.payment_status !== 'voided' && row.complimentary) || [];
+  const sponsoredRegistrations = report?.sponsored_registrations.filter((row) => row.registration_status !== 'cancelled') || [];
+  const clearedSponsoredRegistrations = sponsoredRegistrations.filter((row) => row.operationally_cleared);
 
   return (
     <div>
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-4 border-b border-gray-100">
-        <MiniCard label="Total Paid" value={`${stats.totalPaid}`} sub={`$${stats.totalAmount.toLocaleString()}`} color="green" />
-        <MiniCard label="Pre-Paid" value={`${stats.prePaid}`} sub={`$${stats.prePaidAmount.toLocaleString()}`} color="blue" />
-        <MiniCard label="Day-Of" value={`${stats.dayOf}`} sub={`$${stats.dayOfAmount.toLocaleString()}`} color="amber" />
-        <MiniCard label="Unpaid" value={`${stats.unpaid}`} sub="" color="red" />
+        <MiniCard label="Registration Revenue" value={report ? formatCents(report.summary.registration_revenue_cents) : formatCents(Math.round(stats.totalAmount * 100))} sub={`${report?.summary.registration_paid_count ?? stats.totalPaid} paid`} color="green" />
+        <MiniCard label="Raffle Revenue" value={report ? formatCents(report.summary.raffle_revenue_cents) : 'Loading'} sub={report ? `${report.summary.raffle_purchased_ticket_count} paid tickets` : 'payment report'} color="blue" />
+        <MiniCard label="Total Collected" value={report ? formatCents(report.summary.total_revenue_cents) : formatCents(Math.round(stats.totalAmount * 100))} sub="registrations + raffle" color="amber" />
+        <MiniCard label="Outstanding" value={`${report?.summary.registration_pending_count ?? stats.unpaid}`} sub="pending registrations" color="red" />
       </div>
+
+      {report && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-4 border-b border-gray-100 bg-gray-50/60">
+          <MiniCard label="Sponsored Cleared" value={`${clearedSponsoredRegistrations.length}`} sub={`${sponsoredRegistrations.length} sponsored rows`} color="blue" />
+          <MiniCard label="Included Tickets" value={`${report.summary.raffle_complimentary_ticket_count}`} sub="no added revenue" color="green" />
+          <MiniCard label="Voided Tickets" value={`${report.summary.raffle_voided_ticket_count}`} sub="excluded" color="red" />
+          <MiniCard label="Winners" value={`${report.summary.raffle_winner_count}`} sub="drawn tickets" color="amber" />
+        </div>
+      )}
 
       {/* Filters */}
       <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
@@ -623,7 +788,7 @@ function PaymentsTab({ paid, unpaid, stats, timingFilter, channelFilter, onTimin
 
       {/* Paid list */}
       <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-        Paid ({paid.length})
+        Registration Payments ({paid.length})
       </div>
       {/* Mobile */}
       <div className="sm:hidden divide-y divide-gray-100">
@@ -726,6 +891,94 @@ function PaymentsTab({ paid, unpaid, stats, timingFilter, channelFilter, onTimin
         </table>
         {unpaid.length === 0 && <EmptyState message="All confirmed registrations are paid" />}
       </div>
+
+      {report && (
+        <>
+          <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-t border-gray-100">
+            Sponsored Registrations ({sponsoredRegistrations.length} shown, {clearedSponsoredRegistrations.length} cleared)
+          </div>
+          <SponsoredRegistrationsTable rows={sponsoredRegistrations} />
+
+          <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-t border-gray-100">
+            Raffle Sales ({paidRaffleSales.length})
+          </div>
+          <ReportRaffleTable rows={paidRaffleSales} emptyMessage="No paid raffle sales recorded" />
+
+          <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-t border-gray-100">
+            Included / Complimentary Raffle Tickets ({includedRaffleTickets.length})
+          </div>
+          <ReportRaffleTable rows={includedRaffleTickets} emptyMessage="No included raffle tickets recorded" />
+        </>
+      )}
+    </div>
+  );
+}
+
+function SponsoredRegistrationsTable({ rows }: { rows: SponsoredRegistrationReportRow[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+            <th className="px-4 py-2.5 font-medium">Team</th>
+            <th className="px-4 py-2.5 font-medium">Sponsor</th>
+            <th className="px-4 py-2.5 font-medium">Status</th>
+            <th className="px-4 py-2.5 font-medium">Source</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-50">
+          {rows.map((row) => (
+            <tr key={row.id} className="hover:bg-gray-50/50">
+              <td className="px-4 py-2.5 font-medium text-gray-900">
+                {row.name}
+                {row.partner_name && <span className="text-gray-400 font-normal"> &amp; {row.partner_name}</span>}
+              </td>
+              <td className="px-4 py-2.5 text-gray-500">{row.sponsor_name || '-'}</td>
+              <td className="px-4 py-2.5 text-gray-500">{row.operationally_cleared ? 'Financially cleared' : row.registration_status}</td>
+              <td className="px-4 py-2.5 text-gray-500">{row.source || '-'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length === 0 && <EmptyState message="No sponsored registrations recorded" />}
+    </div>
+  );
+}
+
+function ReportRaffleTable({ rows, emptyMessage }: { rows: RaffleSaleReportRow[]; emptyMessage: string }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+            <th className="px-4 py-2.5 font-medium">Ticket</th>
+            <th className="px-4 py-2.5 font-medium">Buyer</th>
+            <th className="px-4 py-2.5 font-medium">Contact</th>
+            <th className="px-4 py-2.5 font-medium">Method</th>
+            <th className="px-4 py-2.5 font-medium">Sold By</th>
+            <th className="px-4 py-2.5 font-medium text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-50">
+          {rows.map((row) => (
+            <tr key={row.id} className="hover:bg-gray-50/50">
+              <td className="px-4 py-2.5 font-mono text-xs font-semibold text-gray-900">{row.ticket_number}</td>
+              <td className="px-4 py-2.5 font-medium text-gray-900">
+                {row.purchaser_name}
+                {row.golfer_name && <span className="block text-[11px] font-normal text-gray-400">Registration: {row.golfer_name}</span>}
+              </td>
+              <td className="px-4 py-2.5 text-gray-500">
+                {row.purchaser_email || '-'}
+                {row.purchaser_phone && <span className="block text-[11px] text-gray-400">{row.purchaser_phone}</span>}
+              </td>
+              <td className="px-4 py-2.5 text-gray-500">{row.payment_method_label || row.payment_method || (row.complimentary ? 'Included' : '-')}</td>
+              <td className="px-4 py-2.5 text-gray-500">{row.sold_by_name || (row.included_with_registration ? 'System' : '-')}</td>
+              <td className="px-4 py-2.5 text-right font-medium text-gray-900">{formatCents(row.amount_cents)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length === 0 && <EmptyState message={emptyMessage} />}
     </div>
   );
 }

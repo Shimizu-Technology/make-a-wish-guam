@@ -423,7 +423,10 @@ module Api
               price_cents: @tournament.raffle_ticket_price_cents,
               payment_status: params[:mark_paid] ? 'paid' : 'pending',
               purchased_at: params[:mark_paid] ? Time.current : nil,
-              sold_by_user_id: current_user.id
+              sold_by_user_id: current_user.id,
+              payment_method: params[:payment_method],
+              receipt_number: params[:receipt_number],
+              payment_notes: params[:payment_notes]
             )
 
             if ticket.save
@@ -455,7 +458,12 @@ module Api
       def mark_ticket_paid
         ticket = @tournament.raffle_tickets.find(params[:id])
         previous_status = ticket.payment_status
-        ticket.mark_paid!
+        ticket.mark_paid!(
+          nil,
+          method: params[:payment_method],
+          receipt_number: params[:receipt_number],
+          notes: params[:payment_notes]
+        )
         ActivityLog.log(
           admin: current_user, action: 'raffle_ticket_marked_paid', target: ticket,
           details: "Marked raffle ticket #{ticket.display_number} paid (#{ticket.purchaser_display})",
@@ -560,7 +568,10 @@ module Api
               price_cents: ticket_price,
               payment_status: 'paid',
               purchased_at: Time.current,
-              sold_by_user_id: current_user.id
+              sold_by_user_id: current_user.id,
+              payment_method: params[:payment_method].presence || 'swipe_simple',
+              receipt_number: params[:receipt_number],
+              payment_notes: params[:payment_notes]
             )
           end
         end
@@ -1029,6 +1040,9 @@ module Api
           response[:golfer_id] = ticket.golfer_id
           response[:golfer_name] = ticket.golfer&.name
           response[:price_cents] = ticket.price_cents
+          response[:payment_method] = ticket.payment_method
+          response[:receipt_number] = ticket.receipt_number
+          response[:payment_notes] = ticket.payment_notes
           response[:stripe_payment_intent_id] = ticket.stripe_payment_intent_id
           response[:prize_won] = ticket.raffle_prize&.name if ticket.is_winner?
           response[:voided_at] = ticket.voided_at&.iso8601

@@ -146,6 +146,7 @@ Rails.application.routes.draw do
         post 'raffle/tickets/:id/void' => 'raffle#void_ticket'
         post 'raffle/sync_tickets' => 'raffle#sync_tickets'
         post 'raffle/sell' => 'raffle#sell_tickets'
+        get 'payment_report' => 'payment_reports#show'
 
         # Sponsors
         resources :sponsors, only: [:index, :show, :create, :update, :destroy] do
