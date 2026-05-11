@@ -9,6 +9,7 @@ class Tournament < ApplicationRecord
   has_many :groups, dependent: :restrict_with_error
   has_many :scores, dependent: :destroy
   has_many :raffle_prizes, dependent: :destroy
+  has_many :raffle_sale_batches, dependent: :destroy
   has_many :raffle_tickets, dependent: :destroy
   has_many :sponsors, dependent: :destroy
   has_many :activity_logs, dependent: :nullify

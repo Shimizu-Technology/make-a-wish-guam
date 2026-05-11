@@ -557,21 +557,36 @@ module Api
         remainder = price_cents % quantity
 
         tickets = []
+        sale_time = Time.current
         ActiveRecord::Base.transaction do
           @tournament.lock!
+          sale_batch = @tournament.raffle_sale_batches.create!(
+            buyer_name: buyer_name,
+            buyer_email: buyer_email,
+            buyer_phone: buyer_phone,
+            quantity: quantity,
+            total_cents: price_cents,
+            payment_method: params[:payment_method].presence || 'swipe_simple',
+            receipt_number: params[:receipt_number],
+            payment_notes: params[:payment_notes],
+            purchased_at: sale_time,
+            sold_by_user_id: current_user.id
+          )
+
           quantity.times do |i|
             ticket_price = base_cents + (i == quantity - 1 ? remainder : 0)
             tickets << @tournament.raffle_tickets.create!(
+              raffle_sale_batch: sale_batch,
               purchaser_name: buyer_name,
               purchaser_email: buyer_email,
               purchaser_phone: buyer_phone,
               price_cents: ticket_price,
               payment_status: 'paid',
-              purchased_at: Time.current,
+              purchased_at: sale_time,
               sold_by_user_id: current_user.id,
-              payment_method: params[:payment_method].presence || 'swipe_simple',
-              receipt_number: params[:receipt_number],
-              payment_notes: params[:payment_notes]
+              payment_method: sale_batch.payment_method,
+              receipt_number: sale_batch.receipt_number,
+              payment_notes: sale_batch.payment_notes
             )
           end
         end

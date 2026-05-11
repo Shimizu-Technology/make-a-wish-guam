@@ -80,6 +80,19 @@ class Api::V1::PaymentReportsControllerTest < ActionDispatch::IntegrationTest
       purchased_at: Time.zone.parse("2026-05-02 12:00"),
       sold_by_user: @admin
     )
+    bundle_time = Time.zone.parse("2026-05-02 13:00")
+    12.times do |index|
+      @tournament.raffle_tickets.create!(
+        purchaser_name: "Bundle Buyer",
+        purchaser_email: "bundle@example.com",
+        purchaser_phone: "671-555-1212",
+        price_cents: index == 11 ? 424 : 416,
+        payment_status: "paid",
+        payment_method: "swipe_simple",
+        purchased_at: bundle_time,
+        sold_by_user: @admin
+      )
+    end
     @tournament.raffle_tickets.create!(
       golfer: paid_golfer,
       purchaser_name: paid_golfer.name,
@@ -109,10 +122,10 @@ class Api::V1::PaymentReportsControllerTest < ActionDispatch::IntegrationTest
     json = JSON.parse(response.body)
 
     assert_equal 30_000, json.dig("summary", "registration_revenue_cents")
-    assert_equal 2_000, json.dig("summary", "raffle_revenue_cents")
-    assert_equal 32_000, json.dig("summary", "total_revenue_cents")
+    assert_equal 7_000, json.dig("summary", "raffle_revenue_cents")
+    assert_equal 37_000, json.dig("summary", "total_revenue_cents")
     assert_equal 1, json.dig("summary", "sponsored_registration_count")
-    assert_equal 1, json.dig("summary", "raffle_purchased_ticket_count")
+    assert_equal 13, json.dig("summary", "raffle_purchased_ticket_count")
     assert_equal 1, json.dig("summary", "raffle_complimentary_ticket_count")
     assert_equal 1, json.dig("summary", "raffle_pending_ticket_count")
     assert_equal 1, json.dig("summary", "raffle_voided_ticket_count")
@@ -132,13 +145,22 @@ class Api::V1::PaymentReportsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "SwipeSimple", raffle_row.fetch("payment_method_label")
     assert_equal 2_000, raffle_row.fetch("amount_cents")
 
+    bundle_group = json.fetch("raffle_sale_groups").find { |row| row.fetch("purchaser_name") == "Bundle Buyer" }
+    assert_equal "raffle_sale_group", bundle_group.fetch("type")
+    assert_equal "inferred", bundle_group.fetch("source")
+    assert_equal 12, bundle_group.fetch("ticket_count")
+    assert_equal 5_000, bundle_group.fetch("amount_cents")
+    assert_equal "$50 bundle", bundle_group.fetch("bundle_label")
+    assert_match(/ to /, bundle_group.fetch("ticket_range"))
+    assert_equal bundle_time.iso8601, bundle_group.fetch("purchased_at")
+
     ledger_types = json.fetch("combined_ledger").map { |row| row.fetch("type") }
     assert_includes ledger_types, "registration"
     assert_includes ledger_types, "registration_refund"
     assert_includes ledger_types, "raffle"
 
     refunded_ledger_rows = json.fetch("combined_ledger").select { |row| row.fetch("name") == refunded_golfer.name }
-    assert_equal [30_000, -30_000], refunded_ledger_rows.map { |row| row.fetch("amount_cents") }
+    assert_equal [ 30_000, -30_000 ], refunded_ledger_rows.map { |row| row.fetch("amount_cents") }
     assert_equal 0, refunded_ledger_rows.sum { |row| row.fetch("amount_cents") }
   end
 

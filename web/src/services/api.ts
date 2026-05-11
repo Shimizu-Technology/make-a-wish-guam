@@ -327,6 +327,29 @@ export interface RaffleSaleReportRow {
   void_reason: string | null;
 }
 
+export interface RaffleSaleGroupReportRow {
+  id: number | string;
+  type: 'raffle_sale_group';
+  source: 'recorded_batch' | 'inferred';
+  purchaser_name: string;
+  purchaser_email: string | null;
+  purchaser_phone: string | null;
+  linked_registration_names: string[];
+  payment_status: string;
+  payment_method: string | null;
+  payment_method_label: string | null;
+  ticket_count: number;
+  ticket_numbers: string[];
+  ticket_range: string;
+  amount_cents: number;
+  bundle_label: string;
+  average_ticket_cents: number;
+  purchased_at: string | null;
+  sold_by_name: string | null;
+  receipt_number: string | null;
+  payment_notes: string | null;
+}
+
 export interface CombinedLedgerReportRow {
   type: 'registration' | 'registration_refund' | 'raffle';
   name: string;
@@ -349,6 +372,7 @@ export interface PaymentReport {
   summary: PaymentReportSummary;
   registration_payments: RegistrationPaymentReportRow[];
   sponsored_registrations: SponsoredRegistrationReportRow[];
+  raffle_sale_groups: RaffleSaleGroupReportRow[];
   raffle_sales: RaffleSaleReportRow[];
   combined_ledger: CombinedLedgerReportRow[];
 }

@@ -384,6 +384,7 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_difference -> { @tournament.raffle_tickets.count }, 4 do
+      assert_difference -> { @tournament.raffle_sale_batches.count }, 1 do
       with_singleton_method(RaffleSmsService, :purchase_confirmation, sms_stub) do
         post "/api/v1/tournaments/#{@tournament.id}/raffle/sell",
              params: {
@@ -394,10 +395,16 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
              },
              headers: @headers
       end
+      end
     end
 
     assert_response :created
     json = JSON.parse(response.body)
+    sale_batch = @tournament.raffle_sale_batches.last
+    assert_equal "Cash Buyer", sale_batch.buyer_name
+    assert_equal 4, sale_batch.quantity
+    assert_equal 2000, sale_batch.total_cents
+    assert_equal [ sale_batch.id ], @tournament.raffle_tickets.order(:created_at).last(4).map(&:raffle_sale_batch_id).uniq
     assert_equal false, json.dig("delivery", "sms", "success")
     assert_equal false, json.dig("delivery", "sms", "skipped")
     assert_equal "Carrier rejected message", json.dig("delivery", "sms", "error")
