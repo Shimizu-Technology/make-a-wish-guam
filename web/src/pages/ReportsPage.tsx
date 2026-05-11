@@ -19,15 +19,17 @@ import {
   GolferStats,
   Group,
   PaymentReport,
+  RaffleSaleGroupReportRow,
   RaffleSaleReportRow,
   RegistrationPaymentReportRow,
   SponsoredRegistrationReportRow,
 } from '../services/api';
 import { useGolferChannel } from '../hooks/useGolferChannel';
 import { useTournament } from '../contexts';
-import { formatDate, formatShortDate } from '../utils/dates';
+import { formatDate, formatDateTime, formatShortDate } from '../utils/dates';
 
 type ReportTab = 'registrations' | 'checkin' | 'payments' | 'groups' | 'contacts';
+type PaymentReportSection = 'registrations' | 'sponsors' | 'raffle' | 'included' | 'ledger';
 
 const startingPositionText = (golfer: Pick<Golfer, 'hole_position_label'>) =>
   golfer.hole_position_label || 'Unassigned';
@@ -38,6 +40,7 @@ const formatCents = (cents?: number | null) => `$${((cents || 0) / 100).toLocale
 })}`;
 
 const formatReportDate = (value?: string | null) => (value ? formatShortDate(value) : '');
+const formatReportDateTime = (value?: string | null) => (value ? formatDateTime(value) : '');
 
 export function ReportsPage() {
   const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
@@ -255,8 +258,13 @@ export function ReportsPage() {
           );
           XLSX.utils.book_append_sheet(
             wb,
-            XLSX.utils.json_to_sheet(paymentReport.raffle_sales.map(raffleExportRow)),
+            XLSX.utils.json_to_sheet(paymentReport.raffle_sale_groups.map(raffleGroupExportRow)),
             'Raffle Sales'
+          );
+          XLSX.utils.book_append_sheet(
+            wb,
+            XLSX.utils.json_to_sheet(paymentReport.raffle_sales.map(raffleExportRow)),
+            'Raffle Tickets'
           );
           XLSX.utils.book_append_sheet(
             wb,
@@ -679,19 +687,42 @@ function raffleExportRow(row: RaffleSaleReportRow) {
   return {
     Type: row.complimentary ? (row.included_with_registration ? 'Included Raffle Ticket' : 'Complimentary Raffle Ticket') : 'Raffle Sale',
     'Ticket Number': row.ticket_number,
-    Buyer: row.purchaser_name,
+    Buyer: row.purchaser_name || 'Unknown buyer',
     Email: row.purchaser_email || '',
     Phone: row.purchaser_phone || '',
     'Linked Registration': row.golfer_name || '',
     'Payment Status': row.payment_status,
     'Payment Method': row.payment_method_label || row.payment_method || '',
     Amount: formatCents(row.amount_cents),
-    'Purchased At': formatReportDate(row.purchased_at || row.created_at),
+    'Purchased At': formatReportDateTime(row.purchased_at || row.created_at),
     'Sold By': row.sold_by_name || '',
     Winner: row.is_winner ? 'Yes' : 'No',
     Prize: row.prize_won || '',
     'Receipt / Reference': row.receipt_number || '',
     Notes: row.payment_notes || row.void_reason || '',
+  };
+}
+
+function raffleGroupExportRow(row: RaffleSaleGroupReportRow) {
+  return {
+    Type: 'Raffle Sale',
+    Buyer: row.purchaser_name || 'Unknown buyer',
+    Email: row.purchaser_email || '',
+    Phone: row.purchaser_phone || '',
+    Tickets: row.ticket_count,
+    'Ticket Range': row.ticket_range,
+    'Ticket Numbers': row.ticket_numbers.join(', '),
+    Bundle: row.bundle_label,
+    'Payment Status': row.payment_status,
+    'Payment Method': row.payment_method_label || row.payment_method || '',
+    Amount: formatCents(row.amount_cents),
+    'Average Per Ticket': formatCents(row.average_ticket_cents),
+    'Purchased At': formatReportDateTime(row.purchased_at),
+    'Sold By': row.sold_by_name || '',
+    'Linked Registrations': row.linked_registration_names.join(', '),
+    'Receipt / Reference': row.receipt_number || '',
+    Notes: row.payment_notes || '',
+    Source: row.source === 'recorded_batch' ? 'Recorded sale' : 'Inferred from tickets',
   };
 }
 
@@ -729,11 +760,21 @@ interface PaymentsTabProps {
 }
 
 function PaymentsTab({ paid, unpaid, report, stats, timingFilter, channelFilter, onTimingChange, onChannelChange }: PaymentsTabProps) {
+  const [activePaymentSection, setActivePaymentSection] = useState<PaymentReportSection>('registrations');
   const hasFilter = timingFilter !== 'all' || channelFilter !== 'all';
   const paidRaffleSales = report?.raffle_sales.filter((row) => row.payment_status === 'paid' && row.amount_cents > 0) || [];
+  const groupedRaffleSales = report?.raffle_sale_groups || [];
   const includedRaffleTickets = report?.raffle_sales.filter((row) => row.payment_status !== 'voided' && row.complimentary) || [];
   const sponsoredRegistrations = report?.sponsored_registrations.filter((row) => row.registration_status !== 'cancelled') || [];
   const clearedSponsoredRegistrations = sponsoredRegistrations.filter((row) => row.operationally_cleared);
+  const ledgerRows = report?.combined_ledger || [];
+  const paymentSections: Array<{ id: PaymentReportSection; label: string; count: number }> = [
+    { id: 'registrations', label: 'Registration Payments', count: paid.length },
+    { id: 'sponsors', label: 'Sponsored', count: sponsoredRegistrations.length },
+    { id: 'raffle', label: 'Raffle Sales', count: groupedRaffleSales.length },
+    { id: 'included', label: 'Included Tickets', count: includedRaffleTickets.length },
+    { id: 'ledger', label: 'Ledger', count: ledgerRows.length },
+  ];
 
   return (
     <div>
@@ -754,7 +795,27 @@ function PaymentsTab({ paid, unpaid, report, stats, timingFilter, channelFilter,
         </div>
       )}
 
+      <div className="px-4 py-3 border-b border-gray-100 overflow-x-auto">
+        <div className="flex gap-1 min-w-max">
+          {paymentSections.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => setActivePaymentSection(section.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                activePaymentSection === section.id
+                  ? 'bg-brand-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {section.label} ({section.count})
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Filters */}
+      {activePaymentSection === 'registrations' && (
+        <>
       <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
         <select
           value={timingFilter}
@@ -891,23 +952,42 @@ function PaymentsTab({ paid, unpaid, report, stats, timingFilter, channelFilter,
         </table>
         {unpaid.length === 0 && <EmptyState message="All confirmed registrations are paid" />}
       </div>
+        </>
+      )}
 
-      {report && (
+      {report && activePaymentSection === 'sponsors' && (
         <>
           <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-t border-gray-100">
             Sponsored Registrations ({sponsoredRegistrations.length} shown, {clearedSponsoredRegistrations.length} cleared)
           </div>
           <SponsoredRegistrationsTable rows={sponsoredRegistrations} />
+        </>
+      )}
 
+      {report && activePaymentSection === 'raffle' && (
+        <>
           <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-t border-gray-100">
-            Raffle Sales ({paidRaffleSales.length})
+            Raffle Sales ({groupedRaffleSales.length} sales, {paidRaffleSales.length} tickets)
           </div>
-          <ReportRaffleTable rows={paidRaffleSales} emptyMessage="No paid raffle sales recorded" />
+          <RaffleSaleGroupsTable rows={groupedRaffleSales} />
+        </>
+      )}
 
+      {report && activePaymentSection === 'included' && (
+        <>
           <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-t border-gray-100">
             Included / Complimentary Raffle Tickets ({includedRaffleTickets.length})
           </div>
           <ReportRaffleTable rows={includedRaffleTickets} emptyMessage="No included raffle tickets recorded" />
+        </>
+      )}
+
+      {report && activePaymentSection === 'ledger' && (
+        <>
+          <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-t border-gray-100">
+            Combined Ledger ({ledgerRows.length})
+          </div>
+          <CombinedLedgerTable rows={ledgerRows} />
         </>
       )}
     </div>
@@ -945,6 +1025,58 @@ function SponsoredRegistrationsTable({ rows }: { rows: SponsoredRegistrationRepo
   );
 }
 
+function RaffleSaleGroupsTable({ rows }: { rows: RaffleSaleGroupReportRow[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+            <th className="px-4 py-2.5 font-medium">Buyer</th>
+            <th className="px-4 py-2.5 font-medium">Tickets</th>
+            <th className="px-4 py-2.5 font-medium">Range</th>
+            <th className="px-4 py-2.5 font-medium">Bundle</th>
+            <th className="px-4 py-2.5 font-medium">Method</th>
+            <th className="px-4 py-2.5 font-medium">Purchased</th>
+            <th className="px-4 py-2.5 font-medium">Sold By</th>
+            <th className="px-4 py-2.5 font-medium text-right">Paid</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-50">
+          {rows.map((row) => (
+            <tr key={row.id} className="hover:bg-gray-50/50 align-top">
+              <td className="px-4 py-2.5 font-medium text-gray-900">
+                {row.purchaser_name || 'Unknown buyer'}
+                <span className="block text-[11px] font-normal text-gray-400">
+                  {row.purchaser_email || '-'}{row.purchaser_phone ? ` · ${row.purchaser_phone}` : ''}
+                </span>
+                {row.linked_registration_names.length > 0 && (
+                  <span className="block text-[11px] font-normal text-brand-600">
+                    Registration: {row.linked_registration_names.join(', ')}
+                  </span>
+                )}
+              </td>
+              <td className="px-4 py-2.5 font-semibold text-gray-900">{row.ticket_count}</td>
+              <td className="px-4 py-2.5 font-mono text-xs text-gray-900">
+                {row.ticket_range}
+                <span className="block text-[11px] font-sans text-gray-400">{row.ticket_numbers.length} ticket numbers</span>
+              </td>
+              <td className="px-4 py-2.5 text-gray-500">
+                {row.bundle_label}
+                <span className="block text-[11px] text-gray-400">{formatCents(row.average_ticket_cents)}/ticket avg</span>
+              </td>
+              <td className="px-4 py-2.5 text-gray-500">{row.payment_method_label || row.payment_method || '-'}</td>
+              <td className="px-4 py-2.5 text-gray-500">{formatReportDateTime(row.purchased_at) || '-'}</td>
+              <td className="px-4 py-2.5 text-gray-500">{row.sold_by_name || '-'}</td>
+              <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{formatCents(row.amount_cents)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length === 0 && <EmptyState message="No paid raffle sales recorded" />}
+    </div>
+  );
+}
+
 function ReportRaffleTable({ rows, emptyMessage }: { rows: RaffleSaleReportRow[]; emptyMessage: string }) {
   return (
     <div className="overflow-x-auto">
@@ -964,7 +1096,7 @@ function ReportRaffleTable({ rows, emptyMessage }: { rows: RaffleSaleReportRow[]
             <tr key={row.id} className="hover:bg-gray-50/50">
               <td className="px-4 py-2.5 font-mono text-xs font-semibold text-gray-900">{row.ticket_number}</td>
               <td className="px-4 py-2.5 font-medium text-gray-900">
-                {row.purchaser_name}
+                {row.purchaser_name || 'Unknown buyer'}
                 {row.golfer_name && <span className="block text-[11px] font-normal text-gray-400">Registration: {row.golfer_name}</span>}
               </td>
               <td className="px-4 py-2.5 text-gray-500">
@@ -981,6 +1113,46 @@ function ReportRaffleTable({ rows, emptyMessage }: { rows: RaffleSaleReportRow[]
       {rows.length === 0 && <EmptyState message={emptyMessage} />}
     </div>
   );
+}
+
+function CombinedLedgerTable({ rows }: { rows: CombinedLedgerReportRow[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+            <th className="px-4 py-2.5 font-medium">Type</th>
+            <th className="px-4 py-2.5 font-medium">Name</th>
+            <th className="px-4 py-2.5 font-medium">Detail</th>
+            <th className="px-4 py-2.5 font-medium">Method</th>
+            <th className="px-4 py-2.5 font-medium">Date</th>
+            <th className="px-4 py-2.5 font-medium text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-50">
+          {rows.map((row, idx) => (
+            <tr key={idx} className="hover:bg-gray-50/50">
+              <td className="px-4 py-2.5 text-gray-500">{ledgerTypeLabel(row.type)}</td>
+              <td className="px-4 py-2.5 font-medium text-gray-900">{row.name}</td>
+              <td className="px-4 py-2.5 text-gray-500">{row.detail}</td>
+              <td className="px-4 py-2.5 text-gray-500">{row.payment_method || '-'}</td>
+              <td className="px-4 py-2.5 text-gray-500">{formatReportDate(row.paid_at) || '-'}</td>
+              <td className={`px-4 py-2.5 text-right font-semibold ${row.amount_cents < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                {formatCents(row.amount_cents)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length === 0 && <EmptyState message="No ledger rows recorded" />}
+    </div>
+  );
+}
+
+function ledgerTypeLabel(type: CombinedLedgerReportRow['type']) {
+  if (type === 'registration_refund') return 'Registration Refund';
+  if (type === 'registration') return 'Registration';
+  return 'Raffle';
 }
 
 function GroupsTab({

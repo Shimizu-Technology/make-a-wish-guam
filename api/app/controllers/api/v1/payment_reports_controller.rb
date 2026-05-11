@@ -8,7 +8,9 @@ module Api
 
       def show
         golfers = @tournament.golfers.includes(:sponsor, :payment_verified_by).order(:created_at)
-        raffle_tickets = @tournament.raffle_tickets.includes(:golfer, :sold_by_user, :raffle_prize).order(:sequence_number, :created_at)
+        raffle_tickets = @tournament.raffle_tickets
+          .includes(:golfer, :sold_by_user, :raffle_prize, :raffle_sale_batch)
+          .order(:sequence_number, :created_at)
 
         registration_payments = golfers.reject { |golfer| golfer.payment_type == "sponsor" }.map { |golfer| registration_payment_row(golfer) }
         sponsored_registrations = golfers.select { |golfer| golfer.payment_type == "sponsor" }.map { |golfer| sponsored_registration_row(golfer) }
@@ -24,6 +26,7 @@ module Api
           summary: report_summary(registration_payments, sponsored_registrations, raffle_sales),
           registration_payments: registration_payments,
           sponsored_registrations: sponsored_registrations,
+          raffle_sale_groups: raffle_sale_groups(raffle_sales),
           raffle_sales: raffle_sales,
           combined_ledger: combined_ledger(registration_payments, raffle_sales)
         }
@@ -95,6 +98,7 @@ module Api
           purchaser_phone: ticket.purchaser_phone,
           golfer_id: ticket.golfer_id,
           golfer_name: ticket.golfer&.name,
+          raffle_sale_batch_id: ticket.raffle_sale_batch_id,
           payment_status: ticket.payment_status,
           payment_method: ticket.payment_method,
           payment_method_label: payment_method_label(ticket.payment_method),
@@ -111,6 +115,115 @@ module Api
           voided_at: ticket.voided_at&.iso8601,
           void_reason: ticket.void_reason
         }
+      end
+
+      def raffle_sale_groups(raffle_sales)
+        rows = raffle_sales
+          .select { |row| row[:payment_status] == "paid" && row[:amount_cents].positive? }
+          .sort_by { |row| [ row[:purchased_at].presence || row[:created_at].presence || "", ticket_sequence(row[:ticket_number]) ] }
+
+        groups = []
+        current_rows = []
+        current_key = nil
+        current_time = nil
+
+        rows.each do |row|
+          row_time = report_time(row[:purchased_at] || row[:created_at])
+          key = row[:raffle_sale_batch_id].presence || inferred_sale_key(row)
+
+          if current_rows.any? && (key != current_key || inferred_sale_gap?(current_key, row_time, current_time))
+            groups << raffle_sale_group_row(current_rows)
+            current_rows = []
+          end
+
+          current_rows << row
+          current_key = key
+          current_time = row_time if row_time.present?
+        end
+
+        groups << raffle_sale_group_row(current_rows) if current_rows.any?
+        groups
+      end
+
+      def inferred_sale_key(row)
+        [
+          "inferred",
+          row[:purchaser_name].to_s.downcase.strip,
+          row[:purchaser_email].to_s.downcase.strip,
+          row[:purchaser_phone].to_s.gsub(/\D/, ""),
+          row[:payment_method].to_s,
+          row[:sold_by_name].to_s.downcase.strip,
+          row[:receipt_number].to_s
+        ].join("|")
+      end
+
+      def inferred_sale_gap?(key, row_time, previous_time)
+        return false if key.to_s !~ /\Ainferred\|/
+        return false if row_time.blank? || previous_time.blank?
+
+        (row_time - previous_time).abs > 2.minutes
+      end
+
+      def raffle_sale_group_row(rows)
+        sorted_rows = rows.sort_by { |row| ticket_sequence(row[:ticket_number]) }
+        first_row = sorted_rows.first
+        ticket_numbers = sorted_rows.map { |row| row[:ticket_number] }
+        linked_names = sorted_rows.filter_map { |row| row[:golfer_name] }.uniq
+        amount_cents = sorted_rows.sum { |row| row[:amount_cents].to_i }
+
+        {
+          id: first_row[:raffle_sale_batch_id].presence || "inferred-#{first_row[:id]}",
+          type: "raffle_sale_group",
+          source: first_row[:raffle_sale_batch_id].present? ? "recorded_batch" : "inferred",
+          purchaser_name: first_row[:purchaser_name],
+          purchaser_email: first_row[:purchaser_email],
+          purchaser_phone: first_row[:purchaser_phone],
+          linked_registration_names: linked_names,
+          payment_status: first_row[:payment_status],
+          payment_method: first_row[:payment_method],
+          payment_method_label: first_row[:payment_method_label],
+          ticket_count: sorted_rows.count,
+          ticket_numbers: ticket_numbers,
+          ticket_range: ticket_range(ticket_numbers),
+          amount_cents: amount_cents,
+          bundle_label: raffle_bundle_label(sorted_rows.count, amount_cents),
+          average_ticket_cents: sorted_rows.any? ? (amount_cents.to_f / sorted_rows.count).round(2) : 0,
+          purchased_at: first_present(sorted_rows, :purchased_at) || first_present(sorted_rows, :created_at),
+          sold_by_name: first_row[:sold_by_name],
+          receipt_number: first_row[:receipt_number],
+          payment_notes: first_present(sorted_rows, :payment_notes)
+        }
+      end
+
+      def raffle_bundle_label(ticket_count, amount_cents)
+        case [ ticket_count, amount_cents ]
+        when [ 1, 500 ] then "1 ticket"
+        when [ 4, 2000 ] then "$20 bundle"
+        when [ 12, 5000 ] then "$50 bundle"
+        when [ 25, 10_000 ] then "$100 bundle"
+        else "#{ticket_count} #{'ticket'.pluralize(ticket_count)} for $#{format('%.2f', amount_cents / 100.0)}"
+        end
+      end
+
+      def ticket_range(ticket_numbers)
+        return "" if ticket_numbers.blank?
+        return ticket_numbers.first if ticket_numbers.one?
+
+        "#{ticket_numbers.first} to #{ticket_numbers.last}"
+      end
+
+      def ticket_sequence(ticket_number)
+        ticket_number.to_s[/\d+\z/].to_i
+      end
+
+      def report_time(value)
+        return if value.blank?
+
+        Time.zone.parse(value.to_s)
+      end
+
+      def first_present(rows, key)
+        rows.map { |row| row[key] }.find(&:present?)
       end
 
       def report_summary(registration_payments, sponsored_registrations, raffle_sales)

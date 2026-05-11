@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_11_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_11_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -193,6 +193,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_11_100000) do
     t.index ["tournament_id"], name: "index_raffle_prizes_on_tournament_id"
   end
 
+  create_table "raffle_sale_batches", force: :cascade do |t|
+    t.string "buyer_email"
+    t.string "buyer_name"
+    t.string "buyer_phone"
+    t.datetime "created_at", null: false
+    t.string "payment_method"
+    t.text "payment_notes"
+    t.datetime "purchased_at"
+    t.integer "quantity", default: 0, null: false
+    t.string "receipt_number"
+    t.bigint "sold_by_user_id"
+    t.integer "total_cents", default: 0, null: false
+    t.bigint "tournament_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sold_by_user_id"], name: "index_raffle_sale_batches_on_sold_by_user_id"
+    t.index ["tournament_id", "purchased_at"], name: "index_raffle_sale_batches_on_tournament_id_and_purchased_at"
+    t.index ["tournament_id"], name: "index_raffle_sale_batches_on_tournament_id"
+  end
+
   create_table "raffle_tickets", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "drawn_at"
@@ -207,6 +226,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_11_100000) do
     t.string "purchaser_name"
     t.string "purchaser_phone"
     t.bigint "raffle_prize_id"
+    t.bigint "raffle_sale_batch_id"
     t.string "receipt_number"
     t.integer "sequence_number"
     t.bigint "sold_by_user_id"
@@ -218,6 +238,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_11_100000) do
     t.datetime "voided_at"
     t.index ["golfer_id"], name: "index_raffle_tickets_on_golfer_id"
     t.index ["raffle_prize_id"], name: "index_raffle_tickets_on_raffle_prize_id"
+    t.index ["raffle_sale_batch_id"], name: "index_raffle_tickets_on_raffle_sale_batch_id"
     t.index ["sold_by_user_id"], name: "index_raffle_tickets_on_sold_by_user_id"
     t.index ["ticket_number"], name: "index_raffle_tickets_on_ticket_number", unique: true
     t.index ["tournament_id", "is_winner"], name: "index_raffle_tickets_on_tournament_id_and_is_winner"
@@ -441,8 +462,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_11_100000) do
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "raffle_prizes", "raffle_tickets", column: "winning_ticket_id"
   add_foreign_key "raffle_prizes", "tournaments"
+  add_foreign_key "raffle_sale_batches", "tournaments"
+  add_foreign_key "raffle_sale_batches", "users", column: "sold_by_user_id"
   add_foreign_key "raffle_tickets", "golfers"
   add_foreign_key "raffle_tickets", "raffle_prizes"
+  add_foreign_key "raffle_tickets", "raffle_sale_batches"
   add_foreign_key "raffle_tickets", "tournaments"
   add_foreign_key "scores", "golfers"
   add_foreign_key "scores", "groups"
