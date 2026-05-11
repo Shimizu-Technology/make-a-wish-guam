@@ -116,7 +116,7 @@ export function ReportsPage() {
   );
 
   const paidGolfers = useMemo(() => {
-    let result = confirmedGolfers.filter((g) => g.payment_status === 'paid');
+    let result = confirmedGolfers.filter((g) => g.payment_status === 'paid' && g.payment_type !== 'sponsor');
     if (paymentTimingFilter !== 'all') {
       result = result.filter((g) => g.payment_timing === paymentTimingFilter);
     }

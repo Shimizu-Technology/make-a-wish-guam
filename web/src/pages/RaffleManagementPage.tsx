@@ -159,6 +159,10 @@ const TIER_RANK = TIERS.reduce<Record<string, number>>((acc, tier, index) => {
 type PrizeStatusFilter = '' | 'available' | 'won' | 'claimed';
 type PrizeSort = 'position' | 'tier' | 'name' | 'value_desc' | 'value_asc';
 
+const formatMoney = (cents: number, digits = 0) => `$${(cents / 100).toFixed(digits)}`;
+const bundlePerTicketCents = (bundle: RaffleBundleDef) =>
+  bundle.quantity > 0 ? bundle.price_cents / bundle.quantity : 0;
+
 const DEFAULT_BUNDLES: RaffleBundleDef[] = [
   { quantity: 4,  price_cents: 2000,  label: '$20 for 4 tickets' },
   { quantity: 12, price_cents: 5000,  label: '$50 for 12 tickets' },
@@ -202,6 +206,11 @@ function SellTicketsTab({
   const [customPrice, setCustomPrice] = useState('');
 
   const bundles = tournament.raffle_bundles?.length ? tournament.raffle_bundles : DEFAULT_BUNDLES;
+  const ticketPriceCents = tournament.raffle_ticket_price_cents || 500;
+  const customQtyNumber = parseInt(customQty) || 0;
+  const customPricePlaceholder = customQtyNumber > 0
+    ? (customQtyNumber * ticketPriceCents / 100).toFixed(2)
+    : (ticketPriceCents / 100).toFixed(2);
   const phoneValue = sellBuyerPhone.trim().replace(/^\+1671$/, '');
   const hasBuyerName = sellBuyerName.trim() !== '';
   const hasContact = sellBuyerEmail.trim() !== '' || phoneValue !== '';
@@ -308,8 +317,9 @@ function SellTicketsTab({
               <span className="text-3xl font-bold text-brand-600">{bundle.quantity}</span>
               <span className="text-sm text-gray-600">tickets</span>
               <span className="text-lg font-bold text-gray-900">
-                ${(bundle.price_cents / 100).toFixed(0)}
+                {formatMoney(bundle.price_cents)}
               </span>
+              <span className="text-xs text-gray-500">{formatMoney(bundlePerTicketCents(bundle), 2)}/ticket</span>
               {sellLoading && (
                 <Loader2 className="w-4 h-4 animate-spin text-brand-500" />
               )}
@@ -341,7 +351,7 @@ function SellTicketsTab({
               step="0.01"
               value={customPrice}
               onChange={(e) => setCustomPrice(e.target.value)}
-              placeholder="50.00"
+              placeholder={customPricePlaceholder}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>

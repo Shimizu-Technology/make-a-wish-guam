@@ -117,11 +117,13 @@ module Api
         paid_registration_rows = registration_payments.select { |row| row[:payment_status] == "paid" }
         paid_raffle_rows = raffle_sales.select { |row| row[:payment_status] == "paid" && row[:amount_cents].positive? }
         pending_raffle_rows = raffle_sales.select { |row| row[:payment_status] == "pending" && row[:amount_cents].positive? }
+        registration_revenue_cents = paid_registration_rows.sum { |row| row[:amount_cents].to_i }
+        raffle_revenue_cents = paid_raffle_rows.sum { |row| row[:amount_cents].to_i }
 
         {
-          registration_revenue_cents: paid_registration_rows.sum { |row| row[:amount_cents].to_i },
-          raffle_revenue_cents: paid_raffle_rows.sum { |row| row[:amount_cents].to_i },
-          total_revenue_cents: paid_registration_rows.sum { |row| row[:amount_cents].to_i } + paid_raffle_rows.sum { |row| row[:amount_cents].to_i },
+          registration_revenue_cents: registration_revenue_cents,
+          raffle_revenue_cents: raffle_revenue_cents,
+          total_revenue_cents: registration_revenue_cents + raffle_revenue_cents,
           registration_paid_count: paid_registration_rows.count,
           registration_pending_count: registration_payments.count { |row| %w[pending unpaid].include?(row[:payment_status]) && row[:registration_status] != "cancelled" },
           sponsored_registration_count: sponsored_registrations.count { |row| row[:registration_status] == "confirmed" },

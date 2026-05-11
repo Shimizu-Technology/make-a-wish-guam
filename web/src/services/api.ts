@@ -852,10 +852,10 @@ export class ApiClient {
     return this.request(`/api/v1/golfers${query ? `?${query}` : ''}`);
   }
 
-  async getPaymentReport(tournamentId?: number): Promise<PaymentReport> {
+  async getPaymentReport(tournamentId?: number): Promise<PaymentReport | null> {
     const id = tournamentId || this.currentTournamentId;
     if (!id) {
-      throw new Error('Tournament ID is required for payment report');
+      return null;
     }
     return this.request(`/api/v1/tournaments/${id}/payment_report`);
   }
