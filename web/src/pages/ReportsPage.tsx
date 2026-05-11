@@ -226,13 +226,16 @@ export function ReportsPage() {
       }
       case 'payments': {
         if (paymentReport) {
+          const sponsoredRows = paymentReport.sponsored_registrations.filter((row) => row.registration_status !== 'cancelled');
           const summaryData = [
-            { Metric: 'Registration Revenue', Value: formatCents(paymentReport.summary.registration_revenue_cents) },
+            { Metric: 'Net Registration Revenue', Value: formatCents(paymentReport.summary.registration_revenue_cents) },
             { Metric: 'Raffle Revenue', Value: formatCents(paymentReport.summary.raffle_revenue_cents) },
-            { Metric: 'Total Revenue', Value: formatCents(paymentReport.summary.total_revenue_cents) },
+            { Metric: 'Net Total Collected', Value: formatCents(paymentReport.summary.total_revenue_cents) },
+            { Metric: 'Refunded Registration Amount', Value: formatCents(paymentReport.summary.refunded_registration_amount_cents) },
             { Metric: 'Paid Registrations', Value: paymentReport.summary.registration_paid_count },
             { Metric: 'Pending Registrations', Value: paymentReport.summary.registration_pending_count },
-            { Metric: 'Sponsored Registrations', Value: paymentReport.summary.sponsored_registration_count },
+            { Metric: 'Sponsored Registrations (Cleared)', Value: paymentReport.summary.sponsored_registration_count },
+            { Metric: 'Sponsored Registration Rows', Value: sponsoredRows.length },
             { Metric: 'Paid Raffle Tickets', Value: paymentReport.summary.raffle_paid_ticket_count },
             { Metric: 'Purchased Raffle Tickets', Value: paymentReport.summary.raffle_purchased_ticket_count },
             { Metric: 'Included Raffle Tickets', Value: paymentReport.summary.raffle_complimentary_ticket_count },
@@ -247,7 +250,7 @@ export function ReportsPage() {
           );
           XLSX.utils.book_append_sheet(
             wb,
-            XLSX.utils.json_to_sheet(paymentReport.sponsored_registrations.map(sponsorExportRow)),
+            XLSX.utils.json_to_sheet(sponsoredRows.map(sponsorExportRow)),
             'Sponsored Registrations'
           );
           XLSX.utils.book_append_sheet(
@@ -730,6 +733,7 @@ function PaymentsTab({ paid, unpaid, report, stats, timingFilter, channelFilter,
   const paidRaffleSales = report?.raffle_sales.filter((row) => row.payment_status === 'paid' && row.amount_cents > 0) || [];
   const includedRaffleTickets = report?.raffle_sales.filter((row) => row.payment_status !== 'voided' && row.complimentary) || [];
   const sponsoredRegistrations = report?.sponsored_registrations.filter((row) => row.registration_status !== 'cancelled') || [];
+  const clearedSponsoredRegistrations = sponsoredRegistrations.filter((row) => row.operationally_cleared);
 
   return (
     <div>
@@ -743,7 +747,7 @@ function PaymentsTab({ paid, unpaid, report, stats, timingFilter, channelFilter,
 
       {report && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-4 border-b border-gray-100 bg-gray-50/60">
-          <MiniCard label="Sponsored" value={`${report.summary.sponsored_registration_count}`} sub="financially cleared" color="blue" />
+          <MiniCard label="Sponsored Cleared" value={`${clearedSponsoredRegistrations.length}`} sub={`${sponsoredRegistrations.length} sponsored rows`} color="blue" />
           <MiniCard label="Included Tickets" value={`${report.summary.raffle_complimentary_ticket_count}`} sub="no added revenue" color="green" />
           <MiniCard label="Voided Tickets" value={`${report.summary.raffle_voided_ticket_count}`} sub="excluded" color="red" />
           <MiniCard label="Winners" value={`${report.summary.raffle_winner_count}`} sub="drawn tickets" color="amber" />
@@ -891,7 +895,7 @@ function PaymentsTab({ paid, unpaid, report, stats, timingFilter, channelFilter,
       {report && (
         <>
           <div className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-t border-gray-100">
-            Sponsored Registrations ({sponsoredRegistrations.length})
+            Sponsored Registrations ({sponsoredRegistrations.length} shown, {clearedSponsoredRegistrations.length} cleared)
           </div>
           <SponsoredRegistrationsTable rows={sponsoredRegistrations} />
 
