@@ -11,6 +11,7 @@ class RaffleTicket < ApplicationRecord
   validates :ticket_number, presence: true, uniqueness: true
   validates :payment_status, inclusion: { in: PAYMENT_STATUSES }
   validates :purchaser_name, presence: true
+  validates :payment_method, inclusion: { in: %w[swipe_simple swipesimple cash check card credit comp stripe], allow_blank: true }
 
   before_validation :generate_ticket_number, on: :create
 
@@ -32,11 +33,14 @@ class RaffleTicket < ApplicationRecord
     (price_cents || 0) / 100.0
   end
 
-  def mark_paid!(stripe_payment_intent_id = nil)
+  def mark_paid!(stripe_payment_intent_id = nil, method: nil, receipt_number: nil, notes: nil)
     update!(
       payment_status: 'paid',
       purchased_at: Time.current,
-      stripe_payment_intent_id: stripe_payment_intent_id
+      stripe_payment_intent_id: stripe_payment_intent_id,
+      payment_method: method.presence || payment_method,
+      receipt_number: receipt_number.presence || self.receipt_number,
+      payment_notes: notes.presence || payment_notes
     )
   end
 

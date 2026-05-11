@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_09_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_11_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -198,6 +198,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_09_090000) do
     t.datetime "drawn_at"
     t.bigint "golfer_id"
     t.boolean "is_winner", default: false
+    t.string "payment_method"
+    t.text "payment_notes"
     t.string "payment_status", default: "pending"
     t.integer "price_cents", default: 0
     t.datetime "purchased_at"
@@ -205,6 +207,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_09_090000) do
     t.string "purchaser_name"
     t.string "purchaser_phone"
     t.bigint "raffle_prize_id"
+    t.string "receipt_number"
     t.integer "sequence_number"
     t.bigint "sold_by_user_id"
     t.string "stripe_payment_intent_id"
@@ -347,9 +350,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_09_090000) do
     t.integer "employee_entry_fee", default: 5000
     t.integer "entry_fee", default: 12500
     t.string "entry_fee_display", default: "$300/team"
-    t.string "event_type", default: "golf_tournament", null: false
     t.string "event_date"
     t.text "event_schedule"
+    t.string "event_type", default: "golf_tournament", null: false
     t.string "fee_includes"
     t.jsonb "flights_config", default: {}
     t.string "format_name"
