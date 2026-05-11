@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   ClipboardList,
   DollarSign,
@@ -39,7 +40,17 @@ const formatCents = (cents?: number | null) => `$${((cents || 0) / 100).toLocale
 const formatReportDate = (value?: string | null) => (value ? formatShortDate(value) : '');
 
 export function ReportsPage() {
-  const { activeTournament } = useTournament();
+  const { tournamentSlug } = useParams<{ tournamentSlug: string }>();
+  const {
+    activeTournament: contextActiveTournament,
+    tournaments,
+    isLoading: tournamentsLoading,
+  } = useTournament();
+  const activeTournament = useMemo(() => {
+    if (!tournamentSlug) return contextActiveTournament;
+
+    return tournaments.find((tournament) => tournament.slug === tournamentSlug) ?? null;
+  }, [contextActiveTournament, tournamentSlug, tournaments]);
 
   const [golfers, setGolfers] = useState<Golfer[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -54,9 +65,19 @@ export function ReportsPage() {
   const [sortAscending, setSortAscending] = useState(true);
 
   const fetchData = useCallback(async () => {
+    if (tournamentSlug && tournamentsLoading) return;
+
     setLoading(true);
+    setPaymentReport(null);
     try {
       const tournamentId = activeTournament?.id;
+      if (tournamentSlug && !tournamentId) {
+        setGolfers([]);
+        setGroups([]);
+        setStats(null);
+        return;
+      }
+
       const [golfersRes, groupsData, statsData, paymentReportData] = await Promise.all([
         api.getGolfers({ per_page: 1000, ...(tournamentId ? { tournament_id: tournamentId } : {}) }),
         api.getGroups(tournamentId),
@@ -72,7 +93,7 @@ export function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTournament?.id]);
+  }, [activeTournament?.id, tournamentSlug, tournamentsLoading]);
 
   useEffect(() => {
     fetchData();
@@ -714,9 +735,9 @@ function PaymentsTab({ paid, unpaid, report, stats, timingFilter, channelFilter,
     <div>
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-4 border-b border-gray-100">
-        <MiniCard label="Registration Revenue" value={formatCents(report?.summary.registration_revenue_cents || Math.round(stats.totalAmount * 100))} sub={`${report?.summary.registration_paid_count ?? stats.totalPaid} paid`} color="green" />
-        <MiniCard label="Raffle Revenue" value={formatCents(report?.summary.raffle_revenue_cents || 0)} sub={`${report?.summary.raffle_purchased_ticket_count || 0} paid tickets`} color="blue" />
-        <MiniCard label="Total Collected" value={formatCents(report?.summary.total_revenue_cents || Math.round(stats.totalAmount * 100))} sub="registrations + raffle" color="amber" />
+        <MiniCard label="Registration Revenue" value={report ? formatCents(report.summary.registration_revenue_cents) : formatCents(Math.round(stats.totalAmount * 100))} sub={`${report?.summary.registration_paid_count ?? stats.totalPaid} paid`} color="green" />
+        <MiniCard label="Raffle Revenue" value={report ? formatCents(report.summary.raffle_revenue_cents) : 'Loading'} sub={report ? `${report.summary.raffle_purchased_ticket_count} paid tickets` : 'payment report'} color="blue" />
+        <MiniCard label="Total Collected" value={report ? formatCents(report.summary.total_revenue_cents) : formatCents(Math.round(stats.totalAmount * 100))} sub="registrations + raffle" color="amber" />
         <MiniCard label="Outstanding" value={`${report?.summary.registration_pending_count ?? stats.unpaid}`} sub="pending registrations" color="red" />
       </div>
 
