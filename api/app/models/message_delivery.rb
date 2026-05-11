@@ -44,13 +44,27 @@ class MessageDelivery < ApplicationRecord
 
   def apply_provider_event!(status:, provider_status_code: nil, provider_status_text: nil, error_code: nil, error_text: nil, payload: {})
     normalized_status = self.class.normalize_status(status)
+    event_payload = {
+      "status" => normalized_status,
+      "provider_status_code" => provider_status_code,
+      "provider_status_text" => provider_status_text,
+      "error_code" => error_code,
+      "error_text" => error_text,
+      "payload" => payload,
+      "received_at" => Time.current.iso8601
+    }.compact
+    events = Array(response_payload["events"])
+
     update!(
       status: normalized_status,
       provider_status_code: provider_status_code.presence || self.provider_status_code,
       provider_status_text: provider_status_text.presence || self.provider_status_text,
       error_code: error_code.presence || self.error_code,
       error_text: error_text.presence || self.error_text,
-      response_payload: response_payload.merge("latest_event" => payload),
+      response_payload: response_payload.merge(
+        "latest_event" => payload,
+        "events" => events + [ event_payload ]
+      ),
       last_event_at: Time.current,
       delivered_at: normalized_status == "delivered" ? Time.current : delivered_at,
       failed_at: failed_status?(normalized_status) ? Time.current : failed_at
@@ -59,24 +73,20 @@ class MessageDelivery < ApplicationRecord
 
   def self.normalize_status(status)
     value = status.to_s.downcase
-    return "delivered" if value.match?(/delivered|received on handset/)
-    return "accepted" if value.match?(/queued|sent|accepted|scheduled|success/)
     return "accepted" if value.match?(/\A20\d\z/)
-    return "delayed" if value.match?(/delay|defer/)
-    return "complained" if value.match?(/complain|spam/)
 
-    case value
-    when "sent", "queued", "success", "accepted", "scheduled"
-      "accepted"
-    when "delivered", "message delivered to the handset"
+    case
+    when value.match?(/delivered|received on handset/)
       "delivered"
-    when "bounce", "bounced", "hard_bounce", "soft_bounce"
+    when value.match?(/queued|sent|accepted|scheduled|success/)
+      "accepted"
+    when value.match?(/\Abounce\z|\Abounced\z|hard_bounce|soft_bounce/)
       "bounced"
-    when "deferred", "delayed", "delivery_delayed"
+    when value.match?(/delay|defer/)
       "delayed"
-    when "complaint", "complained", "spam"
+    when value.match?(/complain|spam/)
       "complained"
-    when "skipped"
+    when value == "skipped"
       "skipped"
     else
       failure_status_text?(value) ? "failed" : (STATUSES.include?(value) ? value : "failed")

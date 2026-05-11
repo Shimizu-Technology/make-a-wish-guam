@@ -14,6 +14,12 @@ class MessageDeliveryTracker
         metadata: metadata || {},
         status: "pending"
       )
+    rescue => e
+      Rails.logger.error(
+        "[MessageDeliveryTracker] failed to create delivery record " \
+        "provider=#{provider} channel=#{channel} purpose=#{purpose} recipient=#{recipient}: #{e.message}"
+      )
+      nil
     end
 
     def track_result!(delivery, result)
