@@ -8,6 +8,18 @@ class UserInviteEmailService
       return false unless configured?
 
       role_label = role == 'volunteer' ? 'volunteer' : 'admin'
+      delivery = MessageDeliveryTracker.create!(
+        provider: "resend",
+        channel: "email",
+        purpose: "admin_invite",
+        recipient: user.email,
+        request_payload: {
+          from: from_email,
+          to: user.email,
+          subject: "You're invited to the Make-A-Wish Guam #{role_label == 'volunteer' ? 'team' : 'admin'}"
+        },
+        metadata: { invited_by_user_id: invited_by&.id, role: role_label }
+      )
       response = Resend::Emails.send(
         {
           from: from_email,
@@ -18,10 +30,16 @@ class UserInviteEmailService
       )
 
       Rails.logger.info("[InviteEmail] sent invite to #{user.email} response=#{response.inspect}")
-      true
+      parsed = response.respond_to?(:parsed_response) ? response.parsed_response : response
+      message_id = parsed.is_a?(Hash) ? (parsed["id"] || parsed[:id]) : nil
+      MessageDeliveryTracker.track_result!(delivery, { success: true, status: "accepted", message_id: message_id, data: parsed })
     rescue StandardError => e
       Rails.logger.error("[InviteEmail] failed for #{user.email}: #{e.class} #{e.message}")
-      false
+      if defined?(delivery) && delivery.present?
+        MessageDeliveryTracker.track_result!(delivery, { success: false, status: "failed", error: e.message })
+      else
+        false
+      end
     end
 
     def configured?

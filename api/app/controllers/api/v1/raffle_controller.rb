@@ -201,7 +201,13 @@ module Api
           ActivityLog.log(
             admin: current_user, action: 'raffle_prize_drawn', target: prize,
             details: "Drew winner #{prize.winner_name} (ticket #{prize.winning_ticket&.display_number}) for #{prize.name}",
-            metadata: { winner_name: prize.winner_name, ticket_number: prize.winning_ticket&.ticket_number },
+            metadata: {
+              winner_name: prize.winner_name,
+              ticket_number: prize.winning_ticket&.ticket_number,
+              draw_id: prize.draw_id,
+              eligible_ticket_count: prize.draw_eligible_ticket_count,
+              notification_delivery: delivery_summary_for(prize)
+            },
             tournament: @tournament
           )
           render json: {
@@ -855,7 +861,10 @@ module Api
         {
           success: normalized[:success] == true,
           skipped: false,
+          status: normalized[:status],
           message_id: normalized[:message_id],
+          provider_status_code: normalized[:provider_status_code],
+          provider_status_text: normalized[:provider_status_text],
           data: normalized[:data],
           error: normalized[:error]
         }.compact
@@ -1034,9 +1043,31 @@ module Api
             won_at: prize.won_at&.iso8601,
             ticket_number: prize.winning_ticket&.display_number
           }
+          response[:draw_audit] = {
+            draw_id: prize.draw_id,
+            eligible_ticket_count: prize.draw_eligible_ticket_count,
+            preview_ticket_sample_count: Array(prize.draw_preview_ticket_numbers).length,
+            preview_ticket_sample_is_sample: Array(prize.draw_preview_ticket_numbers).length < prize.draw_eligible_ticket_count.to_i
+          }
         end
 
         response
+      end
+
+      def delivery_summary_for(prize)
+        prize.message_deliveries.recent.limit(5).map do |delivery|
+          {
+            id: delivery.id,
+            channel: delivery.channel,
+            provider: delivery.provider,
+            purpose: delivery.purpose,
+            status: delivery.status,
+            recipient: delivery.recipient,
+            message_id: delivery.provider_message_id,
+            error: delivery.error_text,
+            created_at: delivery.created_at&.iso8601
+          }
+        end
       end
 
       def ticket_response(ticket, admin: false)

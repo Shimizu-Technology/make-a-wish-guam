@@ -60,17 +60,16 @@ class ClicksendClient
 
       if response.code.to_i == 200
         json = JSON.parse(response.body) rescue {}
-        if json["response_code"] == "SUCCESS"
-          message_id = json.dig("data", "messages", 0, "message_id") rescue "unknown"
-          Rails.logger.info("[ClicksendClient] Sent SMS to #{mask_phone(formatted_to)} — ID: #{message_id}")
-          { success: true, message_id: message_id }
+        result = normalize_send_response(json)
+        if result[:success]
+          Rails.logger.info("[ClicksendClient] Accepted SMS to #{mask_phone(formatted_to)} — ID: #{result[:message_id]}")
         else
-          Rails.logger.error("[ClicksendClient] API error: #{json['response_code']} — #{json['response_msg']}")
-          { success: false, error: json["response_code"] }
+          Rails.logger.error("[ClicksendClient] Message failed for #{mask_phone(formatted_to)} — #{result[:error]}")
         end
+        result
       else
         Rails.logger.error("[ClicksendClient] HTTP #{response.code}: #{response.body}")
-        { success: false, error: "http_#{response.code}" }
+        { success: false, status: "failed", error: "http_#{response.code}", raw_response: response.body }
       end
     end
 
@@ -79,10 +78,31 @@ class ClicksendClient
     end
 
     def normalize_phone(phone)
-      digits = phone.to_s.gsub(/\D/, '')
+      digits = phone.to_s.gsub(/\D/, "")
       digits = "1#{digits}" if digits.match?(/\A\d{10}\z/)
       digits = "+#{digits}" unless digits.start_with?("+")
       digits
+    end
+
+    def normalize_send_response(json)
+      top_code = json["response_code"].to_s
+      top_message = json["response_msg"].to_s
+      message = Array(json.dig("data", "messages")).first || {}
+      status_code = message["status_code"].presence || message["status"].presence
+      status_text = message["status_text"].presence || message["response_msg"].presence || top_message
+      message_id = message["message_id"].presence
+      failure_text = [ top_code, top_message, status_code, status_text ].join(" ")
+      success = top_code == "SUCCESS" && !MessageDelivery.failure_status_text?(failure_text)
+
+      {
+        success: success,
+        status: success ? "accepted" : "failed",
+        message_id: message_id,
+        provider_status_code: status_code,
+        provider_status_text: status_text,
+        error: success ? nil : (status_text.presence || top_message.presence || top_code.presence || "ClickSend message failed"),
+        data: json
+      }.compact
     end
 
     def mask_phone(phone)

@@ -6,6 +6,7 @@ class RaffleTicket < ApplicationRecord
   belongs_to :raffle_prize, optional: true
   belongs_to :sold_by_user, class_name: 'User', optional: true
   belongs_to :raffle_sale_batch, optional: true
+  has_many :message_deliveries, as: :messageable, dependent: :nullify
 
   PAYMENT_STATUSES = %w[pending paid refunded voided].freeze
 

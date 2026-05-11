@@ -80,6 +80,8 @@ interface LiveDrawState {
   prizeId: number;
   prizeName: string;
   eligibleTicketCount: number;
+  previewTicketSampleCount: number;
+  previewTicketSampleIsSample: boolean;
   previewTicketNumbers: string[];
   winnerName?: string;
   winnerTicketNumber?: string;
@@ -229,6 +231,8 @@ export const RaffleBoardPage: React.FC = () => {
           draw_id?: string;
           eligible_ticket_count?: number;
           preview_ticket_numbers?: string[];
+          preview_ticket_sample_count?: number;
+          preview_ticket_sample_is_sample?: boolean;
           started_at?: string;
           prize?: {
             id: number;
@@ -247,6 +251,8 @@ export const RaffleBoardPage: React.FC = () => {
               prizeId: event.prize.id,
               prizeName: event.prize.name,
               eligibleTicketCount: event.eligible_ticket_count || 0,
+              previewTicketSampleCount: event.preview_ticket_sample_count || event.preview_ticket_numbers?.length || 0,
+              previewTicketSampleIsSample: event.preview_ticket_sample_is_sample === true,
               previewTicketNumbers: event.preview_ticket_numbers || [],
               startedAt: Date.now(),
             });
@@ -262,6 +268,8 @@ export const RaffleBoardPage: React.FC = () => {
             const drawId = event.draw_id;
             const prize = event.prize;
             const eligibleTicketCount = event.eligible_ticket_count || 0;
+            const previewTicketSampleCount = event.preview_ticket_sample_count || 0;
+            const previewTicketSampleIsSample = event.preview_ticket_sample_is_sample === true;
             if (drawSafetyTimeoutRef.current) {
               window.clearTimeout(drawSafetyTimeoutRef.current);
               drawSafetyTimeoutRef.current = null;
@@ -292,6 +300,8 @@ export const RaffleBoardPage: React.FC = () => {
                 prizeId: prize.id,
                 prizeName: prize.name,
                 eligibleTicketCount,
+                previewTicketSampleCount,
+                previewTicketSampleIsSample,
                 previewTicketNumbers: [],
                 startedAt,
               };
@@ -502,6 +512,11 @@ export const RaffleBoardPage: React.FC = () => {
               <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl">{liveDraw.prizeName}</h2>
               <p className="mt-2 text-sm text-white/75">
                 Drawing from {liveDraw.eligibleTicketCount.toLocaleString()} ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'} in this draw.
+                {liveDraw.previewTicketSampleIsSample && (
+                  <span className="block">
+                    The animation is rotating through {liveDraw.previewTicketSampleCount.toLocaleString()} sample ticket numbers while the server draws from the full eligible pool.
+                  </span>
+                )}
               </p>
             </div>
 

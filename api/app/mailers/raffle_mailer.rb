@@ -36,7 +36,11 @@ class RaffleMailer
     send_email(
       to: @prize.winner_email,
       subject: "#{@tournament.name} — Congratulations, You Won: #{@prize.name}!",
-      html: render_template('raffle_mailer/winner_email')
+      html: render_template('raffle_mailer/winner_email'),
+      purpose: "raffle_winner_notification",
+      tournament: @tournament,
+      messageable: @prize,
+      metadata: { prize_id: @prize.id, winner_name: @prize.winner_name }
     )
   end
 
@@ -52,7 +56,11 @@ class RaffleMailer
     send_email(
       to: @prize.winner_email,
       subject: "Reminder: Claim Your Prize - #{@prize.name}",
-      html: render_template('raffle_mailer/claim_reminder_email')
+      html: render_template('raffle_mailer/claim_reminder_email'),
+      purpose: "raffle_claim_reminder",
+      tournament: @tournament,
+      messageable: @prize,
+      metadata: { prize_id: @prize.id, winner_name: @prize.winner_name }
     )
   end
 
@@ -69,7 +77,11 @@ class RaffleMailer
     send_email(
       to: @golfer.email,
       subject: "Raffle Ticket Confirmed: #{@ticket.ticket_number}",
-      html: render_template('raffle_mailer/ticket_confirmation_email')
+      html: render_template('raffle_mailer/ticket_confirmation_email'),
+      purpose: "raffle_ticket_confirmation",
+      tournament: @tournament,
+      messageable: @ticket,
+      metadata: { ticket_id: @ticket.id, ticket_number: @ticket.display_number }
     )
   end
 
@@ -88,7 +100,11 @@ class RaffleMailer
     send_email(
       to: buyer_email,
       subject: "#{@tournament.name} — Your Raffle Tickets (#{tickets.size} ticket#{'s' if tickets.size != 1})",
-      html: render_purchase_confirmation_html
+      html: render_purchase_confirmation_html,
+      purpose: "raffle_ticket_confirmation",
+      tournament: @tournament,
+      messageable: tickets.first,
+      metadata: { ticket_ids: tickets.map(&:id), ticket_numbers: tickets.map(&:display_number), buyer_name: buyer_name }
     )
   end
 
@@ -194,10 +210,20 @@ class RaffleMailer
     HTML
   end
 
-  def send_email(to:, subject:, html:)
+  def send_email(to:, subject:, html:, purpose:, tournament:, messageable:, metadata: {})
     return { success: false, error: 'RESEND_API_KEY not configured' } unless resend_configured?
     
     from_email = ENV.fetch("MAILER_FROM_EMAIL", "noreply@shimizu-technology.com")
+    delivery = MessageDeliveryTracker.create!(
+      provider: "resend",
+      channel: "email",
+      purpose: purpose,
+      recipient: to,
+      tournament: tournament,
+      messageable: messageable,
+      request_payload: { from: from_email, to: to, subject: subject },
+      metadata: metadata
+    )
     
     response = Resend::Emails.send({
       from: from_email,
@@ -211,10 +237,11 @@ class RaffleMailer
     if parsed.is_a?(Hash) && (parsed["statusCode"] || parsed["error"] || parsed[:error])
       error_msg = parsed["message"] || parsed["error"] || parsed[:error] || "Unknown error"
       Rails.logger.error "Raffle email to #{to} failed: #{error_msg}"
-      { success: false, error: error_msg }
+      MessageDeliveryTracker.track_result!(delivery, { success: false, status: "failed", error: error_msg, data: parsed })
     else
+      message_id = parsed.is_a?(Hash) ? (parsed["id"] || parsed[:id]) : nil
       Rails.logger.info "Raffle email sent via Resend to #{to}: #{parsed}"
-      { success: true, data: parsed }
+      MessageDeliveryTracker.track_result!(delivery, { success: true, status: "accepted", message_id: message_id, data: parsed })
     end
   rescue => e
     Rails.logger.error "Failed to send raffle email: #{e.message}"

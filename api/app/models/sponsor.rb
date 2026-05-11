@@ -5,6 +5,7 @@ class Sponsor < ApplicationRecord
   belongs_to :tournament
   has_many :sponsor_slots, dependent: :destroy
   has_many :golfers, dependent: :nullify
+  has_many :message_deliveries, as: :messageable, dependent: :nullify
   has_one_attached :logo
 
   # Legacy constant kept for backwards compatibility with scopes/seeds.
