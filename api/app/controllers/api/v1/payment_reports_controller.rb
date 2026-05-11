@@ -141,19 +141,7 @@ module Api
       def combined_ledger(registration_payments, raffle_sales)
         registration_rows = registration_payments
           .select { |row| row[:payment_status] == "paid" || row[:payment_status] == "refunded" }
-          .map do |row|
-            {
-              type: "registration",
-              name: row[:name],
-              detail: row[:partner_name].present? ? "Team with #{row[:partner_name]}" : "Registration",
-              payment_status: row[:payment_status],
-              payment_method: row[:payment_method],
-              amount_cents: row[:amount_cents],
-              paid_at: row[:paid_at] || row[:verified_at],
-              reference: row[:receipt_number],
-              notes: row[:payment_notes]
-            }
-          end
+          .flat_map { |row| registration_ledger_rows(row) }
 
         raffle_rows = raffle_sales
           .select { |row| row[:payment_status] == "paid" && row[:amount_cents].positive? }
@@ -172,6 +160,38 @@ module Api
           end
 
         (registration_rows + raffle_rows).sort_by { |row| row[:paid_at].presence || "" }
+      end
+
+      def registration_ledger_rows(row)
+        paid_at = row[:paid_at] || row[:verified_at]
+        rows = [
+          {
+            type: "registration",
+            name: row[:name],
+            detail: row[:partner_name].present? ? "Team with #{row[:partner_name]}" : "Registration",
+            payment_status: row[:payment_status] == "refunded" ? "paid" : row[:payment_status],
+            payment_method: row[:payment_method],
+            amount_cents: row[:amount_cents],
+            paid_at: paid_at,
+            reference: row[:receipt_number],
+            notes: row[:payment_notes]
+          }
+        ]
+
+        refund_amount_cents = row[:refund_amount_cents].to_i
+        return rows unless row[:payment_status] == "refunded" && refund_amount_cents.positive?
+
+        rows << {
+          type: "registration_refund",
+          name: row[:name],
+          detail: row[:partner_name].present? ? "Refund for team with #{row[:partner_name]}" : "Registration refund",
+          payment_status: "refunded",
+          payment_method: row[:payment_method],
+          amount_cents: -refund_amount_cents,
+          paid_at: row[:refunded_at] || paid_at,
+          reference: row[:receipt_number],
+          notes: row[:refund_reason]
+        }
       end
 
       def registration_amount_cents(golfer)

@@ -52,6 +52,23 @@ class Api::V1::PaymentReportsControllerTest < ActionDispatch::IntegrationTest
       waiver_accepted_at: Time.current,
       team_category: "Co-Ed"
     )
+    refunded_golfer = @tournament.golfers.create!(
+      name: "Refunded Team",
+      email: "refunded-team@example.com",
+      phone: "671-555-4444",
+      partner_name: "Refunded Partner",
+      payment_type: "swipe_simple",
+      payment_status: "refunded",
+      payment_method: "swipe_simple_confirmed",
+      payment_amount_cents: 30_000,
+      paid_at: Time.zone.parse("2026-04-30 10:00"),
+      registration_status: "cancelled",
+      waiver_accepted_at: Time.current,
+      team_category: "Co-Ed",
+      refund_amount_cents: 30_000,
+      refund_reason: "Unable to attend",
+      refunded_at: Time.zone.parse("2026-05-01 09:00")
+    )
 
     paid_ticket = @tournament.raffle_tickets.create!(
       purchaser_name: "Raffle Buyer",
@@ -99,6 +116,7 @@ class Api::V1::PaymentReportsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, json.dig("summary", "raffle_complimentary_ticket_count")
     assert_equal 1, json.dig("summary", "raffle_pending_ticket_count")
     assert_equal 1, json.dig("summary", "raffle_voided_ticket_count")
+    assert_equal 30_000, json.dig("summary", "refunded_registration_amount_cents")
 
     registration_row = json.fetch("registration_payments").find { |row| row["id"] == paid_golfer.id }
     assert_equal "registration", registration_row.fetch("type")
@@ -116,7 +134,12 @@ class Api::V1::PaymentReportsControllerTest < ActionDispatch::IntegrationTest
 
     ledger_types = json.fetch("combined_ledger").map { |row| row.fetch("type") }
     assert_includes ledger_types, "registration"
+    assert_includes ledger_types, "registration_refund"
     assert_includes ledger_types, "raffle"
+
+    refunded_ledger_rows = json.fetch("combined_ledger").select { |row| row.fetch("name") == refunded_golfer.name }
+    assert_equal [30_000, -30_000], refunded_ledger_rows.map { |row| row.fetch("amount_cents") }
+    assert_equal 0, refunded_ledger_rows.sum { |row| row.fetch("amount_cents") }
   end
 
   test "show requires tournament access" do

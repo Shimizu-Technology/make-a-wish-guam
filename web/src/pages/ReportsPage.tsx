@@ -694,7 +694,7 @@ function raffleExportRow(row: RaffleSaleReportRow) {
 
 function ledgerExportRow(row: CombinedLedgerReportRow) {
   return {
-    Type: row.type === 'registration' ? 'Registration' : 'Raffle',
+    Type: row.type === 'registration_refund' ? 'Registration Refund' : row.type === 'registration' ? 'Registration' : 'Raffle',
     Name: row.name,
     Detail: row.detail,
     Status: row.payment_status,

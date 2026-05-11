@@ -328,7 +328,7 @@ export interface RaffleSaleReportRow {
 }
 
 export interface CombinedLedgerReportRow {
-  type: 'registration' | 'raffle';
+  type: 'registration' | 'registration_refund' | 'raffle';
   name: string;
   detail: string;
   payment_status: string;
