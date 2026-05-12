@@ -12,6 +12,7 @@ module Api
         event_type = payload["type"].to_s
         data = (payload["data"] || {}).with_indifferent_access
         provider_message_id = data[:email_id].presence || data[:id].presence || data[:message_id].presence
+        return missing_provider_message_id_response if provider_message_id.blank?
 
         delivery = MessageDelivery.where(provider: "resend", provider_message_id: provider_message_id).recent.first
         return render json: { message: "No matching delivery", provider_message_id: provider_message_id }, status: :accepted if delivery.blank?
@@ -30,6 +31,8 @@ module Api
       def clicksend
         payload = webhook_payload
         provider_message_id = payload["message_id"].presence || payload["original_message_id"].presence
+        return missing_provider_message_id_response if provider_message_id.blank?
+
         delivery = MessageDelivery.where(provider: "clicksend", provider_message_id: provider_message_id).recent.first
         return render json: { message: "No matching delivery", provider_message_id: provider_message_id }, status: :accepted if delivery.blank?
 
@@ -69,6 +72,10 @@ module Api
           provided.to_s.bytesize == expected.to_s.bytesize &&
           ActiveSupport::SecurityUtils.secure_compare(provided.to_s, expected.to_s)
         render json: { error: "Invalid webhook token" }, status: :unauthorized unless valid
+      end
+
+      def missing_provider_message_id_response
+        render json: { message: "Missing provider message id" }, status: :accepted
       end
 
       def resend_status(event_type, current_status:)

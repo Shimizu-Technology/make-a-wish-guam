@@ -100,4 +100,50 @@ class Api::V1::DeliveryWebhooksControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, delivery.response_payload.fetch("events").length
     assert_equal "pending", delivery.response_payload.fetch("events").first.fetch("status")
   end
+
+  test "resend webhook without message id does not mutate nil-id deliveries" do
+    delivery = MessageDelivery.create!(
+      provider: "resend",
+      channel: "email",
+      purpose: "sponsor_portal_invite",
+      recipient: "sponsor@example.com",
+      status: "pending",
+      provider_message_id: nil
+    )
+
+    post "/api/v1/webhooks/resend",
+         params: {
+           type: "email.delivered",
+           data: {}
+         }
+
+    assert_response :accepted
+    delivery.reload
+    assert_equal "pending", delivery.status
+    assert_nil delivery.provider_status_text
+    assert_empty delivery.response_payload
+  end
+
+  test "clicksend webhook without message id does not mutate nil-id deliveries" do
+    delivery = MessageDelivery.create!(
+      provider: "clicksend",
+      channel: "sms",
+      purpose: "raffle_winner_notification",
+      recipient: "+16715550123",
+      status: "pending",
+      provider_message_id: nil
+    )
+
+    post "/api/v1/webhooks/clicksend",
+         params: {
+           status_code: "200",
+           status_text: "Message delivered to the handset"
+         }
+
+    assert_response :accepted
+    delivery.reload
+    assert_equal "pending", delivery.status
+    assert_nil delivery.provider_status_text
+    assert_empty delivery.response_payload
+  end
 end
