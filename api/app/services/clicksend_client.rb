@@ -121,6 +121,8 @@ class ClicksendClient
       end
 
       text = status_text.presence || top_message
+      return true if text.blank?
+
       normalized = MessageDelivery.normalize_status(text)
       %w[accepted delivered delayed].include?(normalized) && !MessageDelivery.failure_status_text?(text)
     end

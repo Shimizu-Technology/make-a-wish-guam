@@ -68,4 +68,24 @@ class ClicksendClientTest < ActiveSupport::TestCase
     assert_equal "sms_credit_123", result.fetch(:message_id)
     assert_equal "INSUFFICIENT_CREDIT", result.fetch(:error)
   end
+
+  test "normalizes top-level success with blank message details as accepted" do
+    response = {
+      "response_code" => "SUCCESS",
+      "response_msg" => "",
+      "data" => {
+        "messages" => [
+          {
+            "message_id" => "sms_blank_123"
+          }
+        ]
+      }
+    }
+
+    result = ClicksendClient.send(:normalize_send_response, response)
+
+    assert_equal true, result.fetch(:success)
+    assert_equal "accepted", result.fetch(:status)
+    assert_equal "sms_blank_123", result.fetch(:message_id)
+  end
 end

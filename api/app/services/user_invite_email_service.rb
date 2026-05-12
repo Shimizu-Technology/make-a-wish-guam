@@ -35,17 +35,18 @@ class UserInviteEmailService
         error_msg = parsed["message"] || parsed["error"] || parsed[:error] || "Unknown error"
         Rails.logger.error("[InviteEmail] failed for #{user.email}: #{error_msg}")
         MessageDeliveryTracker.track_result!(delivery, { success: false, status: "failed", error: error_msg, data: parsed })
+        false
       else
         message_id = parsed.is_a?(Hash) ? (parsed["id"] || parsed[:id]) : nil
         MessageDeliveryTracker.track_result!(delivery, { success: true, status: "accepted", message_id: message_id, data: parsed })
+        true
       end
     rescue StandardError => e
       Rails.logger.error("[InviteEmail] failed for #{user.email}: #{e.class} #{e.message}")
       if defined?(delivery) && delivery.present?
         MessageDeliveryTracker.track_result!(delivery, { success: false, status: "failed", error: e.message })
-      else
-        false
       end
+      false
     end
 
     def configured?
