@@ -10,7 +10,7 @@ module Api
       def resend
         payload = webhook_payload
         event_type = payload["type"].to_s
-        data = (payload["data"] || {}).with_indifferent_access
+        data = webhook_data(payload)
         provider_message_id = data[:email_id].presence || data[:id].presence || data[:message_id].presence
         return missing_provider_message_id_response if provider_message_id.blank?
 
@@ -76,6 +76,11 @@ module Api
 
       def missing_provider_message_id_response
         render json: { message: "Missing provider message id" }, status: :accepted
+      end
+
+      def webhook_data(payload)
+        data = payload["data"]
+        data.is_a?(Hash) ? data.with_indifferent_access : {}.with_indifferent_access
       end
 
       def resend_status(event_type, current_status:)

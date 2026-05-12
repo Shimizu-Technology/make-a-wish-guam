@@ -124,6 +124,18 @@ class Api::V1::DeliveryWebhooksControllerTest < ActionDispatch::IntegrationTest
     assert_empty delivery.response_payload
   end
 
+  test "resend webhook with non-object data is accepted without retrying" do
+    post "/api/v1/webhooks/resend",
+         params: {
+           type: "email.delivered",
+           data: "unexpected"
+         }
+
+    assert_response :accepted
+    json = JSON.parse(response.body)
+    assert_equal "Missing provider message id", json.fetch("message")
+  end
+
   test "clicksend webhook without message id does not mutate nil-id deliveries" do
     delivery = MessageDelivery.create!(
       provider: "clicksend",
