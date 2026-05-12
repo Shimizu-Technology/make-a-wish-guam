@@ -512,7 +512,7 @@ export const RaffleBoardPage: React.FC = () => {
               <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl">{liveDraw.prizeName}</h2>
               <p className="mt-2 text-sm text-white/75">
                 Drawing from {liveDraw.eligibleTicketCount.toLocaleString()} ticket{liveDraw.eligibleTicketCount === 1 ? '' : 's'} in this draw.
-                {liveDraw.previewTicketSampleIsSample && (
+                {liveDraw.phase === 'spinning' && liveDraw.previewTicketSampleIsSample && (
                   <span className="block">
                     The animation is rotating through {liveDraw.previewTicketSampleCount.toLocaleString()} sample ticket numbers while the server draws from the full eligible pool.
                   </span>

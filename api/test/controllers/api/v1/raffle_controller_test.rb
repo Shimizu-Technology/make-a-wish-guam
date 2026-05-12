@@ -785,6 +785,15 @@ class Api::V1::RaffleControllerTest < ActionDispatch::IntegrationTest
     assert_empty json.fetch("tickets")
   end
 
+  test "delivery summary masks recipient values for activity logs" do
+    controller = Api::V1::RaffleController.new
+
+    assert_equal "w***@example.com", controller.send(:mask_delivery_recipient, "winner@example.com")
+    assert_equal "****0123", controller.send(:mask_delivery_recipient, "+16715550123")
+    assert_equal "****", controller.send(:mask_delivery_recipient, "abc")
+    assert_nil controller.send(:mask_delivery_recipient, nil)
+  end
+
   private
 
   def build_png_upload

@@ -1062,12 +1062,28 @@ module Api
             provider: delivery.provider,
             purpose: delivery.purpose,
             status: delivery.status,
-            recipient: delivery.recipient,
+            recipient: mask_delivery_recipient(delivery.recipient),
             message_id: delivery.provider_message_id,
             error: delivery.error_text,
             created_at: delivery.created_at&.iso8601
           }
         end
+      end
+
+      def mask_delivery_recipient(recipient)
+        value = recipient.to_s
+        return nil if value.blank?
+
+        if value.include?("@")
+          local, domain = value.split("@", 2)
+          masked_local = local.present? ? "#{local[0]}***" : "***"
+          return "#{masked_local}@#{domain}"
+        end
+
+        digits = value.gsub(/\D/, "")
+        return "****#{digits.last(4)}" if digits.length >= 4
+
+        "****"
       end
 
       def ticket_response(ticket, admin: false)
