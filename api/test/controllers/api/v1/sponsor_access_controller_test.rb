@@ -80,15 +80,31 @@ class Api::V1::SponsorAccessControllerTest < ActionDispatch::IntegrationTest
       slot_count: 2
     )
 
-    ActionMailer::Base.deliveries.clear
+    sent_sponsor_ids = []
+    stub = ->(sponsor:, token:) do
+      sent_sponsor_ids << sponsor.id
+      { success: true, status: "accepted", message_id: "email_#{sponsor.id}" }
+    end
 
-    post "/api/v1/sponsor_access/request_link",
-         params: { email: @sponsor.login_email }
+    with_singleton_method(SponsorAccessEmailService, :send_access_link, stub) do
+      post "/api/v1/sponsor_access/request_link",
+           params: { email: @sponsor.login_email }
+    end
 
     assert_response :success
-    assert_equal 2, ActionMailer::Base.deliveries.size
+    assert_equal [ @sponsor.id, second_sponsor.id ].sort, sent_sponsor_ids.sort
     assert @sponsor.reload.access_token.present?
     assert second_sponsor.reload.access_token.present?
     assert_nil inactive_sponsor.reload.access_token
+  end
+
+  private
+
+  def with_singleton_method(klass, method_name, replacement)
+    original = klass.method(method_name)
+    klass.define_singleton_method(method_name, replacement)
+    yield
+  ensure
+    klass.define_singleton_method(method_name, original)
   end
 end

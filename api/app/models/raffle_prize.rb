@@ -4,6 +4,7 @@ class RafflePrize < ApplicationRecord
   # Associations
   belongs_to :tournament
   belongs_to :winning_ticket, class_name: 'RaffleTicket', optional: true
+  has_many :message_deliveries, as: :messageable, dependent: :nullify
 
   # Active Storage
   has_one_attached :image
@@ -59,6 +60,9 @@ class RafflePrize < ApplicationRecord
           update!(
             won: true,
             won_at: Time.current,
+            draw_id: draw_id,
+            draw_eligible_ticket_count: eligible_snapshot[:count],
+            draw_preview_ticket_numbers: eligible_snapshot[:preview_numbers],
             winning_ticket: winning_ticket,
             winner_name: winning_ticket.purchaser_name,
             winner_email: winning_ticket.purchaser_email,
@@ -96,6 +100,9 @@ class RafflePrize < ApplicationRecord
       update!(
         won: false,
         won_at: nil,
+        draw_id: nil,
+        draw_eligible_ticket_count: nil,
+        draw_preview_ticket_numbers: [],
         winning_ticket: nil,
         winner_name: nil,
         winner_email: nil,
@@ -131,6 +138,8 @@ class RafflePrize < ApplicationRecord
         prize: as_json(only: [:id, :name, :tier, :value_cents]),
         eligible_ticket_count: eligible_snapshot[:count],
         preview_ticket_numbers: eligible_snapshot[:preview_numbers],
+        preview_ticket_sample_count: eligible_snapshot[:preview_numbers].length,
+        preview_ticket_sample_is_sample: eligible_snapshot[:preview_numbers].length < eligible_snapshot[:count],
         started_at: Time.current.iso8601
       }
     )
@@ -145,6 +154,8 @@ class RafflePrize < ApplicationRecord
         action: 'prize_won',
         draw_id: draw_id,
         eligible_ticket_count: eligible_snapshot[:count],
+        preview_ticket_sample_count: eligible_snapshot[:preview_numbers].length,
+        preview_ticket_sample_is_sample: eligible_snapshot[:preview_numbers].length < eligible_snapshot[:count],
         prize: as_json(only: [:id, :name, :tier, :value_cents, :winner_name, :won_at]).merge(
           winning_ticket: { ticket_number: winning_ticket&.display_number }
         )
@@ -157,14 +168,16 @@ class RafflePrize < ApplicationRecord
   def notify_winner
     if winner_email.present?
       begin
-        RaffleMailer.winner_email(self)
+        delivery = RaffleMailer.winner_email(self)
+        Rails.logger.error("Raffle winner email delivery failed for prize #{id}: #{delivery[:error]}") if delivery.respond_to?(:[]) && delivery[:success] == false
       rescue => e
         Rails.logger.error "Failed to send raffle winner email: #{e.message}"
       end
     end
 
     begin
-      RaffleSmsService.winner_notification(raffle_prize: self)
+      delivery = RaffleSmsService.winner_notification(raffle_prize: self)
+      Rails.logger.error("Raffle winner SMS delivery failed for prize #{id}: #{delivery[:error]}") if delivery.respond_to?(:[]) && delivery[:success] == false
     rescue => e
       Rails.logger.error "Failed to send raffle winner SMS: #{e.message}"
     end

@@ -2,8 +2,9 @@
 
 class RaffleSmsService
   class << self
-    def purchase_confirmation(tickets:, buyer_phone:, buyer_name:, tournament:)
-      return unless buyer_phone.present? && ClicksendClient.configured?
+    def purchase_confirmation(tickets:, buyer_phone:, buyer_name:, tournament:, delivery: nil)
+      return skip_delivery!(delivery, "No phone number provided") unless buyer_phone.present?
+      return skip_delivery!(delivery, "ClickSend is not configured") unless ClicksendClient.configured?
 
       ticket_numbers = tickets.map(&:display_number).join(", ")
       total_cents = tickets.sum(&:price_cents)
@@ -16,16 +17,30 @@ class RaffleSmsService
              "Total: #{total_dollars}\n\n" \
              "Hold on to these numbers — winners will be contacted by text or email. Good luck!"
 
-      ClicksendClient.send_sms(to: buyer_phone, body: body)
+      delivery ||= MessageDeliveryTracker.create!(
+        provider: "clicksend",
+        channel: "sms",
+        purpose: "raffle_ticket_confirmation",
+        recipient: buyer_phone,
+        tournament: tournament,
+        messageable: tickets.first,
+        request_payload: { ticket_ids: tickets.map(&:id), ticket_numbers: ticket_numbers, body_chars: body.length },
+        metadata: { buyer_name: buyer_name, ticket_count: tickets.size }
+      )
+
+      result = ClicksendClient.send_sms(to: buyer_phone, body: body)
+      MessageDeliveryTracker.track_result!(delivery, result)
     rescue => e
       Rails.logger.error("[RaffleSmsService] purchase_confirmation failed: #{e.message}")
-      { success: false, error: e.message }
+      result = { success: false, status: "failed", error: e.message }
+      defined?(delivery) && delivery.present? ? MessageDeliveryTracker.track_result!(delivery, result) : result
     end
 
-    def winner_notification(raffle_prize:)
+    def winner_notification(raffle_prize:, delivery: nil)
       ticket = raffle_prize.winning_ticket
       phone = raffle_prize.winner_phone.presence || ticket&.purchaser_phone
-      return unless phone.present? && ClicksendClient.configured?
+      return skip_delivery!(delivery, "No winner phone available") unless phone.present?
+      return skip_delivery!(delivery, "ClickSend is not configured") unless ClicksendClient.configured?
 
       tournament = raffle_prize.tournament
       org_name = tournament.organization&.name || "Make-A-Wish Guam & CNMI"
@@ -45,10 +60,34 @@ class RaffleSmsService
         body += " Call/text: #{tournament.contact_phone}"
       end
 
-      ClicksendClient.send_sms(to: phone, body: body)
+      delivery ||= MessageDeliveryTracker.create!(
+        provider: "clicksend",
+        channel: "sms",
+        purpose: "raffle_winner_notification",
+        recipient: phone,
+        tournament: tournament,
+        messageable: raffle_prize,
+        request_payload: { prize_id: raffle_prize.id, ticket_number: ticket&.display_number, body_chars: body.length },
+        metadata: { winner_name: raffle_prize.winner_name }
+      )
+
+      result = ClicksendClient.send_sms(to: phone, body: body)
+      MessageDeliveryTracker.track_result!(delivery, result)
     rescue => e
       Rails.logger.error("[RaffleSmsService] winner_notification failed: #{e.message}")
-      { success: false, error: e.message }
+      result = { success: false, status: "failed", error: e.message }
+      defined?(delivery) && delivery.present? ? MessageDeliveryTracker.track_result!(delivery, result) : result
+    end
+
+    private
+
+    def skip_delivery!(delivery, reason)
+      return unless delivery.present?
+
+      MessageDeliveryTracker.track_result!(
+        delivery,
+        { success: false, skipped: true, status: "skipped", error: reason }
+      )
     end
   end
 end

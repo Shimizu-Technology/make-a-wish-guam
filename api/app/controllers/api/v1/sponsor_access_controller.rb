@@ -22,7 +22,7 @@ module Api
             token = sponsor.generate_access_token!
             # Send access links synchronously so this login flow does not depend on
             # the in-process async job adapter in production.
-            SponsorMailer.access_link(sponsor, token).deliver_now
+            SponsorAccessEmailService.send_access_link(sponsor: sponsor, token: token)
           rescue StandardError => e
             Rails.logger.error("Failed to send sponsor access link for sponsor #{sponsor.id}: #{e.message}")
           end
