@@ -38,7 +38,8 @@ class MessageDelivery < ApplicationRecord
     update!(
       status: "skipped",
       error_text: reason,
-      last_event_at: Time.current
+      last_event_at: Time.current,
+      failed_at: Time.current
     )
   end
 

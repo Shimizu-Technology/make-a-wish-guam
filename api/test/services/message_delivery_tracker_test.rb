@@ -23,4 +23,37 @@ class MessageDeliveryTrackerTest < ActiveSupport::TestCase
     assert_equal "skipped", MessageDelivery.normalize_status("skipped")
     assert_equal "failed", MessageDelivery.normalize_status("invalid recipient")
   end
+
+  test "nil delivery result marks an existing delivery as skipped and terminal" do
+    delivery = MessageDelivery.create!(
+      provider: "resend",
+      channel: "email",
+      purpose: "sponsor_portal_invite",
+      recipient: "sponsor@example.com",
+      status: "pending"
+    )
+
+    result = MessageDeliveryTracker.track_result!(delivery, nil)
+
+    assert_equal false, result.fetch(:success)
+    assert_equal "skipped", delivery.reload.status
+    assert_equal "Delivery service not configured", delivery.error_text
+    assert delivery.failed_at.present?
+  end
+
+  test "mark skipped stamps failed_at consistently" do
+    delivery = MessageDelivery.create!(
+      provider: "resend",
+      channel: "email",
+      purpose: "sponsor_portal_invite",
+      recipient: "sponsor@example.com",
+      status: "pending"
+    )
+
+    delivery.mark_skipped!("No configured provider")
+
+    assert_equal "skipped", delivery.reload.status
+    assert_equal "No configured provider", delivery.error_text
+    assert delivery.failed_at.present?
+  end
 end
