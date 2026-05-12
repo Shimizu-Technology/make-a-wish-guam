@@ -77,6 +77,57 @@ class RaffleDeliveryExceptionTrackingTest < ActiveSupport::TestCase
     ENV["RESEND_API_KEY"] = previous_key
   end
 
+  test "purchase confirmation SMS marks injected delivery skipped before early return" do
+    ticket = @tournament.raffle_tickets.create!(
+      purchaser_name: "SMS Buyer",
+      price_cents: 500,
+      payment_status: "paid",
+      purchased_at: Time.current
+    )
+    delivery = MessageDelivery.create!(
+      provider: "clicksend",
+      channel: "sms",
+      purpose: "raffle_ticket_confirmation",
+      recipient: "+16715550123",
+      status: "pending"
+    )
+
+    result = RaffleSmsService.purchase_confirmation(
+      tickets: [ ticket ],
+      buyer_phone: nil,
+      buyer_name: "SMS Buyer",
+      tournament: @tournament,
+      delivery: delivery
+    )
+
+    assert_equal false, result.fetch(:success)
+    assert_equal "skipped", delivery.reload.status
+    assert_equal "No phone number provided", delivery.error_text
+    assert delivery.failed_at.present?
+  end
+
+  test "winner notification SMS marks injected delivery skipped when ClickSend is unavailable" do
+    delivery = MessageDelivery.create!(
+      provider: "clicksend",
+      channel: "sms",
+      purpose: "raffle_winner_notification",
+      recipient: "+16715550123",
+      status: "pending"
+    )
+
+    with_singleton_method(ClicksendClient, :configured?, -> { false }) do
+      result = RaffleSmsService.winner_notification(
+        raffle_prize: winner_prize,
+        delivery: delivery
+      )
+
+      assert_equal false, result.fetch(:success)
+      assert_equal "skipped", delivery.reload.status
+      assert_equal "ClickSend is not configured", delivery.error_text
+      assert delivery.failed_at.present?
+    end
+  end
+
   private
 
   def winner_prize
