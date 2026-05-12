@@ -20,6 +20,7 @@ class MessageDelivery < ApplicationRecord
 
   def mark_from_result!(result)
     normalized = result.to_h.with_indifferent_access
+    payload = normalized[:data].presence || normalized[:raw_response].presence
     update!(
       status: normalized[:status].presence || (normalized[:success] ? "accepted" : "failed"),
       provider_message_id: normalized[:message_id].presence || provider_message_id,
@@ -27,7 +28,7 @@ class MessageDelivery < ApplicationRecord
       provider_status_text: normalized[:provider_status_text].presence || normalized[:status_text].presence || provider_status_text,
       error_code: normalized[:error_code].presence || error_code,
       error_text: normalized[:error].presence || normalized[:error_text].presence || error_text,
-      response_payload: normalized[:data].presence || normalized[:raw_response].presence || response_payload,
+      response_payload: payload.present? ? self.class.normalize_response_payload(payload) : response_payload,
       last_event_at: Time.current,
       delivered_at: delivered_status?(normalized[:status]) ? Time.current : delivered_at,
       failed_at: failed_status?(normalized[:status]) || normalized[:success] == false ? Time.current : failed_at
@@ -96,6 +97,12 @@ class MessageDelivery < ApplicationRecord
 
   def self.failure_status_text?(text)
     text.to_s.match?(/fail|invalid|reject|bounce|undeliver|expired|blocked|unsubscribed|spam|insufficient|credit|balance|unauthori[sz]ed|forbidden|quota|limit|opt.?out|stopped|cancel/i)
+  end
+
+  def self.normalize_response_payload(payload)
+    return payload if payload.is_a?(Hash)
+
+    { "raw_response" => payload }
   end
 
   private

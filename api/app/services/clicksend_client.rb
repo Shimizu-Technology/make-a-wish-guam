@@ -69,7 +69,12 @@ class ClicksendClient
         result
       else
         Rails.logger.error("[ClicksendClient] HTTP #{response.code}: #{response.body}")
-        { success: false, status: "failed", error: "http_#{response.code}", raw_response: response.body }
+        {
+          success: false,
+          status: "failed",
+          error: "http_#{response.code}",
+          data: { http_status: response.code.to_i, raw_response: response.body }
+        }
       end
     end
 

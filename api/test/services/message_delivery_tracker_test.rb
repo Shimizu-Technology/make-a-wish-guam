@@ -56,4 +56,24 @@ class MessageDeliveryTrackerTest < ActiveSupport::TestCase
     assert_equal "No configured provider", delivery.error_text
     assert delivery.failed_at.present?
   end
+
+  test "raw string responses are wrapped before storing in response payload" do
+    delivery = MessageDelivery.create!(
+      provider: "clicksend",
+      channel: "sms",
+      purpose: "raffle_winner_notification",
+      recipient: "+16715550123",
+      status: "pending"
+    )
+
+    MessageDeliveryTracker.track_result!(
+      delivery,
+      { success: false, status: "failed", error: "http_500", raw_response: "upstream unavailable" }
+    )
+
+    delivery.reload
+    assert_equal "failed", delivery.status
+    assert_equal "upstream unavailable", delivery.response_payload.fetch("raw_response")
+    assert delivery.failed_at.present?
+  end
 end
