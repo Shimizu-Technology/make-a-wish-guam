@@ -31,7 +31,8 @@ class RaffleSmsService
       MessageDeliveryTracker.track_result!(delivery, result)
     rescue => e
       Rails.logger.error("[RaffleSmsService] purchase_confirmation failed: #{e.message}")
-      { success: false, error: e.message }
+      result = { success: false, status: "failed", error: e.message }
+      defined?(delivery) && delivery.present? ? MessageDeliveryTracker.track_result!(delivery, result) : result
     end
 
     def winner_notification(raffle_prize:, delivery: nil)
@@ -72,7 +73,8 @@ class RaffleSmsService
       MessageDeliveryTracker.track_result!(delivery, result)
     rescue => e
       Rails.logger.error("[RaffleSmsService] winner_notification failed: #{e.message}")
-      { success: false, error: e.message }
+      result = { success: false, status: "failed", error: e.message }
+      defined?(delivery) && delivery.present? ? MessageDeliveryTracker.track_result!(delivery, result) : result
     end
   end
 end

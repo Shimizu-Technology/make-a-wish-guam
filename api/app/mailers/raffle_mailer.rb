@@ -245,7 +245,8 @@ class RaffleMailer
     end
   rescue => e
     Rails.logger.error "Failed to send raffle email: #{e.message}"
-    { success: false, error: e.message }
+    result = { success: false, status: "failed", error: e.message }
+    defined?(delivery) && delivery.present? ? MessageDeliveryTracker.track_result!(delivery, result) : result
   end
 
   def resend_configured?
