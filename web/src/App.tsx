@@ -40,6 +40,7 @@ import { PostHogPageView } from './providers/PostHogProvider';
 import { OffseasonPage } from './pages/OffseasonPage';
 
 const MAW_SLUG = 'make-a-wish-guam';
+// Use VITE_SERVICE_MODE=live to load the API-backed event application.
 const serviceMode = import.meta.env.VITE_SERVICE_MODE || 'offseason';
 
 function MAWWrapper({ children }: { children: React.ReactNode }) {
