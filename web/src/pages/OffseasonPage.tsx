@@ -1,6 +1,6 @@
-import { CalendarClock, ExternalLink, Heart, Sparkles, Trophy } from 'lucide-react';
+import { CalendarClock, ExternalLink, Heart, RefreshCw, Sparkles, Trophy } from 'lucide-react';
 
-export function OffseasonPage() {
+export function OffseasonPage({ onRetry }: { onRetry?: () => void }) {
   return (
     <main className="min-h-screen bg-white text-neutral-900">
       <section className="relative min-h-[560px] overflow-hidden bg-[#0057B8] text-white">
@@ -15,9 +15,12 @@ export function OffseasonPage() {
           <p className="mt-6 max-w-2xl text-lg leading-8 text-white/85">
             The May 2, 2026 Golf for Wishes event is complete and online registration is closed. We are grateful to the golfers, sponsors, volunteers, and supporters who made the day possible.
           </p>
-          <a href="https://wish.org/guam" target="_blank" rel="noopener noreferrer" className="mt-9 inline-flex w-fit items-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-[#0057B8] transition hover:bg-blue-50">
-            Visit Make-A-Wish Guam & CNMI <ExternalLink size={17} />
-          </a>
+          <div className="mt-9 flex flex-col items-start gap-3 sm:flex-row">
+            <a href="https://wish.org/guam" target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-[#0057B8] transition hover:bg-blue-50">
+              Visit Make-A-Wish Guam & CNMI <ExternalLink size={17} />
+            </a>
+            {onRetry ? <button type="button" onClick={onRetry} className="inline-flex items-center gap-2 rounded-lg border border-white/40 px-6 py-3 font-semibold text-white hover:bg-white/10"><RefreshCw size={17} /> Check services again</button> : null}
+          </div>
         </div>
       </section>
 
