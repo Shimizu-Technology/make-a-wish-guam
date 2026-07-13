@@ -40,6 +40,8 @@ Rails.application.routes.draw do
 
       # Webhooks (public, authenticated via signature)
       post 'webhooks/stripe' => 'webhooks#stripe'
+      post 'webhooks/resend' => 'delivery_webhooks#resend'
+      post 'webhooks/clicksend' => 'delivery_webhooks#clicksend'
 
       # Golfer Auth (public - for scoring access)
       post 'golfer_auth/request_link' => 'golfer_auth#request_link'

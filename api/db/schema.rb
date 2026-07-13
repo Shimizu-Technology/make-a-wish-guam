@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_11_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_12_121000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -140,6 +140,36 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_11_110000) do
     t.index ["tournament_id"], name: "index_groups_on_tournament_id"
   end
 
+  create_table "message_deliveries", force: :cascade do |t|
+    t.string "channel", null: false
+    t.datetime "created_at", null: false
+    t.datetime "delivered_at"
+    t.string "error_code"
+    t.text "error_text"
+    t.datetime "failed_at"
+    t.datetime "last_event_at"
+    t.bigint "messageable_id"
+    t.string "messageable_type"
+    t.jsonb "metadata", default: {}, null: false
+    t.string "provider", null: false
+    t.string "provider_message_id"
+    t.string "provider_status_code"
+    t.string "provider_status_text"
+    t.string "purpose", null: false
+    t.string "recipient", null: false
+    t.jsonb "request_payload", default: {}, null: false
+    t.jsonb "response_payload", default: {}, null: false
+    t.string "status", default: "pending", null: false
+    t.bigint "tournament_id"
+    t.datetime "updated_at", null: false
+    t.index ["messageable_type", "messageable_id"], name: "index_message_deliveries_on_messageable"
+    t.index ["provider", "provider_message_id"], name: "index_message_deliveries_on_provider_and_provider_message_id"
+    t.index ["provider_message_id"], name: "index_message_deliveries_on_provider_message_id"
+    t.index ["purpose", "status"], name: "index_message_deliveries_on_purpose_and_status"
+    t.index ["recipient", "created_at"], name: "index_message_deliveries_on_recipient_and_created_at"
+    t.index ["tournament_id"], name: "index_message_deliveries_on_tournament_id"
+  end
+
   create_table "organization_memberships", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.uuid "organization_id", null: false
@@ -173,6 +203,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_11_110000) do
     t.datetime "claimed_at"
     t.datetime "created_at", null: false
     t.text "description"
+    t.integer "draw_eligible_ticket_count"
+    t.string "draw_id"
+    t.jsonb "draw_preview_ticket_numbers", default: [], null: false
     t.string "image_url"
     t.string "name", null: false
     t.integer "position", default: 0
@@ -188,6 +221,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_11_110000) do
     t.bigint "winning_ticket_id"
     t.boolean "won", default: false
     t.datetime "won_at"
+    t.index ["draw_id"], name: "index_raffle_prizes_on_draw_id"
     t.index ["tournament_id", "position"], name: "index_raffle_prizes_on_tournament_id_and_position"
     t.index ["tournament_id", "tier"], name: "index_raffle_prizes_on_tournament_id_and_tier"
     t.index ["tournament_id"], name: "index_raffle_prizes_on_tournament_id"
@@ -458,6 +492,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_11_110000) do
   add_foreign_key "golfers", "tournaments"
   add_foreign_key "golfers", "users", column: "refunded_by_id", on_delete: :nullify
   add_foreign_key "groups", "tournaments"
+  add_foreign_key "message_deliveries", "tournaments", on_delete: :nullify
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "raffle_prizes", "raffle_tickets", column: "winning_ticket_id"
